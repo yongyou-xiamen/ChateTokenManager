@@ -171,12 +171,6 @@ const router = createRouter({
           meta: { permission: 'user:read' },
         },
         {
-          path: 'system/license',
-          name: 'LicenseView',
-          component: () => import('../views/system/LicenseView.vue'),
-          meta: { permission: 'user:read' },
-        },
-        {
           path: 'ai-health',
           name: 'AIHealth',
           component: () => import('../views/efficiency/HealthView.vue'),

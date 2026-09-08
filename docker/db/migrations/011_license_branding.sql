@@ -1,15 +1,3 @@
-CREATE TABLE IF NOT EXISTS aihelms.license (
-    id INTEGER PRIMARY KEY DEFAULT 1,
-    licensed_to TEXT,
-    features JSONB NOT NULL DEFAULT '[]',
-    issued_at TIMESTAMPTZ,
-    expires_at TIMESTAMPTZ,
-    license_key TEXT,
-    status TEXT NOT NULL DEFAULT 'invalid',
-    imported_at TIMESTAMPTZ,
-    CONSTRAINT license_singleton CHECK (id = 1)
-);
-
 CREATE TABLE IF NOT EXISTS aihelms.branding (
     id INTEGER PRIMARY KEY DEFAULT 1,
     platform_name TEXT NOT NULL DEFAULT 'AIHelms',

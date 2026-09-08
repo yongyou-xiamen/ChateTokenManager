@@ -5,13 +5,11 @@ from xml.etree import ElementTree
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
-from exceptions import ForbiddenError, ValidationError
+from exceptions import ValidationError
 from repositories import branding_repo
-from services import license_service
 
 logger = logging.getLogger(__name__)
 
-WHITELABEL_FEATURE = "whitelabel"
 DEFAULT_PLATFORM_NAME = "AIHelms"
 LOGO_EXTS = {"png": "image/png", "svg": "image/svg+xml"}
 SQUARE_LOGO_EXTS = {"png", "svg"}
@@ -29,19 +27,7 @@ def _branding_dir() -> Path:
     return path
 
 
-async def ensure_whitelabel(session: AsyncSession) -> None:
-    if not await license_service.is_feature_enabled(session, WHITELABEL_FEATURE):
-        raise ForbiddenError("该功能需要企业版授权")
-
-
 async def get_branding(session: AsyncSession) -> dict[str, object]:
-    if not await license_service.is_feature_enabled(session, WHITELABEL_FEATURE):
-        return {
-            "platform_name": DEFAULT_PLATFORM_NAME,
-            "has_logo": False,
-            "has_square_logo": False,
-            "has_favicon": False,
-        }
     row = await branding_repo.get(session)
     return {
         "platform_name": row.platform_name,
@@ -52,7 +38,6 @@ async def get_branding(session: AsyncSession) -> dict[str, object]:
 
 
 async def update_platform_name(session: AsyncSession, name: str) -> dict[str, object]:
-    await ensure_whitelabel(session)
     normalized = name.strip()
     if not normalized:
         raise ValidationError("平台名称不能为空")
@@ -124,7 +109,6 @@ async def _save_asset(
     favicon: bool = False,
     square_logo: bool = False,
 ) -> None:
-    await ensure_whitelabel(session)
     _validate_image(content, ext, favicon=favicon, square_logo=square_logo)
     stem = "square_logo" if square_logo else "favicon" if favicon else "logo"
     directory = _branding_dir()
@@ -176,21 +160,15 @@ def _read_asset(
 
 
 async def read_logo(session: AsyncSession) -> tuple[bytes, str] | None:
-    if not await license_service.is_feature_enabled(session, WHITELABEL_FEATURE):
-        return None
     row = await branding_repo.get(session)
     return _read_asset(row.logo_path, LOGO_EXTS)
 
 
 async def read_square_logo(session: AsyncSession) -> tuple[bytes, str] | None:
-    if not await license_service.is_feature_enabled(session, WHITELABEL_FEATURE):
-        return None
     row = await branding_repo.get(session)
     return _read_asset(row.square_logo_path, LOGO_EXTS)
 
 
 async def read_favicon(session: AsyncSession) -> tuple[bytes, str] | None:
-    if not await license_service.is_feature_enabled(session, WHITELABEL_FEATURE):
-        return None
     row = await branding_repo.get(session)
     return _read_asset(row.favicon_path, FAVICON_EXTS)

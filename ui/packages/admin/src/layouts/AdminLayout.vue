@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useAuth, useBranding, useLicense } from '@aihelms/shared'
+import { useAuth, useBranding } from '@aihelms/shared'
 import Sidebar from '../components/Sidebar.vue'
 import HeaderBar from '../components/HeaderBar.vue'
 
 const { fetchCurrentUser } = useAuth()
-const { refresh: refreshLicense } = useLicense()
 const { refresh: refreshBranding, applyToDocument } = useBranding()
 const sidebarOpen = ref(false)
 
 onMounted(async () => {
   await fetchCurrentUser()
-  await Promise.all([refreshLicense(), refreshBranding()])
+  await refreshBranding()
   applyToDocument()
 })
 </script>

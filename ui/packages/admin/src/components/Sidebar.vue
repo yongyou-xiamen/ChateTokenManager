@@ -121,7 +121,6 @@ const menuGroups = ref<{ title: string; icon?: Component; items: MenuItem[] }[]>
     icon: Settings,
     items: [
       { label: '品牌', icon: Palette, path: '/system/branding', permission: 'user:read' },
-      { label: 'License', icon: KeyRound, path: '/system/license', permission: 'user:read' },
     ],
   },
   {

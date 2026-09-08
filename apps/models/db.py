@@ -1,7 +1,18 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, Boolean, ForeignKey, String, Text, Integer, Numeric, func, UniqueConstraint, DateTime
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    ForeignKey,
+    String,
+    Text,
+    Integer,
+    Numeric,
+    func,
+    UniqueConstraint,
+    DateTime,
+)
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -27,11 +38,19 @@ class User(Base):
     is_super_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     litellm_user_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
-    roles: Mapped[list["UserRole"]] = relationship(back_populates="user", lazy="selectin")
-    departments: Mapped[list["UserDepartment"]] = relationship(back_populates="user", lazy="selectin")
-    projects: Mapped[list["UserProject"]] = relationship(back_populates="user", lazy="selectin")
+    roles: Mapped[list["UserRole"]] = relationship(
+        back_populates="user", lazy="selectin"
+    )
+    departments: Mapped[list["UserDepartment"]] = relationship(
+        back_populates="user", lazy="selectin"
+    )
+    projects: Mapped[list["UserProject"]] = relationship(
+        back_populates="user", lazy="selectin"
+    )
 
 
 class Department(Base):
@@ -40,15 +59,21 @@ class Department(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
-    parent_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("aihelms.departments.id"), nullable=True)
+    parent_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("aihelms.departments.id"), nullable=True
+    )
     description: Mapped[str] = mapped_column(Text, default="")
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     litellm_team_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
-    members: Mapped[list["UserDepartment"]] = relationship(back_populates="department", lazy="selectin")
+    members: Mapped[list["UserDepartment"]] = relationship(
+        back_populates="department", lazy="selectin"
+    )
 
 
 class Project(Base):
@@ -61,9 +86,13 @@ class Project(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     litellm_team_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
-    members: Mapped[list["UserProject"]] = relationship(back_populates="project", lazy="selectin")
+    members: Mapped[list["UserProject"]] = relationship(
+        back_populates="project", lazy="selectin"
+    )
 
 
 class Role(Base):
@@ -76,9 +105,13 @@ class Role(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     is_system: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
-    permissions: Mapped[list["RolePermission"]] = relationship(back_populates="role", lazy="selectin")
+    permissions: Mapped[list["RolePermission"]] = relationship(
+        back_populates="role", lazy="selectin"
+    )
 
 
 class Permission(Base):
@@ -98,8 +131,12 @@ class UserRole(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.users.id", ondelete="CASCADE"))
-    role_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.roles.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.users.id", ondelete="CASCADE")
+    )
+    role_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.roles.id", ondelete="CASCADE")
+    )
 
     user: Mapped["User"] = relationship(back_populates="roles")
     role: Mapped["Role"] = relationship(lazy="selectin")
@@ -110,8 +147,12 @@ class RolePermission(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    role_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.roles.id", ondelete="CASCADE"))
-    permission_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.permissions.id", ondelete="CASCADE"))
+    role_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.roles.id", ondelete="CASCADE")
+    )
+    permission_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.permissions.id", ondelete="CASCADE")
+    )
 
     role: Mapped["Role"] = relationship(back_populates="permissions")
     permission: Mapped["Permission"] = relationship(lazy="selectin")
@@ -122,13 +163,19 @@ class UserDepartment(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.users.id", ondelete="CASCADE"))
-    department_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.departments.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.users.id", ondelete="CASCADE")
+    )
+    department_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.departments.id", ondelete="CASCADE")
+    )
     is_manager: Mapped[bool] = mapped_column(Boolean, default=False)
     joined_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     user: Mapped["User"] = relationship(back_populates="departments")
-    department: Mapped["Department"] = relationship(back_populates="members", lazy="selectin")
+    department: Mapped["Department"] = relationship(
+        back_populates="members", lazy="selectin"
+    )
 
 
 class UserProject(Base):
@@ -136,8 +183,12 @@ class UserProject(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.users.id", ondelete="CASCADE"))
-    project_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.projects.id", ondelete="CASCADE"))
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.users.id", ondelete="CASCADE")
+    )
+    project_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.projects.id", ondelete="CASCADE")
+    )
     joined_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     user: Mapped["User"] = relationship(back_populates="projects")
@@ -166,8 +217,12 @@ class AiKey(Base):
     budget_hard_limit: Mapped[bool] = mapped_column(Boolean, default=False)
     budget_duration: Mapped[str | None] = mapped_column(String(10), default="30d")
     budget_scope: Mapped[str] = mapped_column(String(20), default="unified")
-    budget_models_total: Mapped[Decimal | None] = mapped_column(Numeric(12, 4), nullable=True)
-    budget_mcps_total: Mapped[Decimal | None] = mapped_column(Numeric(12, 4), nullable=True)
+    budget_models_total: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 4), nullable=True
+    )
+    budget_mcps_total: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 4), nullable=True
+    )
     budget_models_per: Mapped[str] = mapped_column(String(10), default="unified")
     budget_mcps_per: Mapped[str] = mapped_column(String(10), default="unified")
     model_budgets: Mapped[dict] = mapped_column(JSONB, default=dict)
@@ -176,11 +231,17 @@ class AiKey(Base):
     tpm_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
     rpm_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_parallel_requests: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    scenario_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("aihelms.key_scenarios.id"), nullable=True)
+    scenario_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("aihelms.key_scenarios.id"), nullable=True
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("aihelms.users.id"), nullable=True)
+    created_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("aihelms.users.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
     expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
     last_used_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
@@ -193,15 +254,21 @@ class Provider(Base):
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     provider_type: Mapped[str] = mapped_column(String(50), nullable=False)
     billing_type: Mapped[str] = mapped_column(String(20), default="token")
-    monthly_budget: Mapped[Decimal | None] = mapped_column(Numeric(12, 4), nullable=True)
+    monthly_budget: Mapped[Decimal | None] = mapped_column(
+        Numeric(12, 4), nullable=True
+    )
     monthly_used: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     description: Mapped[str] = mapped_column(Text, default="")
     config: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
-    credentials: Mapped[list["Credential"]] = relationship(back_populates="provider", lazy="selectin")
+    credentials: Mapped[list["Credential"]] = relationship(
+        back_populates="provider", lazy="selectin"
+    )
 
 
 class ProviderPrefixMap(Base):
@@ -224,17 +291,27 @@ class Credential(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    credential_name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
-    provider_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("aihelms.providers.id", ondelete="SET NULL"), nullable=True)
+    credential_name: Mapped[str] = mapped_column(
+        String(128), unique=True, nullable=False
+    )
+    provider_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("aihelms.providers.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     credential_values: Mapped[dict] = mapped_column(JSONB, default=dict)
     credential_info: Mapped[dict] = mapped_column(JSONB, default=dict)
     litellm_synced: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
     provider: Mapped["Provider | None"] = relationship(back_populates="credentials")
-    deployments: Mapped[list["ModelDeployment"]] = relationship(back_populates="credential", lazy="selectin")
+    deployments: Mapped[list["ModelDeployment"]] = relationship(
+        back_populates="credential", lazy="selectin"
+    )
 
 
 class Model(Base):
@@ -243,24 +320,36 @@ class Model(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
-    model_id: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True)
+    model_id: Mapped[str | None] = mapped_column(
+        String(128), unique=True, nullable=True
+    )
     category: Mapped[str] = mapped_column(String(50), default="chat")
     capabilities: Mapped[list] = mapped_column(JSONB, default=list)
     description: Mapped[str] = mapped_column(Text, default="")
     logo_provider_type: Mapped[str] = mapped_column(String(50), default="")
     business_scenario_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("aihelms.business_scenarios.id", ondelete="SET NULL"), nullable=True
+        BigInteger,
+        ForeignKey("aihelms.business_scenarios.id", ondelete="SET NULL"),
+        nullable=True,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False)
     visibility_type: Mapped[str] = mapped_column(String(20), default="all")
     requires_approval: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
-    deployments: Mapped[list["ModelDeployment"]] = relationship(back_populates="model", lazy="selectin")
-    department_visibility: Mapped[list["ModelDepartmentVisibility"]] = relationship(back_populates="model", lazy="selectin")
-    user_visibility: Mapped[list["ModelUserVisibility"]] = relationship(back_populates="model", lazy="selectin")
+    deployments: Mapped[list["ModelDeployment"]] = relationship(
+        back_populates="model", lazy="selectin"
+    )
+    department_visibility: Mapped[list["ModelDepartmentVisibility"]] = relationship(
+        back_populates="model", lazy="selectin"
+    )
+    user_visibility: Mapped[list["ModelUserVisibility"]] = relationship(
+        back_populates="model", lazy="selectin"
+    )
 
 
 class ModelDeployment(Base):
@@ -268,8 +357,14 @@ class ModelDeployment(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    model_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.models.id", ondelete="CASCADE"))
-    credential_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("aihelms.credentials.id", ondelete="SET NULL"), nullable=True)
+    model_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.models.id", ondelete="CASCADE")
+    )
+    credential_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("aihelms.credentials.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     litellm_model_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     litellm_params: Mapped[dict] = mapped_column(JSONB, default=dict)
     model_info: Mapped[dict] = mapped_column(JSONB, default=dict)
@@ -280,10 +375,14 @@ class ModelDeployment(Base):
     monthly_call_used: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
     model: Mapped["Model"] = relationship(back_populates="deployments")
-    credential: Mapped["Credential | None"] = relationship(back_populates="deployments", lazy="selectin")
+    credential: Mapped["Credential | None"] = relationship(
+        back_populates="deployments", lazy="selectin"
+    )
 
 
 class ModelAccessGroup(Base):
@@ -296,7 +395,9 @@ class ModelAccessGroup(Base):
     model_ids: Mapped[list] = mapped_column(JSONB, default=list)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
 
 class RouterSettings(Base):
@@ -311,24 +412,30 @@ class RouterSettings(Base):
     num_retries: Mapped[int] = mapped_column(Integer, default=2)
     timeout: Mapped[int] = mapped_column(Integer, default=30)
     config: Mapped[dict] = mapped_column(JSONB, default=dict)
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
 
 class AiKeyModelLimit(Base):
     __tablename__ = "ai_key_model_limits"
-    __table_args__ = (
-        {"schema": "aihelms"},
-    )
+    __table_args__ = ({"schema": "aihelms"},)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    ai_key_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.ai_keys.id", ondelete="CASCADE"))
-    model_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.models.id", ondelete="CASCADE"))
+    ai_key_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.ai_keys.id", ondelete="CASCADE")
+    )
+    model_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.models.id", ondelete="CASCADE")
+    )
     tpm: Mapped[int | None] = mapped_column(Integer, nullable=True)
     rpm: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_calls: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
 
 class KeyScenario(Base):
@@ -340,7 +447,9 @@ class KeyScenario(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
 
 class ModelDepartmentVisibility(Base):
@@ -348,8 +457,12 @@ class ModelDepartmentVisibility(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    model_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.models.id", ondelete="CASCADE"))
-    department_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.departments.id", ondelete="CASCADE"))
+    model_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.models.id", ondelete="CASCADE")
+    )
+    department_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.departments.id", ondelete="CASCADE")
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     model: Mapped["Model"] = relationship(back_populates="department_visibility")
@@ -361,8 +474,12 @@ class ModelUserVisibility(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    model_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.models.id", ondelete="CASCADE"))
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.users.id", ondelete="CASCADE"))
+    model_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.models.id", ondelete="CASCADE")
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.users.id", ondelete="CASCADE")
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     model: Mapped["Model"] = relationship(back_populates="user_visibility")
@@ -378,7 +495,9 @@ class McpCategory(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
 
 class McpServer(Base):
@@ -404,7 +523,9 @@ class McpServer(Base):
     category: Mapped[str] = mapped_column(String(50), default="general")
     tags: Mapped[list] = mapped_column(JSONB, default=list)
     business_scenario_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("aihelms.business_scenarios.id", ondelete="SET NULL"), nullable=True
+        BigInteger,
+        ForeignKey("aihelms.business_scenarios.id", ondelete="SET NULL"),
+        nullable=True,
     )
     author: Mapped[str] = mapped_column(String(128), default="")
     icon_url: Mapped[str] = mapped_column(String(500), default="")
@@ -424,11 +545,17 @@ class McpServer(Base):
     litellm_synced: Mapped[bool] = mapped_column(Boolean, default=False)
     litellm_sync_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     litellm_synced_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    created_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("aihelms.users.id"), nullable=True)
+    created_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("aihelms.users.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
-    tools: Mapped[list["McpTool"]] = relationship(back_populates="server", lazy="selectin")
+    tools: Mapped[list["McpTool"]] = relationship(
+        back_populates="server", lazy="selectin"
+    )
 
 
 class McpTool(Base):
@@ -439,18 +566,26 @@ class McpTool(Base):
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    server_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.mcp_servers.id", ondelete="CASCADE"))
+    server_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.mcp_servers.id", ondelete="CASCADE")
+    )
     tool_name: Mapped[str] = mapped_column(String(200), nullable=False)
     namespaced_name: Mapped[str] = mapped_column(String(300), nullable=False)
     display_name: Mapped[str] = mapped_column(String(200), default="")
     description: Mapped[str] = mapped_column(Text, default="")
     input_schema: Mapped[dict] = mapped_column(JSONB, default=dict)
     billing_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    internal_cost_per_call: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), nullable=True)
-    external_cost_per_call: Mapped[Decimal | None] = mapped_column(Numeric(10, 6), nullable=True)
+    internal_cost_per_call: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 6), nullable=True
+    )
+    external_cost_per_call: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 6), nullable=True
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
     server: Mapped["McpServer"] = relationship(back_populates="tools")
 
@@ -469,15 +604,21 @@ class ResourceApplication(Base):
     celery_task_id: Mapped[str] = mapped_column(String(100), default="")
     cancel_requested: Mapped[bool] = mapped_column(Boolean, default=False)
     retry_of_task_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    reviewed_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("aihelms.users.id"), nullable=True)
+    reviewed_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("aihelms.users.id"), nullable=True
+    )
     reviewed_at: Mapped[datetime | None] = mapped_column(nullable=True)
     review_notes: Mapped[str] = mapped_column(Text, default="")
     approval_config: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
     user: Mapped["User"] = relationship(foreign_keys=[user_id], lazy="selectin")
-    reviewer: Mapped["User | None"] = relationship(foreign_keys=[reviewed_by], lazy="selectin")
+    reviewer: Mapped["User | None"] = relationship(
+        foreign_keys=[reviewed_by], lazy="selectin"
+    )
 
 
 class McpCallLog(Base):
@@ -526,8 +667,12 @@ class LlmCallLog(Base):
     internal_cost: Mapped[Decimal] = mapped_column(Numeric(12, 6), default=0)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ttft_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    ended_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     session_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     messages: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -553,9 +698,13 @@ class SyncState(Base):
     __table_args__ = {"schema": "aihelms"}
 
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
-    last_sync_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_sync_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     last_request_id: Mapped[str | None] = mapped_column(String(500))
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class BusinessScenario(Base):
@@ -571,7 +720,9 @@ class BusinessScenario(Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
 
 class SkillCategory(Base):
@@ -583,7 +734,9 @@ class SkillCategory(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
 
 class AiPoliciesAudit(Base):
@@ -614,10 +767,18 @@ class AiPoliciesAudit(Base):
     created_by: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("aihelms.users.id", ondelete="SET NULL"), nullable=True
     )
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
     summary: Mapped[dict] = mapped_column(JSONB, default=dict)
     findings: Mapped[list] = mapped_column(JSONB, default=list)
     raw_report: Mapped[dict] = mapped_column(JSONB, default=dict)
@@ -650,7 +811,9 @@ class AiPoliciesSettings(Base):
     updated_by: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("aihelms.users.id", ondelete="SET NULL"), nullable=True
     )
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class Skill(Base):
@@ -665,7 +828,9 @@ class Skill(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     category: Mapped[str] = mapped_column(String(50), default="general")
     business_scenario_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("aihelms.business_scenarios.id", ondelete="SET NULL"), nullable=True
+        BigInteger,
+        ForeignKey("aihelms.business_scenarios.id", ondelete="SET NULL"),
+        nullable=True,
     )
     version: Mapped[str] = mapped_column(String(20), default="1.0.0")
     tags: Mapped[list] = mapped_column(JSONB, default=list)
@@ -684,11 +849,17 @@ class Skill(Base):
     security_severity: Mapped[str] = mapped_column(String(32), default="")
     security_risk_score: Mapped[int] = mapped_column(Integer, default=0)
     latest_ai_policies_audit_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("aihelms.ai_policies_audits.id", ondelete="SET NULL"), nullable=True
+        BigInteger,
+        ForeignKey("aihelms.ai_policies_audits.id", ondelete="SET NULL"),
+        nullable=True,
     )
-    created_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("aihelms.users.id"), nullable=True)
+    created_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("aihelms.users.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
 
 class AgentCategory(Base):
@@ -700,7 +871,9 @@ class AgentCategory(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
 
 class AgentPlatform(Base):
@@ -713,7 +886,9 @@ class AgentPlatform(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
 
 class Agent(Base):
@@ -729,13 +904,19 @@ class Agent(Base):
     platform: Mapped[str] = mapped_column(String(64), nullable=False)
     category: Mapped[str] = mapped_column(String(50), default="general")
     business_scenario_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("aihelms.business_scenarios.id", ondelete="SET NULL"), nullable=True
+        BigInteger,
+        ForeignKey("aihelms.business_scenarios.id", ondelete="SET NULL"),
+        nullable=True,
     )
     department_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("aihelms.departments.id", ondelete="SET NULL"), nullable=True
+        BigInteger,
+        ForeignKey("aihelms.departments.id", ondelete="SET NULL"),
+        nullable=True,
     )
     project_id: Mapped[int | None] = mapped_column(
-        BigInteger, ForeignKey("aihelms.projects.id", ondelete="SET NULL"), nullable=True
+        BigInteger,
+        ForeignKey("aihelms.projects.id", ondelete="SET NULL"),
+        nullable=True,
     )
     cost_attribution: Mapped[str] = mapped_column(String(20), default="owner")
     ai_key_id: Mapped[int | None] = mapped_column(
@@ -750,9 +931,13 @@ class Agent(Base):
     status: Mapped[str] = mapped_column(String(20), default="online")
     user_count: Mapped[int] = mapped_column(Integer, default=0)
     call_count: Mapped[int] = mapped_column(Integer, default=0)
-    created_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("aihelms.users.id"), nullable=True)
+    created_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("aihelms.users.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
 
 
 class AgentUsageLog(Base):
@@ -760,7 +945,9 @@ class AgentUsageLog(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    agent_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.agents.id", ondelete="CASCADE"))
+    agent_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.agents.id", ondelete="CASCADE")
+    )
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.users.id"))
     session_id: Mapped[str] = mapped_column(String(100), default="")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
@@ -782,9 +969,9 @@ class AdminAuditLog(Base):
     user_agent: Mapped[str] = mapped_column(String(500), default="")
     duration_ms: Mapped[int] = mapped_column(Integer, default=0)
     request_summary: Mapped[str] = mapped_column(Text, default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 class ExportTask(Base):
@@ -807,10 +994,18 @@ class ExportTask(Base):
     error_message: Mapped[str] = mapped_column(Text, default="")
     created_by_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     created_by_name: Mapped[str] = mapped_column(String(100), default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    canceled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    canceled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class ApiKey(Base):
@@ -824,9 +1019,13 @@ class ApiKey(Base):
     key_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     key_encrypted: Mapped[str] = mapped_column(Text, default="")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_by: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.users.id"), nullable=False)
+    created_by: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.users.id"), nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now()
+    )
     expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
     last_used_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
@@ -873,7 +1072,9 @@ class EfficiencyReport(Base):
     summary: Mapped[str] = mapped_column(Text, default="")
     content_md: Mapped[str] = mapped_column(Text, default="")
     suggestions: Mapped[list] = mapped_column(JSONB, default=list)
-    created_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("aihelms.users.id"), nullable=True)
+    created_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("aihelms.users.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     generation_cost: Mapped[Decimal] = mapped_column(Numeric(10, 4), default=0)
     generation_duration_ms: Mapped[int] = mapped_column(Integer, default=0)
@@ -884,7 +1085,9 @@ class EfficiencySuggestion(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    report_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.efficiency_reports.id", ondelete="CASCADE"))
+    report_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.efficiency_reports.id", ondelete="CASCADE")
+    )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
     priority: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -894,29 +1097,11 @@ class EfficiencySuggestion(Base):
     cancel_requested: Mapped[bool] = mapped_column(Boolean, default=False)
     retry_of_task_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     status_note: Mapped[str] = mapped_column(Text, default="")
-    status_updated_by: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("aihelms.users.id"), nullable=True)
+    status_updated_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("aihelms.users.id"), nullable=True
+    )
     status_updated_at: Mapped[datetime | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
-
-
-class License(Base):
-    __tablename__ = "license"
-    __table_args__ = {"schema": "aihelms"}
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
-    licensed_to: Mapped[str | None] = mapped_column(Text, nullable=True)
-    features: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    issued_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    license_key: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(Text, nullable=False, default="invalid")
-    imported_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
 
 
 class Branding(Base):
@@ -924,9 +1109,7 @@ class Branding(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
-    platform_name: Mapped[str] = mapped_column(
-        Text, nullable=False, default="AIHelms"
-    )
+    platform_name: Mapped[str] = mapped_column(Text, nullable=False, default="AIHelms")
     logo_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     square_logo_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     favicon_path: Mapped[str | None] = mapped_column(Text, nullable=True)
