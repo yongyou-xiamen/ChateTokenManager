@@ -49,3 +49,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            NPM_MIRROR=https://registry.npmjs.org
+            APT_MIRROR=deb.debian.org
+            PIP_INDEX=https://pypi.org/simple
