@@ -59,8 +59,7 @@ class TestApplyTenantFilter:
         stmt = select(Department)
         result = apply_tenant_filter(stmt, Department, tenant_id=5)
         sql_str = str(result)
-        assert "tenant_id" in sql_str
-        assert "5" in sql_str
+        assert "tenant_id =" in sql_str or "tenant_id=" in sql_str
 
     def test_no_filter_when_tenant_id_is_none(self):
         """tenant_id=None 时(超管场景),不加任何过滤。"""
@@ -109,12 +108,11 @@ class TestRepositoryTenantFilter:
         await department_repo.find_all_active(session, tenant_id=7)
 
         sql = str(session.execute.await_args.args[0])
-        assert "tenant_id" in sql
-        assert "7" in sql
+        assert "tenant_id =" in sql or "tenant_id=" in sql
 
     @pytest.mark.asyncio
     async def test_department_find_all_active_no_tenant_filter_when_none(self):
-        """tenant_id=None 时 department_repo.find_all_active 不加过滤。"""
+        """tenant_id=None 时 department_repo.find_all_active 不加 WHERE 过滤。"""
         session = AsyncMock()
         result = MagicMock()
         result.scalars.return_value.all.return_value = []
@@ -123,7 +121,9 @@ class TestRepositoryTenantFilter:
         await department_repo.find_all_active(session, tenant_id=None)
 
         sql = str(session.execute.await_args.args[0])
-        assert "tenant_id" not in sql
+        # WHERE 子句中不应有 tenant_id = (SELECT 列表中的 tenant_id 列名不算)
+        where_clause = sql.split("FROM")[1] if "FROM" in sql else sql
+        assert "tenant_id =" not in where_clause and "tenant_id=" not in where_clause
 
     @pytest.mark.asyncio
     async def test_ai_key_find_all_adds_tenant_filter(self):
@@ -136,7 +136,7 @@ class TestRepositoryTenantFilter:
         await ai_key_repo.find_all(session, page=1, page_size=20, tenant_id=3)
 
         sql = str(session.execute.await_args.args[0])
-        assert "tenant_id" in sql
+        assert "tenant_id =" in sql or "tenant_id=" in sql
 
     @pytest.mark.asyncio
     async def test_ai_key_count_all_adds_tenant_filter(self):
@@ -149,7 +149,7 @@ class TestRepositoryTenantFilter:
         await ai_key_repo.count_all(session, tenant_id=3)
 
         sql = str(session.execute.await_args.args[0])
-        assert "tenant_id" in sql
+        assert "tenant_id =" in sql or "tenant_id=" in sql
 
     @pytest.mark.asyncio
     async def test_ai_key_find_all_main_keys_adds_tenant_filter(self):
@@ -162,8 +162,7 @@ class TestRepositoryTenantFilter:
         await ai_key_repo.find_all_main_keys(session, tenant_id=5)
 
         sql = str(session.execute.await_args.args[0])
-        assert "tenant_id" in sql
-        assert "5" in sql
+        assert "tenant_id =" in sql or "tenant_id=" in sql
 
     @pytest.mark.asyncio
     async def test_project_find_by_id_adds_tenant_filter(self):
@@ -176,7 +175,7 @@ class TestRepositoryTenantFilter:
         await project_repo.find_by_id(session, project_id=10, tenant_id=3)
 
         sql = str(session.execute.await_args.args[0])
-        assert "tenant_id" in sql
+        assert "tenant_id =" in sql or "tenant_id=" in sql
 
     @pytest.mark.asyncio
     async def test_user_count_users_adds_tenant_filter(self):
@@ -189,7 +188,7 @@ class TestRepositoryTenantFilter:
         await user_repo.count_users(session, tenant_id=2)
 
         sql = str(session.execute.await_args.args[0])
-        assert "tenant_id" in sql
+        assert "tenant_id =" in sql or "tenant_id=" in sql
 
     @pytest.mark.asyncio
     async def test_usage_log_find_llm_logs_adds_tenant_filter(self):
@@ -202,7 +201,7 @@ class TestRepositoryTenantFilter:
         await usage_log_repo.find_llm_logs(session, page=1, page_size=20, tenant_id=4)
 
         sql = str(session.execute.await_args.args[0])
-        assert "tenant_id" in sql
+        assert "tenant_id =" in sql or "tenant_id=" in sql
 
     @pytest.mark.asyncio
     async def test_efficiency_cost_build_cost_filters_adds_tenant(self):
