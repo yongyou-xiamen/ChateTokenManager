@@ -1213,12 +1213,12 @@ claude
 
 macOS 或 Linux:
 ```bash
-export AIHELMS_API_KEY="<AI 身份 Key>"
+export CHATE_API_KEY="<AI 身份 Key>"
 ```
 
 PowerShell:
 ```powershell
-$env:AIHELMS_API_KEY = "<AI 身份 Key>"
+$env:CHATE_API_KEY = "<AI 身份 Key>"
 ```
 
 #### 配置 Codex
@@ -1228,13 +1228,13 @@ $env:AIHELMS_API_KEY = "<AI 身份 Key>"
 - Windows:`%USERPROFILE%\.codex\config.toml`
 
 ```toml
-model_provider = "aihelms"
+model_provider = "chate"
 model = "<模型 ID>"
 
-[model_providers.aihelms]
+[model_providers.chate]
 name = "ChateTokenManager"
 base_url = "http://<ChateTokenManager Endpoint>/v1"
-env_key = "AIHELMS_API_KEY"
+env_key = "CHATE_API_KEY"
 wire_api = "responses"
 ```
 
@@ -1251,13 +1251,13 @@ codex
 codex exec "只回复:Codex 连接成功"
 ```
 
-启动信息中的 provider 应为 aihelms,model 应为模型广场中的模型 ID。普通回答成功后,再在测试目录验证读取文件和执行简单任务。
+启动信息中的 provider 应为 chate,model 应为模型广场中的模型 ID。普通回答成功后,再在测试目录验证读取文件和执行简单任务。
 
 #### 常见问题
 
 | 现象 | 处理方法 |
 |------|---------|
-| 缺少环境变量 | 在启动 Codex 的同一终端设置 AIHELMS_API_KEY |
+| 缺少环境变量 | 在启动 Codex 的同一终端设置 CHATE_API_KEY |
 | 404 | base_url 应以 /v1 结尾,不要追加 /responses |
 | 401 | Key 无效、已停用或没有传给当前进程 |
 | model not allowed | 联系管理员为 AI 身份分配目标模型 |

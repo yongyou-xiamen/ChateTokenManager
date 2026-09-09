@@ -1313,9 +1313,9 @@
 
 <h2>保存 Key</h2>
 <p>macOS 或 Linux:</p>
-<pre><code>export AIHELMS_API_KEY="&lt;AI 身份 Key&gt;"</code></pre>
+<pre><code>export CHATE_API_KEY="&lt;AI 身份 Key&gt;"</code></pre>
 <p>PowerShell:</p>
-<pre><code>$env:AIHELMS_API_KEY = "&lt;AI 身份 Key&gt;"</code></pre>
+<pre><code>$env:CHATE_API_KEY = "&lt;AI 身份 Key&gt;"</code></pre>
 
 <h2>配置 Codex</h2>
 <p>编辑:</p>
@@ -1323,13 +1323,13 @@
 <li>macOS、Linux:<code>~/.codex/config.toml</code></li>
 <li>Windows:<code>%USERPROFILE%\.codex\config.toml</code></li>
 </ul>
-<pre><code>model_provider = "aihelms"
+<pre><code>model_provider = "chate"
 model = "&lt;模型 ID&gt;"
 
-[model_providers.aihelms]
+[model_providers.chate]
 name = "ChateTokenManager"
 base_url = "http://&lt;ChateTokenManager Endpoint&gt;/v1"
-env_key = "AIHELMS_API_KEY"
+env_key = "CHATE_API_KEY"
 wire_api = "responses"</code></pre>
 <p><code>base_url</code> 填到 /v1,不要写成 /v1/responses。<code>env_key</code> 填环境变量名称,不要把真实 Key 写进 TOML。</p>
 
@@ -1337,13 +1337,13 @@ wire_api = "responses"</code></pre>
 <pre><code>codex</code></pre>
 <p>也可以先执行一次简单测试:</p>
 <pre><code>codex exec "只回复:Codex 连接成功"</code></pre>
-<p>启动信息中的 provider 应为 aihelms,model 应为模型广场中的模型 ID。普通回答成功后,再在测试目录验证读取文件和执行简单任务。</p>
+<p>启动信息中的 provider 应为 chate,model 应为模型广场中的模型 ID。普通回答成功后,再在测试目录验证读取文件和执行简单任务。</p>
 
 <h2>常见问题</h2>
 <table>
 <thead><tr><th>现象</th><th>处理方法</th></tr></thead>
 <tbody>
-<tr><td>缺少环境变量</td><td>在启动 Codex 的同一终端设置 AIHELMS_API_KEY</td></tr>
+<tr><td>缺少环境变量</td><td>在启动 Codex 的同一终端设置 CHATE_API_KEY</td></tr>
 <tr><td>404</td><td>base_url 应以 /v1 结尾,不要追加 /responses</td></tr>
 <tr><td>401</td><td>Key 无效、已停用或没有传给当前进程</td></tr>
 <tr><td>model not allowed</td><td>联系管理员为 AI 身份分配目标模型</td></tr>
