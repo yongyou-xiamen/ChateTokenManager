@@ -936,18 +936,25 @@ async def _commit_progress(
 
 
 async def create_skill_audit(
-    session: AsyncSession, skill_id: int, current_user: dict
+    session: AsyncSession,
+    skill_id: int,
+    current_user: dict,
+    tenant_id: int | None = None,
 ) -> dict:
     skill = await skill_repo.find_by_id(session, skill_id)
     if not skill:
         raise NotFoundError("skill", skill_id)
     if not skill.zip_path or not os.path.exists(skill.zip_path):
         raise ValidationError("Skill zip 文件不存在，无法发起审查")
-    active = await ai_policies_repo.find_active_by_skill(session, skill_id)
+    audit_tenant_id = tenant_id or getattr(skill, "tenant_id", None) or 1
+    active = await ai_policies_repo.find_active_by_skill(
+        session, skill_id, tenant_id=audit_tenant_id
+    )
     if active:
         raise ConflictError("该 Skill 已有审查任务正在进行中")
 
     audit = AiPoliciesAudit(
+        tenant_id=audit_tenant_id,
         audit_id=f"AIP-{uuid4().hex[:12]}",
         audit_type="skill",
         skill_id=skill.id,
@@ -988,6 +995,9 @@ async def process_skill_audit(session: AsyncSession, audit_pk: int) -> None:
     audit.status = "running"
     audit.started_at = audit.started_at or _now()
     audit.error_message = ""
+    skill_tenant_id = getattr(skill, "tenant_id", None)
+    if skill_tenant_id and not getattr(audit, "tenant_id", None):
+        audit.tenant_id = skill_tenant_id
     skill.security_status = "running"
     await _commit_progress(session, audit, 20, 1, "正在扫描 Skill")
     category_labels = await _category_labels(session)
@@ -1140,6 +1150,7 @@ async def list_audits(
     finished_from: datetime | None = None,
     finished_to: datetime | None = None,
     unfinished: bool | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     total = await ai_policies_repo.count_all(
         session,
@@ -1151,6 +1162,7 @@ async def list_audits(
         finished_from,
         finished_to,
         unfinished,
+        tenant_id=tenant_id,
     )
     items = await ai_policies_repo.find_all(
         session,
@@ -1164,6 +1176,7 @@ async def list_audits(
         finished_from,
         finished_to,
         unfinished,
+        tenant_id=tenant_id,
     )
     return {
         "items": [_serialize_audit(item) for item in items],
@@ -1173,8 +1186,12 @@ async def list_audits(
     }
 
 
-async def get_audit(session: AsyncSession, audit_id: str) -> dict:
-    audit = await ai_policies_repo.find_by_audit_id(session, audit_id)
+async def get_audit(
+    session: AsyncSession, audit_id: str, tenant_id: int | None = None
+) -> dict:
+    audit = await ai_policies_repo.find_by_audit_id(
+        session, audit_id, tenant_id=tenant_id
+    )
     if not audit:
         raise NotFoundError("ai_policies_audit", audit_id)
     return _serialize_audit(
@@ -1185,9 +1202,11 @@ async def get_audit(session: AsyncSession, audit_id: str) -> dict:
 
 
 async def get_audit_export(
-    session: AsyncSession, audit_id: str
+    session: AsyncSession, audit_id: str, tenant_id: int | None = None
 ) -> tuple[str, str, str]:
-    audit = await ai_policies_repo.find_by_audit_id(session, audit_id)
+    audit = await ai_policies_repo.find_by_audit_id(
+        session, audit_id, tenant_id=tenant_id
+    )
     if not audit:
         raise NotFoundError("ai_policies_audit", audit_id)
     category_labels = await _category_labels(session)

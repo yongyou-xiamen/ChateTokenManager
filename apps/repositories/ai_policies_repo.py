@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.db import AiPoliciesAudit, AiPoliciesRiskCatalog, AiPoliciesSettings
+from repositories.base import apply_tenant_filter
 
 
 async def create_audit(
@@ -15,46 +16,63 @@ async def create_audit(
     return audit
 
 
-async def find_by_id(session: AsyncSession, audit_id: int) -> AiPoliciesAudit | None:
-    result = await session.execute(
-        select(AiPoliciesAudit).where(AiPoliciesAudit.id == audit_id)
+async def find_by_id(
+    session: AsyncSession, audit_id: int, tenant_id: int | None = None
+) -> AiPoliciesAudit | None:
+    stmt = apply_tenant_filter(
+        select(AiPoliciesAudit).where(AiPoliciesAudit.id == audit_id),
+        AiPoliciesAudit,
+        tenant_id,
     )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def find_by_audit_id(
-    session: AsyncSession, audit_id: str
+    session: AsyncSession, audit_id: str, tenant_id: int | None = None
 ) -> AiPoliciesAudit | None:
-    result = await session.execute(
-        select(AiPoliciesAudit).where(AiPoliciesAudit.audit_id == audit_id)
+    stmt = apply_tenant_filter(
+        select(AiPoliciesAudit).where(AiPoliciesAudit.audit_id == audit_id),
+        AiPoliciesAudit,
+        tenant_id,
     )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def find_by_ids(
-    session: AsyncSession, audit_ids: list[int]
+    session: AsyncSession,
+    audit_ids: list[int],
+    tenant_id: int | None = None,
 ) -> list[AiPoliciesAudit]:
     if not audit_ids:
         return []
-    result = await session.execute(
-        select(AiPoliciesAudit).where(AiPoliciesAudit.id.in_(audit_ids))
+    stmt = apply_tenant_filter(
+        select(AiPoliciesAudit).where(AiPoliciesAudit.id.in_(audit_ids)),
+        AiPoliciesAudit,
+        tenant_id,
     )
+    result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
 async def find_active_by_skill(
-    session: AsyncSession, skill_id: int
+    session: AsyncSession, skill_id: int, tenant_id: int | None = None
 ) -> AiPoliciesAudit | None:
-    result = await session.execute(
-        select(AiPoliciesAudit)
-        .where(
-            AiPoliciesAudit.audit_type == "skill",
-            AiPoliciesAudit.skill_id == skill_id,
-            AiPoliciesAudit.status.in_(["queued", "running"]),
+    stmt = (
+        apply_tenant_filter(
+            select(AiPoliciesAudit).where(
+                AiPoliciesAudit.audit_type == "skill",
+                AiPoliciesAudit.skill_id == skill_id,
+                AiPoliciesAudit.status.in_(["queued", "running"]),
+            ),
+            AiPoliciesAudit,
+            tenant_id,
         )
         .order_by(AiPoliciesAudit.created_at.desc(), AiPoliciesAudit.id.desc())
         .limit(1)
     )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -102,9 +120,14 @@ async def find_all(
     finished_from: datetime | None = None,
     finished_to: datetime | None = None,
     unfinished: bool | None = None,
+    tenant_id: int | None = None,
 ) -> list[AiPoliciesAudit]:
-    stmt = select(AiPoliciesAudit).order_by(
-        AiPoliciesAudit.created_at.desc(), AiPoliciesAudit.id.desc()
+    stmt = apply_tenant_filter(
+        select(AiPoliciesAudit).order_by(
+            AiPoliciesAudit.created_at.desc(), AiPoliciesAudit.id.desc()
+        ),
+        AiPoliciesAudit,
+        tenant_id,
     )
     stmt = _apply_filters(
         stmt,
@@ -132,8 +155,11 @@ async def count_all(
     finished_from: datetime | None = None,
     finished_to: datetime | None = None,
     unfinished: bool | None = None,
+    tenant_id: int | None = None,
 ) -> int:
-    stmt = select(func.count(AiPoliciesAudit.id))
+    stmt = apply_tenant_filter(
+        select(func.count(AiPoliciesAudit.id)), AiPoliciesAudit, tenant_id
+    )
     stmt = _apply_filters(
         stmt,
         audit_type,

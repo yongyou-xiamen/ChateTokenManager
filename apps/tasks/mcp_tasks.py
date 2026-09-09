@@ -186,6 +186,7 @@ async def _insert_mcp_rows(session, rows) -> int:
         # 通过 metadata.user_api_key_alias 关联平台 ai_key → user_id
         user_id = 0
         ai_key_id = None
+        ai_key = None
         metadata_raw = row[8] if len(row) > 8 else None
         mcp_metadata_full = _parse_json(metadata_raw)
         key_alias = mcp_metadata_full.get("user_api_key_alias") or ""
@@ -235,7 +236,17 @@ async def _insert_mcp_rows(session, rows) -> int:
         response_full = _to_text(response_raw)
         response_summary = response_full[:500] if response_full else ""
 
+        # 解析 tenant_id：优先 LiteLLM key metadata 中的 aihelms_tenant_id，
+        # 其次 ai_key.tenant_id / server.tenant_id，兜底默认租户 1。
+        tenant_id = (
+            _safe_int(mcp_metadata_full.get("aihelms_tenant_id"))
+            or (ai_key.tenant_id if ai_key else 0)
+            or (server.tenant_id if server else 0)
+            or 1
+        )
+
         log = McpCallLog(
+            tenant_id=tenant_id,
             user_id=user_id,
             server_id=server_id,
             tool_id=tool_obj.id if tool_obj else None,
@@ -285,6 +296,13 @@ def _parse_json(raw):
         except (ValueError, TypeError):
             return {}
     return {}
+
+
+def _safe_int(value: object) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _to_text(raw) -> str:

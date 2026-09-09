@@ -208,12 +208,18 @@ async def _get_latest_pending_approvals(
 async def _get_service_status(
     session: AsyncSession, tenant_id: int | None = None
 ) -> list[dict]:
-    mcp_total = await _count(session, McpServer, McpServer.is_published.is_(True))
+    mcp_total = await _count(
+        session,
+        McpServer,
+        McpServer.is_published.is_(True),
+        tenant_id=tenant_id,
+    )
     mcp_healthy = await _count(
         session,
         McpServer,
         McpServer.is_published.is_(True),
         McpServer.status.in_(["healthy", "success", "online", "ok"]),
+        tenant_id=tenant_id,
     )
     model_health = await _get_model_health_summary(session, tenant_id=tenant_id)
     model_total = model_health["total"]

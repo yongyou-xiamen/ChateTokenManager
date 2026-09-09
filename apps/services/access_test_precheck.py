@@ -6,8 +6,10 @@ from services import ai_key_service
 from services.access_test_error_mapper import build_error_detail
 
 
-async def resolve_test_identity(session: AsyncSession, user_id: int) -> AiKey | None:
-    key = await ai_key_repo.find_personal_main(session, user_id)
+async def resolve_test_identity(
+    session: AsyncSession, user_id: int, tenant_id: int | None = None
+) -> AiKey | None:
+    key = await ai_key_repo.find_personal_main(session, user_id, tenant_id=tenant_id)
     if not key or not key.is_active or not key.litellm_key_id:
         return None
     return key
@@ -19,8 +21,9 @@ async def precheck_access_test(
     model: Model | None,
     test_model: str,
     is_admin: bool,
+    tenant_id: int | None = None,
 ) -> tuple[AiKey | None, dict[str, object] | None]:
-    key = await resolve_test_identity(session, user_id)
+    key = await resolve_test_identity(session, user_id, tenant_id=tenant_id)
     if not key:
         return None, build_error_detail("no_identity")
 

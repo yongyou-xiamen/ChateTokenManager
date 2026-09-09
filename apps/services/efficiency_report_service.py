@@ -74,8 +74,10 @@ async def create_report(
     created_by: int,
     model_used: str | None = None,
     filters: dict | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     report = EfficiencyReport(
+        tenant_id=tenant_id or 1,
         report_type=report_type,
         period_start=period_start,
         period_end=period_end,

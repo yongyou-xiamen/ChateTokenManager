@@ -153,4 +153,5 @@ async def get_ai_key_identity(
         "owner_type": ai_key.owner_type,
         "owner_id": ai_key.owner_id,
         "skills": ai_key.skills or [],
+        "tenant_id": ai_key.tenant_id,
     }

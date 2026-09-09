@@ -21,12 +21,25 @@ async def list_users(
     is_admin: bool | None = None,
     is_active: bool | None = None,
     tenant_id: int | None = None,
+    include_super_admin: bool = False,
 ) -> dict:
     total = await user_repo.count_users(
-        session, keyword, is_admin, is_active, tenant_id=tenant_id
+        session,
+        keyword,
+        is_admin,
+        is_active,
+        tenant_id=tenant_id,
+        include_super_admin=include_super_admin,
     )
     users = await user_repo.find_users(
-        session, page, page_size, keyword, is_admin, is_active, tenant_id=tenant_id
+        session,
+        page,
+        page_size,
+        keyword,
+        is_admin,
+        is_active,
+        tenant_id=tenant_id,
+        include_super_admin=include_super_admin,
     )
     items = [_serialize_user(u) for u in users]
     return {"items": items, "total": total, "page": page, "page_size": page_size}
@@ -95,8 +108,9 @@ async def update_user(
     position: str | None = None,
     avatar: str | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    user = await user_repo.find_user_by_id(session, user_id)
+    user = await user_repo.find_user_by_id(session, user_id, tenant_id=tenant_id)
     if not user:
         raise NotFoundError("user", user_id)
 
@@ -128,8 +142,10 @@ async def update_user(
     return _serialize_user_detail(user)
 
 
-async def delete_user(session: AsyncSession, user_id: int) -> None:
-    user = await user_repo.find_user_by_id(session, user_id)
+async def delete_user(
+    session: AsyncSession, user_id: int, tenant_id: int | None = None
+) -> None:
+    user = await user_repo.find_user_by_id(session, user_id, tenant_id=tenant_id)
     if not user:
         raise NotFoundError("user", user_id)
     if user.is_admin:
@@ -141,9 +157,12 @@ async def delete_user(session: AsyncSession, user_id: int) -> None:
 
 
 async def reset_password(
-    session: AsyncSession, user_id: int, new_password: str
+    session: AsyncSession,
+    user_id: int,
+    new_password: str,
+    tenant_id: int | None = None,
 ) -> None:
-    user = await user_repo.find_user_by_id(session, user_id)
+    user = await user_repo.find_user_by_id(session, user_id, tenant_id=tenant_id)
     if not user:
         raise NotFoundError("user", user_id)
     user.hashed_password = get_password_hash(new_password)
@@ -151,9 +170,12 @@ async def reset_password(
 
 
 async def update_user_roles(
-    session: AsyncSession, user_id: int, role_ids: list[int]
+    session: AsyncSession,
+    user_id: int,
+    role_ids: list[int],
+    tenant_id: int | None = None,
 ) -> None:
-    user = await user_repo.find_user_by_id(session, user_id)
+    user = await user_repo.find_user_by_id(session, user_id, tenant_id=tenant_id)
     if not user:
         raise NotFoundError("user", user_id)
 
@@ -176,9 +198,12 @@ async def update_user_roles(
 
 
 async def update_user_departments(
-    session: AsyncSession, user_id: int, department_ids: list[int]
+    session: AsyncSession,
+    user_id: int,
+    department_ids: list[int],
+    tenant_id: int | None = None,
 ) -> None:
-    user = await user_repo.find_user_by_id(session, user_id)
+    user = await user_repo.find_user_by_id(session, user_id, tenant_id=tenant_id)
     if not user:
         raise NotFoundError("user", user_id)
     await user_repo.replace_user_departments(session, user_id, department_ids)
@@ -186,9 +211,12 @@ async def update_user_departments(
 
 
 async def update_user_projects(
-    session: AsyncSession, user_id: int, project_ids: list[int]
+    session: AsyncSession,
+    user_id: int,
+    project_ids: list[int],
+    tenant_id: int | None = None,
 ) -> None:
-    user = await user_repo.find_user_by_id(session, user_id)
+    user = await user_repo.find_user_by_id(session, user_id, tenant_id=tenant_id)
     if not user:
         raise NotFoundError("user", user_id)
     await user_repo.replace_user_projects(session, user_id, project_ids)

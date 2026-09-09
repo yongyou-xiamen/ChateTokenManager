@@ -53,10 +53,15 @@ async def test_access(
     current_user: dict = Depends(require_permission("user:read")),
 ):
     # 自动判断模型类型
+    tenant_id = current_user.get("tenant_id")
     model_id = req.model
-    model_obj = await model_repo.find_by_model_id(session, model_id)
+    model_obj = await model_repo.find_by_model_id(
+        session, model_id, tenant_id=tenant_id
+    )
     if not model_obj and "/" in model_id:
-        model_obj = await model_repo.find_by_model_id(session, model_id.split("/")[-1])
+        model_obj = await model_repo.find_by_model_id(
+            session, model_id.split("/")[-1], tenant_id=tenant_id
+        )
     category = model_obj.category if model_obj else "chat"
     test_model = model_obj.model_id if model_obj and model_obj.model_id else model_id
     user_key, error_detail = await precheck_access_test(
@@ -65,6 +70,7 @@ async def test_access(
         model_obj,
         test_model,
         is_admin=current_user["is_admin"],
+        tenant_id=tenant_id,
     )
     if error_detail:
         return _build_error_response(error_detail, category, req.stream)
@@ -138,11 +144,15 @@ def _build_error_response(
 
 
 async def _resolve_model(
-    session: AsyncSession, model_id: str
+    session: AsyncSession, model_id: str, tenant_id: int | None = None
 ) -> tuple[Model | None, str]:
-    model_obj = await model_repo.find_by_model_id(session, model_id)
+    model_obj = await model_repo.find_by_model_id(
+        session, model_id, tenant_id=tenant_id
+    )
     if not model_obj and "/" in model_id:
-        model_obj = await model_repo.find_by_model_id(session, model_id.split("/")[-1])
+        model_obj = await model_repo.find_by_model_id(
+            session, model_id.split("/")[-1], tenant_id=tenant_id
+        )
     test_model = model_obj.model_id if model_obj and model_obj.model_id else model_id
     return model_obj, test_model
 
@@ -153,13 +163,17 @@ async def test_embedding(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission("user:read")),
 ):
-    model_obj, test_model = await _resolve_model(session, req.model)
+    tenant_id = current_user.get("tenant_id")
+    model_obj, test_model = await _resolve_model(
+        session, req.model, tenant_id=tenant_id
+    )
     user_key, error_detail = await precheck_access_test(
         session,
         current_user["id"],
         model_obj,
         test_model,
         is_admin=current_user["is_admin"],
+        tenant_id=tenant_id,
     )
     if error_detail:
         return {
@@ -181,13 +195,17 @@ async def test_rerank(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission("user:read")),
 ):
-    model_obj, test_model = await _resolve_model(session, req.model)
+    tenant_id = current_user.get("tenant_id")
+    model_obj, test_model = await _resolve_model(
+        session, req.model, tenant_id=tenant_id
+    )
     user_key, error_detail = await precheck_access_test(
         session,
         current_user["id"],
         model_obj,
         test_model,
         is_admin=current_user["is_admin"],
+        tenant_id=tenant_id,
     )
     if error_detail:
         return {

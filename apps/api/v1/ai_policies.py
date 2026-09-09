@@ -29,8 +29,9 @@ async def list_audits(
     finished_to: datetime | None = None,
     unfinished: bool | None = None,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("ai_policies:read")),
+    current_user: dict = Depends(require_permission("ai_policies:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     data = await ai_policies_service.list_audits(
         session,
         page,
@@ -43,6 +44,7 @@ async def list_audits(
         finished_from,
         finished_to,
         unfinished,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -90,10 +92,13 @@ async def update_settings(
 async def get_audit(
     audit_id: str,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("ai_policies:read")),
+    current_user: dict = Depends(require_permission("ai_policies:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        data = await ai_policies_service.get_audit(session, audit_id)
+        data = await ai_policies_service.get_audit(
+            session, audit_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="审查任务不存在")
     return {"code": 200, "message": "ok", "data": data}
@@ -103,11 +108,12 @@ async def get_audit(
 async def download_audit(
     audit_id: str,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("ai_policies:read")),
+    current_user: dict = Depends(require_permission("ai_policies:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         content, filename, media_type = await ai_policies_service.get_audit_export(
-            session, audit_id
+            session, audit_id, tenant_id=tenant_id
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="审查任务不存在")

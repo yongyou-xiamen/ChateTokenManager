@@ -27,8 +27,16 @@ async def list_users(
     current_user: dict = Depends(require_permission("user:read")),
 ):
     tenant_id = current_user.get("tenant_id")
+    is_super_admin = current_user.get("is_super_admin", False)
     result = await user_service.list_users(
-        session, page, page_size, keyword, is_admin, is_active, tenant_id=tenant_id
+        session,
+        page,
+        page_size,
+        keyword,
+        is_admin,
+        is_active,
+        tenant_id=tenant_id,
+        include_super_admin=is_super_admin,
     )
     return {"code": 200, "message": "ok", "data": result}
 
@@ -45,6 +53,8 @@ async def create_user(
     target_tenant_id = (
         req.tenant_id if is_super_admin and req.tenant_id else current_tenant_id
     )
+    # 只有超管能创建租户管理员，租户管理员只能创建普通用户
+    can_set_tenant_admin = is_super_admin
     try:
         user = await user_service.create_user(
             session,
@@ -57,7 +67,7 @@ async def create_user(
             avatar=req.avatar,
             is_active=req.is_active,
             tenant_id=target_tenant_id,
-            is_tenant_admin=req.is_tenant_admin,
+            is_tenant_admin=req.is_tenant_admin if can_set_tenant_admin else False,
         )
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=str(e))
@@ -82,8 +92,9 @@ async def update_user(
     user_id: int,
     req: UpdateUserRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         user = await user_service.update_user(
             session,
@@ -94,6 +105,7 @@ async def update_user(
             position=req.position,
             avatar=req.avatar,
             is_active=req.is_active,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="用户不存在")
@@ -106,10 +118,11 @@ async def update_user(
 async def delete_user(
     user_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:delete")),
+    current_user: dict = Depends(require_permission("user:delete")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await user_service.delete_user(session, user_id)
+        await user_service.delete_user(session, user_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="用户不存在")
     except ConflictError as e:
@@ -122,10 +135,13 @@ async def reset_user_password(
     user_id: int,
     req: ResetPasswordRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await user_service.reset_password(session, user_id, req.new_password)
+        await user_service.reset_password(
+            session, user_id, req.new_password, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="用户不存在")
     return {"code": 200, "message": "密码重置成功", "data": None}
@@ -136,10 +152,13 @@ async def update_user_roles(
     user_id: int,
     req: UpdateUserRolesRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("role:update")),
+    current_user: dict = Depends(require_permission("role:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await user_service.update_user_roles(session, user_id, req.role_ids)
+        await user_service.update_user_roles(
+            session, user_id, req.role_ids, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="用户不存在")
     return {"code": 200, "message": "角色更新成功", "data": None}
@@ -150,10 +169,13 @@ async def update_user_departments(
     user_id: int,
     req: UpdateUserDepartmentsRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await user_service.update_user_departments(session, user_id, req.department_ids)
+        await user_service.update_user_departments(
+            session, user_id, req.department_ids, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="用户不存在")
     return {"code": 200, "message": "部门更新成功", "data": None}
@@ -164,10 +186,13 @@ async def update_user_projects(
     user_id: int,
     req: UpdateUserProjectsRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await user_service.update_user_projects(session, user_id, req.project_ids)
+        await user_service.update_user_projects(
+            session, user_id, req.project_ids, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="用户不存在")
     return {"code": 200, "message": "项目更新成功", "data": None}

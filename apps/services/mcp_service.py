@@ -335,6 +335,13 @@ async def update_tool_billing(
     if not tool:
         raise NotFoundError("mcp_tool", tool_id)
 
+    # 校验 tool 所属 server 属于当前租户（先查 tool 再查 server 校验）
+    server = await mcp_repo.find_server_by_id(
+        session, tool.server_id, tenant_id=tenant_id
+    )
+    if not server:
+        raise NotFoundError("mcp_tool", tool_id)
+
     if billing_type is not None:
         tool.billing_type = billing_type
     if internal_cost_per_call is not None:
@@ -346,10 +353,7 @@ async def update_tool_billing(
     await session.refresh(tool)
 
     # 重新同步 server 的 cost_info 到 LiteLLM
-    server = await mcp_repo.find_server_by_id(
-        session, tool.server_id, tenant_id=tenant_id
-    )
-    if server and server.litellm_synced:
+    if server.litellm_synced:
         # 确保 tools relationship 包含最新数据
         await session.refresh(server, ["tools"])
         try:

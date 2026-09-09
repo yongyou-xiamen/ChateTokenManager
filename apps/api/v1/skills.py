@@ -1,6 +1,15 @@
 import json
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -268,7 +277,7 @@ async def create_skill_ai_policies_audit(
 ):
     try:
         data = await ai_policies_service.create_skill_audit(
-            session, skill_id, current_user
+            session, skill_id, current_user, tenant_id=current_user.get("tenant_id")
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Skill 不存在")
@@ -298,19 +307,21 @@ async def get_install_info(
 @router.get("/{skill_id}/zip", summary="Agent 下载 Skill zip")
 async def get_skill_zip_public(
     skill_id: int,
+    request: Request,
     session: AsyncSession = Depends(get_db),
     identity: dict = Depends(get_ai_key_identity),
 ):
     """Agent 下载端点，通过 AI Key 认证。仅已发布的 Skill 可下载。"""
+    tenant_id = getattr(request.state, "tenant_id", None) or identity.get("tenant_id")
     try:
         zip_path, download_name, _ = await skill_service.get_skill_zip(
-            session, skill_id, require_published=True
+            session, skill_id, require_published=True, tenant_id=tenant_id
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Skill 或 zip 文件不存在")
 
     # 权限检查：需审批的 Skill 必须在 Key 的 skills 列表中
-    skill_data = await skill_service.get_skill(session, skill_id)
+    skill_data = await skill_service.get_skill(session, skill_id, tenant_id=tenant_id)
     if skill_data.get("requires_approval"):
         if skill_id not in identity["skills"]:
             raise HTTPException(status_code=403, detail="请先申请使用该 Skill")

@@ -493,6 +493,7 @@ async def create_report(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
+    tenant_id = current_user.get("tenant_id")
     data = await efficiency_service.create_report(
         session,
         report_type=req.report_type,
@@ -501,6 +502,7 @@ async def create_report(
         created_by=current_user["id"],
         model_used=req.model_used,
         filters=req.filters,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "报告创建成功", "data": data}
 

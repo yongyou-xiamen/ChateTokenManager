@@ -11,12 +11,11 @@ async def count_users(
     is_admin: bool | None = None,
     is_active: bool | None = None,
     tenant_id: int | None = None,
+    include_super_admin: bool = False,
 ) -> int:
-    stmt = apply_tenant_filter(
-        select(func.count(User.id)).where(User.is_super_admin == False),
-        User,
-        tenant_id,
-    )
+    stmt = apply_tenant_filter(select(func.count(User.id)), User, tenant_id)
+    if not include_super_admin:
+        stmt = stmt.where(User.is_super_admin == False)
     if keyword:
         pattern = f"%{keyword}%"
         stmt = stmt.where(
@@ -43,11 +42,12 @@ async def find_users(
     is_admin: bool | None = None,
     is_active: bool | None = None,
     tenant_id: int | None = None,
+    include_super_admin: bool = False,
 ) -> list[User]:
     offset = (page - 1) * page_size
-    stmt = apply_tenant_filter(
-        select(User).where(User.is_super_admin == False), User, tenant_id
-    ).order_by(User.id)
+    stmt = apply_tenant_filter(select(User), User, tenant_id).order_by(User.id)
+    if not include_super_admin:
+        stmt = stmt.where(User.is_super_admin == False)
     if keyword:
         pattern = f"%{keyword}%"
         stmt = stmt.where(
@@ -67,8 +67,11 @@ async def find_users(
     return list(result.scalars().all())
 
 
-async def find_user_by_id(session: AsyncSession, user_id: int) -> User | None:
-    result = await session.execute(select(User).where(User.id == user_id))
+async def find_user_by_id(
+    session: AsyncSession, user_id: int, tenant_id: int | None = None
+) -> User | None:
+    stmt = apply_tenant_filter(select(User).where(User.id == user_id), User, tenant_id)
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 

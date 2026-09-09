@@ -81,15 +81,16 @@ async def _aggregate() -> None:
                 text(
                     """
                     INSERT INTO aihelms.cost_summary_daily (
-                        summary_date, user_id, ai_key_id, model, provider_id,
-                        cost_type, key_type, total_requests, successful_requests,
-                        failed_requests, input_tokens, output_tokens, cache_tokens,
-                        cache_read_tokens, cache_creation_tokens,
-                        external_cost, internal_cost, total_duration_ms,
-                        last_aggregated_at
+                        summary_date, tenant_id, user_id, ai_key_id, model,
+                        provider_id, cost_type, key_type, total_requests,
+                        successful_requests, failed_requests, input_tokens,
+                        output_tokens, cache_tokens, cache_read_tokens,
+                        cache_creation_tokens, external_cost, internal_cost,
+                        total_duration_ms, last_aggregated_at
                     )
                     SELECT
                         date_trunc('day', l.started_at)::date AS summary_date,
+                        COALESCE(l.tenant_id, 1) AS tenant_id,
                         l.user_id,
                         l.ai_key_id,
                         l.model,
@@ -113,7 +114,7 @@ async def _aggregate() -> None:
                     LEFT JOIN aihelms.model_deployments d ON d.id = l.deployment_id
                     WHERE l.started_at::date >= :rebuild_start
                       AND l.started_at < :now
-                    GROUP BY 1,2,3,4,5,6,7
+                    GROUP BY 1,2,3,4,5,6,7,8
                 """
                 ),
                 {"rebuild_start": rebuild_start, "now": now},
@@ -124,13 +125,14 @@ async def _aggregate() -> None:
                 text(
                     """
                     INSERT INTO aihelms.cost_summary_daily (
-                        summary_date, user_id, ai_key_id, server_id, cost_type,
-                        key_type, total_requests, successful_requests, failed_requests,
-                        external_cost, internal_cost, total_duration_ms,
-                        last_aggregated_at
+                        summary_date, tenant_id, user_id, ai_key_id, server_id,
+                        cost_type, key_type, total_requests, successful_requests,
+                        failed_requests, external_cost, internal_cost,
+                        total_duration_ms, last_aggregated_at
                     )
                     SELECT
                         date_trunc('day', m.called_at)::date AS summary_date,
+                        COALESCE(m.tenant_id, 1) AS tenant_id,
                         m.user_id,
                         m.ai_key_id,
                         m.server_id,
@@ -147,7 +149,7 @@ async def _aggregate() -> None:
                     LEFT JOIN aihelms.ai_keys k ON k.id = m.ai_key_id
                     WHERE m.called_at::date >= :rebuild_start
                       AND m.called_at < :now
-                    GROUP BY 1,2,3,4,5,6
+                    GROUP BY 1,2,3,4,5,6,7
                 """
                 ),
                 {"rebuild_start": rebuild_start, "now": now},

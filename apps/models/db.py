@@ -781,6 +781,7 @@ class AiPoliciesAudit(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     audit_id: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     audit_type: Mapped[str] = mapped_column(String(32), default="skill")
     skill_id: Mapped[int | None] = mapped_column(

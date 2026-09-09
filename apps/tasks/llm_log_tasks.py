@@ -354,6 +354,7 @@ async def _upsert_spend_log_rows(session: AsyncSession, rows) -> int:
         )
 
         ai_key_id: int | None = None
+        ai_key: AiKey | None = None
         if api_key_token and api_key_token != "litellm_proxy_master_key":
             key_alias = metadata.get("user_api_key_alias") or ""
             cache_key = key_alias or api_key_token
@@ -372,6 +373,7 @@ async def _upsert_spend_log_rows(session: AsyncSession, rows) -> int:
                 ai_key_id = ai_key.id
 
         user_id: int | None = None
+        user: User | None = None
         user_api_key_user_id = ""
         if isinstance(metadata.get("user_api_key_user_id"), str):
             user_api_key_user_id = metadata["user_api_key_user_id"]
@@ -464,10 +466,20 @@ async def _upsert_spend_log_rows(session: AsyncSession, rows) -> int:
         elif isinstance(error_info, str):
             error_message = error_info
 
+        # 解析 tenant_id：优先 LiteLLM key metadata 中的 aihelms_tenant_id，
+        # 其次 ai_key.tenant_id / user.tenant_id，兜底默认租户 1。
+        tenant_id = (
+            _safe_int(metadata.get("aihelms_tenant_id"))
+            or (ai_key.tenant_id if ai_key else 0)
+            or (user.tenant_id if user else 0)
+            or 1
+        )
+
         statement = (
             insert(LlmCallLog)
             .values(
                 request_id=request_id,
+                tenant_id=tenant_id,
                 user_id=user_id,
                 ai_key_id=ai_key_id,
                 deployment_id=deployment_id,
