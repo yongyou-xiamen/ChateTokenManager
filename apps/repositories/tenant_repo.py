@@ -43,6 +43,7 @@ async def update_tenant(
     for key, value in fields.items():
         setattr(tenant, key, value)
     await session.flush()
+    await session.refresh(tenant)
     return tenant
 
 
