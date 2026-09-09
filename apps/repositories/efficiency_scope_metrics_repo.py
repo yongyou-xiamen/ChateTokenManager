@@ -13,15 +13,20 @@ async def get_total_user_count(
     session: AsyncSession,
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> int:
     params: dict = {}
     scope_filter = build_scope_filter(
         "u.id", department_ids, project_ids, params, "total_users"
     )
+    tenant_clause = ""
+    if tenant_id is not None:
+        tenant_clause = " AND u.tenant_id = :tenant_id"
+        params["tenant_id"] = tenant_id
     result = await session.execute(
         text(
             "SELECT COUNT(u.id) FROM aihelms.users u"
-            f" WHERE u.is_active = true{scope_filter}"
+            f" WHERE u.is_active = true{scope_filter}{tenant_clause}"
         ),
         params,
     )
@@ -34,17 +39,22 @@ async def get_active_user_ids(
     end_date: date,
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> set[int]:
     params: dict = {"start": start_date, "end": end_date}
     scope_filter = build_scope_filter(
         "c.user_id", department_ids, project_ids, params, "active_users"
     )
+    tenant_clause = ""
+    if tenant_id is not None:
+        tenant_clause = " AND c.tenant_id = :tenant_id AND u.tenant_id = :tenant_id"
+        params["tenant_id"] = tenant_id
     result = await session.execute(
         text(
             "SELECT DISTINCT c.user_id FROM aihelms.cost_summary_daily c"
             " JOIN aihelms.users u ON u.id = c.user_id AND u.is_active = true"
             " WHERE c.summary_date >= :start AND c.summary_date <= :end"
-            f" AND c.user_id IS NOT NULL{scope_filter}"
+            f" AND c.user_id IS NOT NULL{scope_filter}{tenant_clause}"
         ),
         params,
     )
@@ -57,16 +67,21 @@ async def get_total_cost(
     end_date: date,
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> float:
     params: dict = {"start": start_date, "end": end_date}
     scope_filter = build_scope_filter(
         "c.user_id", department_ids, project_ids, params, "total_cost"
     )
+    tenant_clause = ""
+    if tenant_id is not None:
+        tenant_clause = " AND c.tenant_id = :tenant_id"
+        params["tenant_id"] = tenant_id
     result = await session.execute(
         text(
             "SELECT COALESCE(SUM(c.internal_cost), 0) FROM aihelms.cost_summary_daily c"
             " WHERE c.summary_date >= :start AND c.summary_date <= :end"
-            f"{scope_filter}"
+            f"{scope_filter}{tenant_clause}"
         ),
         params,
     )
@@ -80,6 +95,7 @@ async def get_daily_cost_and_users(
     granularity: str = "day",
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     if granularity == "week":
         trunc = "date_trunc('week', c.summary_date)::date"
@@ -97,6 +113,10 @@ async def get_daily_cost_and_users(
     scope_filter = build_scope_filter(
         "c.user_id", department_ids, project_ids, params, "daily_cost"
     )
+    tenant_clause = ""
+    if tenant_id is not None:
+        tenant_clause = " AND c.tenant_id = :tenant_id"
+        params["tenant_id"] = tenant_id
     sql = text(
         f"SELECT {trunc} AS d,"
         " COUNT(DISTINCT c.user_id) FILTER (WHERE u.is_active = true) AS active_users,"
@@ -105,7 +125,7 @@ async def get_daily_cost_and_users(
         " LEFT JOIN aihelms.users u ON u.id = c.user_id"
         " WHERE c.summary_date >= :start AND c.summary_date <= :end"
         " AND c.user_id IS NOT NULL"
-        f"{scope_filter} GROUP BY 1 ORDER BY 1"
+        f"{scope_filter}{tenant_clause} GROUP BY 1 ORDER BY 1"
     )
     result = await session.execute(sql, params)
     raw = {
