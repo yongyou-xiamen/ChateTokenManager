@@ -25,6 +25,8 @@ export interface CreateUserParams {
   position?: string
   avatar?: string
   is_active?: boolean
+  tenant_id?: number
+  is_tenant_admin?: boolean
   department_ids?: number[]
   project_ids?: number[]
 }

@@ -10,6 +10,8 @@ class CreateUserRequest(BaseModel):
     position: str = Field("", max_length=100)
     avatar: str = Field("", max_length=500)
     is_active: bool = True
+    tenant_id: int | None = Field(None, description="目标租户 ID，仅平台超管可指定")
+    is_tenant_admin: bool = Field(False, description="是否设为租户管理员")
 
     @field_validator("email")
     @classmethod

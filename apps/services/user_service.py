@@ -20,10 +20,13 @@ async def list_users(
     keyword: str = "",
     is_admin: bool | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    total = await user_repo.count_users(session, keyword, is_admin, is_active)
+    total = await user_repo.count_users(
+        session, keyword, is_admin, is_active, tenant_id=tenant_id
+    )
     users = await user_repo.find_users(
-        session, page, page_size, keyword, is_admin, is_active
+        session, page, page_size, keyword, is_admin, is_active, tenant_id=tenant_id
     )
     items = [_serialize_user(u) for u in users]
     return {"items": items, "total": total, "page": page, "page_size": page_size}
@@ -47,6 +50,7 @@ async def create_user(
     avatar: str = "",
     is_active: bool = True,
     tenant_id: int | None = None,
+    is_tenant_admin: bool = False,
 ) -> dict:
     existing = await user_repo.find_user_by_username_or_email(session, username, email)
     if existing:
@@ -65,6 +69,8 @@ async def create_user(
     )
     if tenant_id is not None:
         user.tenant_id = tenant_id
+    if is_tenant_admin:
+        user.is_tenant_admin = True
     user = await user_repo.create_user(session, user)
 
     litellm_user_id = f"t{user.tenant_id}_user_{user.id}"

@@ -12,12 +12,16 @@ import {
   getRoles,
   getDepartmentTree,
   getProjects,
+  listTenants,
+  usePermission,
   type Role,
   type DeptTreeNode,
+  type Tenant,
 } from '@aihelms/shared'
 
 const route = useRoute()
 const router = useRouter()
+const { isSuperAdmin } = usePermission()
 
 const userId = computed(() => route.params.id ? Number(route.params.id) : null)
 const isEdit = computed(() => !!userId.value)
@@ -39,6 +43,10 @@ const allProjects = ref<{ id: number; name: string }[]>([])
 const newPassword = ref('')
 const errorMessage = ref('')
 const isLoading = ref(false)
+
+const tenants = ref<Tenant[]>([])
+const selectedTenantId = ref<number | null>(null)
+const isTenantAdminChecked = ref(false)
 
 const showDeptPicker = ref(false)
 const deptSearchKeyword = ref('')
@@ -110,14 +118,21 @@ function toggleRole(roleId: number): void {
 }
 
 async function fetchData(): Promise<void> {
-  const [roles, tree, projects] = await Promise.all([
+  const requests: Promise<unknown>[] = [
     getRoles(),
     getDepartmentTree(),
     getProjects(1, 100),
-  ])
-  allRoles.value = roles
-  deptTree.value = tree
-  allProjects.value = projects.items.map((p: { id: number; name: string }) => ({ id: p.id, name: p.name }))
+  ]
+  if (isSuperAdmin() && !isEdit.value) {
+    requests.push(listTenants(1, 100))
+  }
+  const results = await Promise.all(requests)
+  allRoles.value = results[0] as Role[]
+  deptTree.value = results[1] as DeptTreeNode[]
+  allProjects.value = (results[2] as { items: { id: number; name: string }[] }).items.map((p) => ({ id: p.id, name: p.name }))
+  if (results.length > 3) {
+    tenants.value = (results[3] as { items: Tenant[] }).items
+  }
 
   if (isEdit.value && userId.value) {
     const user = await getUserById(userId.value)
@@ -180,6 +195,8 @@ async function handleSubmit(): Promise<void> {
         position: position.value,
         avatar: avatar.value,
         is_active: isActive.value,
+        tenant_id: isSuperAdmin() ? selectedTenantId.value ?? undefined : undefined,
+        is_tenant_admin: isTenantAdminChecked.value,
       })
       await Promise.all([
         updateUserRoles(user.id, selectedRoleIds.value),
@@ -256,6 +273,30 @@ onMounted(fetchData)
             type="text"
             class="flex h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
           />
+        </div>
+
+        <!-- 租户选择（仅超管 + 新建时可见） -->
+        <div v-if="isSuperAdmin() && !isEdit" class="mb-4">
+          <label class="mb-1.5 block text-sm font-medium text-slate-700">所属租户</label>
+          <select
+            v-model="selectedTenantId"
+            class="flex h-11 w-full rounded-lg border border-slate-200 bg-white px-4 text-sm text-slate-900 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+          >
+            <option :value="null">默认租户</option>
+            <option v-for="t in tenants" :key="t.id" :value="t.id">{{ t.name }} ({{ t.slug }})</option>
+          </select>
+        </div>
+
+        <!-- 租户管理员（仅新建时可见） -->
+        <div v-if="!isEdit" class="mb-4">
+          <label class="flex cursor-pointer items-center gap-2">
+            <input
+              v-model="isTenantAdminChecked"
+              type="checkbox"
+              class="h-4 w-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500/20"
+            />
+            <span class="text-sm text-slate-700">设为租户管理员</span>
+          </label>
         </div>
 
 

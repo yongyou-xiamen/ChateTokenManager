@@ -24,10 +24,11 @@ async def list_users(
     is_admin: bool | None = Query(None),
     is_active: bool | None = Query(None),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     result = await user_service.list_users(
-        session, page, page_size, keyword, is_admin, is_active
+        session, page, page_size, keyword, is_admin, is_active, tenant_id=tenant_id
     )
     return {"code": 200, "message": "ok", "data": result}
 
@@ -36,8 +37,14 @@ async def list_users(
 async def create_user(
     req: CreateUserRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:create")),
+    current_user: dict = Depends(require_permission("user:create")),
 ):
+    is_super_admin = current_user.get("is_super_admin", False)
+    current_tenant_id = current_user.get("tenant_id")
+    # 超管可以指定 tenant_id；租户管理员只能创建本租户用户
+    target_tenant_id = (
+        req.tenant_id if is_super_admin and req.tenant_id else current_tenant_id
+    )
     try:
         user = await user_service.create_user(
             session,
@@ -49,6 +56,8 @@ async def create_user(
             position=req.position,
             avatar=req.avatar,
             is_active=req.is_active,
+            tenant_id=target_tenant_id,
+            is_tenant_admin=req.is_tenant_admin,
         )
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=str(e))
