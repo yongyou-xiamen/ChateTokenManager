@@ -264,7 +264,24 @@ class TestServiceTenantPassthrough:
     async def test_user_service_create_user_sets_tenant_id(self, monkeypatch):
         """user_service.create_user 应正确设置 user.tenant_id。"""
         created_user = SimpleNamespace(
-            id=10, tenant_id=3, username="newuser", email="new@test.com"
+            id=10,
+            tenant_id=3,
+            username="newuser",
+            email="new@test.com",
+            phone="",
+            display_name="",
+            position="",
+            avatar="",
+            is_active=True,
+            is_admin=False,
+            is_super_admin=False,
+            is_tenant_admin=True,
+            litellm_user_id=None,
+            created_at=None,
+            updated_at=None,
+            roles=[],
+            departments=[],
+            projects=[],
         )
         mock_create = AsyncMock(return_value=created_user)
         mock_find = AsyncMock(return_value=None)
@@ -279,7 +296,7 @@ class TestServiceTenantPassthrough:
             AsyncMock(),
         )
 
-        result = await user_service.create_user(
+        await user_service.create_user(
             AsyncMock(),
             username="newuser",
             email="new@test.com",
