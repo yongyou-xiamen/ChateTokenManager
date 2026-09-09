@@ -191,19 +191,21 @@ INSERT INTO aihelms.business_scenarios (code, name, icon, sort_order) VALUES
     ('other',            '其他',     'Target',        999)
 ON CONFLICT (code) DO NOTHING;
 
--- Whitelabel branding singleton
+-- Whitelabel branding (per-tenant, Phase 4)
 CREATE TABLE IF NOT EXISTS aihelms.branding (
     id INTEGER PRIMARY KEY DEFAULT 1,
+    tenant_id BIGINT NOT NULL DEFAULT 1,
     platform_name TEXT NOT NULL DEFAULT 'AIHelms',
     logo_path TEXT,
     square_logo_path TEXT,
     favicon_path TEXT,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT branding_singleton CHECK (id = 1)
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO aihelms.branding (id)
-VALUES (1)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_branding_tenant ON aihelms.branding (tenant_id);
+
+INSERT INTO aihelms.branding (id, tenant_id)
+VALUES (1, 1)
 ON CONFLICT (id) DO NOTHING;
 
 -- MCP 分类（必须在 mcp_servers 之前创建）
@@ -419,9 +421,10 @@ CREATE TABLE IF NOT EXISTS aihelms.model_user_visibility (
     UNIQUE(model_id, user_id)
 );
 
--- 路由配置（全局单行）
+-- 路由配置（per-tenant, Phase 4）
 CREATE TABLE IF NOT EXISTS aihelms.router_settings (
     id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL DEFAULT 1,
     routing_strategy VARCHAR(50) DEFAULT 'simple-shuffle',
     fallbacks JSONB DEFAULT '[]',
     allowed_fails INT DEFAULT 3,
@@ -432,8 +435,10 @@ CREATE TABLE IF NOT EXISTS aihelms.router_settings (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_router_settings_tenant ON aihelms.router_settings (tenant_id);
+
 -- 插入默认路由配置
-INSERT INTO aihelms.router_settings (routing_strategy) VALUES ('simple-shuffle') ON CONFLICT DO NOTHING;
+INSERT INTO aihelms.router_settings (tenant_id, routing_strategy) VALUES (1, 'simple-shuffle') ON CONFLICT DO NOTHING;
 
 -- Key 模型限制（每个 key 对每个模型的速率限制）
 CREATE TABLE IF NOT EXISTS aihelms.ai_key_model_limits (
@@ -738,15 +743,17 @@ CREATE TABLE IF NOT EXISTS aihelms.ai_policies_risk_catalog (
 
 CREATE TABLE IF NOT EXISTS aihelms.ai_policies_settings (
     id INTEGER PRIMARY KEY DEFAULT 1,
+    tenant_id BIGINT NOT NULL DEFAULT 1,
     llm_review_enabled BOOLEAN NOT NULL DEFAULT false,
     llm_review_model_id BIGINT REFERENCES aihelms.models(id) ON DELETE SET NULL,
     updated_by BIGINT REFERENCES aihelms.users(id) ON DELETE SET NULL,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT ai_policies_settings_singleton CHECK (id = 1)
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO aihelms.ai_policies_settings (id)
-VALUES (1)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_policies_settings_tenant ON aihelms.ai_policies_settings (tenant_id);
+
+INSERT INTO aihelms.ai_policies_settings (id, tenant_id)
+VALUES (1, 1)
 ON CONFLICT (id) DO NOTHING;
 
 ALTER TABLE aihelms.skills
