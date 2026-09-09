@@ -233,6 +233,9 @@ def _serialize_user(user: User) -> dict:
         "position": user.position,
         "is_active": user.is_active,
         "is_admin": user.is_admin,
+        "is_super_admin": user.is_super_admin,
+        "is_tenant_admin": user.is_tenant_admin,
+        "tenant_id": user.tenant_id,
         "created_at": fmt_local_time(user.created_at),
         "roles": [
             {
