@@ -43,9 +43,9 @@ server {
 
     # 文档（开发模式直接读源文件）
     location /docs/ {
-        alias /usr/share/nginx/html/docs/;
+        root /usr/share/nginx/html;
         index GUIDE.html;
-        try_files $uri $uri/ /docs/GUIDE.html;
+        try_files $uri $uri/ =404;
     }
 
     # 用户端 → Vite dev server
