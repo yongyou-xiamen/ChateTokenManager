@@ -151,7 +151,7 @@ async function handleChangePassword(): Promise<void> {
 
       <!-- 右：用户操作 -->
       <div class="flex items-center justify-end gap-3">
-        <a href="http://www.aihelms.cn/docs" target="_blank" rel="noopener noreferrer"
+        <a href="/docs/" target="_blank" rel="noopener noreferrer"
           class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">
           <BookOpen class="h-4 w-4" />
           {{ t('layout.docs') }}

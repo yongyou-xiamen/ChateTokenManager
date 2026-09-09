@@ -29,7 +29,7 @@ function handleLogout(): void {
     </div>
     <div class="flex items-center gap-2 sm:gap-4">
       <a
-        href="http://www.aihelms.cn/docs"
+        href="/docs/"
         target="_blank"
         rel="noopener noreferrer"
         class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-slate-100/80"

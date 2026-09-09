@@ -205,6 +205,7 @@
 <aside id="sidebar">
   <div class="nav-section">
     <div class="nav-title">快速开始</div>
+    <a class="nav-link" data-page="overview" href="#/overview">文档导览</a>
     <a class="nav-link" data-page="introduction" href="#/introduction">产品介绍</a>
   </div>
   <div class="nav-section">
@@ -245,7 +246,7 @@
 <main>
 
 <!-- 文档导览(首页) -->
-<section class="page active" id="page-introduction">
+<section class="page active" id="page-overview">
   <p class="subtitle">ChateTokenManager Docs</p>
   <h1>文档导览</h1>
   <p class="lead">按任务查找 ChateTokenManager 操作说明。</p>
@@ -1577,7 +1578,8 @@ wire_api = "responses"</code></pre>
 
   // page id 映射:hash -> page element id
   const pageMap = {
-    '': 'page-introduction',
+    '': 'page-overview',
+    'overview': 'page-overview',
     'introduction': 'page-introduction-detail',
     'user': 'page-user',
     'api': 'page-api',
@@ -1608,7 +1610,7 @@ wire_api = "responses"</code></pre>
     pages.forEach(p => p.classList.toggle('active', p.id === pageId));
     navLinks.forEach(l => {
       const lkey = l.getAttribute('data-page');
-      const isActive = (key === '' && lkey === 'introduction') || lkey === key;
+      const isActive = (key === '' && lkey === 'overview') || lkey === key;
       l.classList.toggle('active', isActive);
     });
     window.scrollTo(0, 0);
