@@ -166,8 +166,8 @@ async def create_key(
         data["user_id"] = user_id
     if team_id:
         data["team_id"] = team_id
-    # LiteLLM v1.93+ requires models field to be present
-    data["models"] = models if models is not None else []
+    # LiteLLM v1.93+ requires models field to be a non-empty list
+    data["models"] = models if models else ["all-team-models"]
     if max_budget is not None:
         data["max_budget"] = max_budget
     if metadata:

@@ -193,7 +193,7 @@ ON CONFLICT (code) DO NOTHING;
 
 -- Whitelabel branding (per-tenant, Phase 4)
 CREATE TABLE IF NOT EXISTS aihelms.branding (
-    id INTEGER PRIMARY KEY DEFAULT 1,
+    id SERIAL PRIMARY KEY,
     tenant_id BIGINT NOT NULL DEFAULT 1,
     platform_name TEXT NOT NULL DEFAULT 'AIHelms',
     logo_path TEXT,
@@ -204,9 +204,9 @@ CREATE TABLE IF NOT EXISTS aihelms.branding (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_branding_tenant ON aihelms.branding (tenant_id);
 
-INSERT INTO aihelms.branding (id, tenant_id)
-VALUES (1, 1)
-ON CONFLICT (id) DO NOTHING;
+    INSERT INTO aihelms.branding (tenant_id)
+    VALUES (1)
+    ON CONFLICT DO NOTHING;
 
 -- MCP 分类（必须在 mcp_servers 之前创建）
 CREATE TABLE IF NOT EXISTS aihelms.mcp_categories (
@@ -742,7 +742,7 @@ CREATE TABLE IF NOT EXISTS aihelms.ai_policies_risk_catalog (
 );
 
 CREATE TABLE IF NOT EXISTS aihelms.ai_policies_settings (
-    id INTEGER PRIMARY KEY DEFAULT 1,
+    id SERIAL PRIMARY KEY,
     tenant_id BIGINT NOT NULL DEFAULT 1,
     llm_review_enabled BOOLEAN NOT NULL DEFAULT false,
     llm_review_model_id BIGINT REFERENCES aihelms.models(id) ON DELETE SET NULL,
@@ -752,9 +752,9 @@ CREATE TABLE IF NOT EXISTS aihelms.ai_policies_settings (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_policies_settings_tenant ON aihelms.ai_policies_settings (tenant_id);
 
-INSERT INTO aihelms.ai_policies_settings (id, tenant_id)
-VALUES (1, 1)
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO aihelms.ai_policies_settings (tenant_id)
+VALUES (1)
+ON CONFLICT DO NOTHING;
 
 ALTER TABLE aihelms.skills
     ADD COLUMN IF NOT EXISTS security_status VARCHAR(32) NOT NULL DEFAULT 'not_scanned',

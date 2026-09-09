@@ -1155,7 +1155,7 @@ class Branding(Base):
     __tablename__ = "branding"
     __table_args__ = {"schema": "aihelms"}
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     platform_name: Mapped[str] = mapped_column(Text, nullable=False, default="AIHelms")
     logo_path: Mapped[str | None] = mapped_column(Text, nullable=True)
