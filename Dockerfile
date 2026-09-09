@@ -56,8 +56,11 @@ COPY docker/supervisor/supervisord.conf /etc/supervisor/supervisord.conf
 COPY docker/supervisor/start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
+# Copy docs
+COPY docs/GUIDE.html /app/docs/index.html
+
 # Create frontend volume mount points
-RUN mkdir -p /frontend/web /frontend/admin
+RUN mkdir -p /frontend/web /frontend/admin /frontend/docs
 
 WORKDIR /app/apps
 

@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ChateTokenManager 文档</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-subtle: #f8fafc;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --brand: #4f46e5;
+    --brand-light: #eef2ff;
+    --code-bg: #f1f5f9;
+    --code-text: #be185d;
+    --table-stripe: #f8fafc;
+  }
+  [data-theme="dark"] {
+    --bg: #0b0d10;
+    --bg-subtle: #11151a;
+    --text: #e5e7eb;
+    --text-muted: #94a3b8;
+    --border: #1f2937;
+    --brand: #818cf8;
+    --brand-light: #1e1b4b;
+    --code-bg: #1a1f29;
+    --code-text: #f472b6;
+    --table-stripe: #11151a;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 15px;
+    transition: background 0.2s, color 0.2s;
+  }
+  header {
+    position: sticky; top: 0; z-index: 40;
+    height: 60px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 16px; color: var(--text); text-decoration: none;
+  }
+  .brand-logo {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 800; font-size: 14px;
+  }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    border: 1px solid var(--border); background: var(--bg);
+    border-radius: 8px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text); transition: all 0.15s;
+  }
+  .icon-btn:hover { border-color: var(--brand); color: var(--brand); }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .mobile-menu-btn { display: none; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 270px 1fr;
+    max-width: 1200px; margin: 0 auto;
+    gap: 30px; padding: 24px 20px 80px;
+  }
+  aside {
+    position: sticky; top: 84px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    padding-right: 8px;
+  }
+  aside::-webkit-scrollbar { width: 6px; }
+  aside::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .nav-section { margin-bottom: 22px; }
+  .nav-title {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-muted); padding: 0 10px; margin-bottom: 8px;
+  }
+  .nav-link {
+    display: block; padding: 6px 10px; border-radius: 6px;
+    color: var(--text-muted); text-decoration: none;
+    font-size: 14px; transition: all 0.12s;
+  }
+  .nav-link:hover { background: var(--bg-subtle); color: var(--brand); }
+  .nav-link.active { background: var(--brand-light); color: var(--brand); font-weight: 600; }
+  .nav-link.sub { padding-left: 24px; font-size: 13px; }
+
+  main { min-width: 0; }
+  .page { display: none; }
+  .page.active { display: block; }
+  main h1 {
+    font-size: 30px; font-weight: 700;
+    margin: 0 0 8px; padding-bottom: 16px;
+    border-bottom: 1px solid var(--border); line-height: 1.3;
+  }
+  main .subtitle {
+    color: var(--brand); font-size: 13px; font-weight: 600; margin-bottom: 4px;
+  }
+  main .lead { color: var(--text-muted); margin-top: 0; }
+  main h2 {
+    font-size: 22px; font-weight: 700;
+    margin: 40px 0 14px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  main h3 { font-size: 18px; font-weight: 600; margin: 28px 0 10px; }
+  main h4 { font-size: 15px; font-weight: 600; margin: 22px 0 8px; }
+  main p { margin: 10px 0; }
+  main ul, main ol { padding-left: 22px; margin: 10px 0; }
+  main li { margin: 4px 0; }
+  main a { color: var(--brand); text-decoration: none; }
+  main a:hover { text-decoration: underline; }
+  main code {
+    background: var(--code-bg); color: var(--code-text);
+    padding: 2px 6px; border-radius: 4px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px;
+  }
+  main pre {
+    background: var(--code-bg); padding: 14px 16px;
+    border-radius: 8px; overflow-x: auto;
+    border: 1px solid var(--border); margin: 14px 0;
+  }
+  main pre code { background: transparent; color: var(--text); padding: 0; font-size: 13px; line-height: 1.5; }
+  main table {
+    width: 100%; border-collapse: collapse;
+    margin: 14px 0; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  }
+  main th, main td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  main th { background: var(--bg-subtle); font-weight: 600; }
+  main tr:nth-child(even) td { background: var(--table-stripe); }
+  main tr:last-child td { border-bottom: none; }
+  main blockquote {
+    border-left: 3px solid var(--brand); background: var(--brand-light);
+    margin: 14px 0; padding: 10px 16px;
+    border-radius: 0 6px 6px 0; color: var(--text);
+  }
+  main blockquote p { margin: 6px 0; }
+  main hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+  .next-link {
+    display: inline-block; margin-top: 30px;
+    padding: 8px 16px; border: 1px solid var(--border);
+    border-radius: 8px; color: var(--brand); text-decoration: none;
+    font-size: 14px; transition: all 0.15s;
+  }
+  .next-link:hover { background: var(--brand-light); border-color: var(--brand); }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; padding: 16px; gap: 0; }
+    aside {
+      position: fixed; top: 60px; left: 0; bottom: 0;
+      width: 280px; background: var(--bg);
+      border-right: 1px solid var(--border); z-index: 50;
+      transform: translateX(-100%); transition: transform 0.25s;
+      padding: 20px; max-height: none;
+    }
+    aside.open { transform: translateX(0); }
+    .mobile-menu-btn { display: flex; }
+    .overlay { display: none; position: fixed; inset: 60px 0 0 0; background: rgba(0,0,0,0.4); z-index: 40; }
+    .overlay.show { display: block; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex; align-items:center; gap:12px;">
+    <button class="icon-btn mobile-menu-btn" id="menuBtn" aria-label="菜单">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </button>
+    <a class="brand" href="#/">
+      <span class="brand-logo">C</span>
+      <span>ChateTokenManager</span>
+    </a>
+  </div>
+  <div class="header-actions">
+    <a class="icon-btn" href="https://github.com/yongyou-xiamen/ChateTokenManager" target="_blank" rel="noopener" title="GitHub">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    </a>
+    <button class="icon-btn" id="themeBtn" aria-label="切换主题" title="切换主题">
+      <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg id="iconSun" style="display:none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    </button>
+  </div>
+</header>
+
+<div class="overlay" id="overlay"></div>
+
+<div class="layout">
+
+<aside id="sidebar">
+  <div class="nav-section">
+    <div class="nav-title">快速开始</div>
+    <a class="nav-link" data-page="introduction" href="#/introduction">产品介绍</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-title">使用指南</div>
+    <a class="nav-link" data-page="user" href="#/user">用户指南</a>
+    <a class="nav-link" data-page="api" href="#/api">API 介绍</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-title">管理指南</div>
+    <a class="nav-link" data-page="dashboard" href="#/dashboard">Dashboard</a>
+    <a class="nav-link" data-page="users" href="#/users">AI 身份</a>
+    <a class="nav-link" data-page="resource-audit" href="#/resource-audit">资源审计</a>
+    <a class="nav-link" data-page="agent-center" href="#/agent-center">智能体中心</a>
+    <a class="nav-link" data-page="ai-market" href="#/ai-market">AI 市场</a>
+    <a class="nav-link" data-page="provider-types" href="#/provider-types">供应商类型与接入格式</a>
+    <a class="nav-link" data-page="providers" href="#/providers">供应商与凭证</a>
+    <a class="nav-link" data-page="models" href="#/models">模型与部署</a>
+    <a class="nav-link" data-page="publishing" href="#/publishing">发布与路由</a>
+    <a class="nav-link" data-page="efficiency" href="#/efficiency">AI 效能</a>
+    <a class="nav-link" data-page="security" href="#/security">安全</a>
+    <a class="nav-link" data-page="ai-policies" href="#/ai-policies">AI Policies</a>
+    <a class="nav-link" data-page="system" href="#/system">系统</a>
+    <a class="nav-link" data-page="ai-lab" href="#/ai-lab">AI 实验室</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-title">最佳实践</div>
+    <a class="nav-link" data-page="claude-code" href="#/claude-code">Claude Code 接入</a>
+    <a class="nav-link" data-page="codex" href="#/codex">Codex 接入</a>
+    <a class="nav-link" data-page="workbuddy" href="#/workbuddy">WorkBuddy 接入</a>
+    <a class="nav-link" data-page="cc-switch" href="#/cc-switch">CC-Switch 接入</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-title">其他</div>
+    <a class="nav-link" data-page="faq" href="#/faq">常见问题</a>
+  </div>
+</aside>
+
+<main>
+
+<!-- 文档导览(首页) -->
+<section class="page active" id="page-introduction">
+  <p class="subtitle">ChateTokenManager Docs</p>
+  <h1>文档导览</h1>
+  <p class="lead">按任务查找 ChateTokenManager 操作说明。</p>
+
+  <h2>选择要完成的操作</h2>
+  <table>
+    <thead><tr><th>我要做什么</th><th>打开文档</th></tr></thead>
+    <tbody>
+      <tr><td>了解 ChateTokenManager 的用途和主要功能</td><td><a href="#/introduction">产品介绍</a></td></tr>
+      <tr><td>查看自己的 AI 身份、申请资源或获取接入信息</td><td><a href="#/user">用户指南</a></td></tr>
+      <tr><td>按后台模块查找管理操作</td><td><a href="#/dashboard">Dashboard</a></td></tr>
+      <tr><td>选择供应商类型和 OpenAI、Anthropic 等接入格式</td><td><a href="#/provider-types">供应商类型与接入格式</a></td></tr>
+      <tr><td>创建供应商和凭证</td><td><a href="#/providers">供应商与凭证</a></td></tr>
+      <tr><td>创建模型、添加部署并测试</td><td><a href="#/models">模型与部署</a></td></tr>
+      <tr><td>创建用户并分配模型、预算和限流</td><td><a href="#/users">AI 身份</a></td></tr>
+      <tr><td>审批申请、查询日志或下载导出文件</td><td><a href="#/resource-audit">资源审计</a></td></tr>
+      <tr><td>发布 Skill 或 MCP Server</td><td><a href="#/ai-market">AI 市场</a></td></tr>
+      <tr><td>查询使用覆盖、成本或预算</td><td><a href="#/efficiency">AI 效能</a></td></tr>
+      <tr><td>给第三方系统创建管理 API Key</td><td><a href="#/api">API 介绍</a></td></tr>
+      <tr><td>配置 Claude Code</td><td><a href="#/claude-code">Claude Code</a></td></tr>
+      <tr><td>配置 Codex</td><td><a href="#/codex">Codex</a></td></tr>
+      <tr><td>配置 WorkBuddy</td><td><a href="#/workbuddy">WorkBuddy</a></td></tr>
+      <tr><td>使用 CC-Switch 管理客户端配置</td><td><a href="#/cc-switch">CC-Switch</a></td></tr>
+      <tr><td>查询常见错误</td><td><a href="#/faq">常见问题</a></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 产品介绍 -->
+<section class="page" id="page-introduction-detail">
+<p class="subtitle">快速开始</p>
+<h1>产品介绍</h1>
+<p>ChateTokenManager 是面向企业的 AI 资源纳管平台,帮助企业管理 AI 资产、控制 AI 成本、衡量 AI 价值。管理员可以统一接入和分配 AI 资源,员工使用自己的 AI 身份访问所需工具,管理者可以持续查看使用量、成本和预算情况。</p>
+
+<h2>为什么使用 ChateTokenManager</h2>
+<p>企业开始大规模使用 AI 后,通常会遇到几类实际问题:</p>
+<ul>
+<li>模型和工具分散在不同供应商、账号和团队中,无法统一管理。</li>
+<li>员工各自保存密钥,人员变动后难以及时收回权限。</li>
+<li>不清楚哪些部门在使用 AI,也无法把成本归到具体人员、项目或模型。</li>
+<li>高成本模型、内部 Skill 和 MCP Server 缺少统一申请、审批和分发入口。</li>
+<li>出现异常调用后,缺少可查询的用户、Key、模型、用量和管理操作记录。</li>
+</ul>
+<p>ChateTokenManager 把这些工作集中到管理后台。员工不需要接触供应商密钥,只使用自己的 AI 身份和管理员分配的资源。</p>
+
+<h2>三类用户</h2>
+<p><strong>企业负责人</strong> 通过 Dashboard 和 AI 效能页面查看人员覆盖、调用趋势、模型使用、成本和预算执行情况。需要进一步分析时,可以按部门、项目、人员和模型查看数据。</p>
+<p><strong>平台管理员</strong> 负责日常配置和支持工作:</p>
+<ul>
+<li>接入企业采购或自建的模型服务。</li>
+<li>创建模型并完成可用性测试。</li>
+<li>建立人员、部门和项目。</li>
+<li>给员工分配 AI 身份、资源、预算和调用限制。</li>
+<li>发布模型、Skill、MCP Server 和智能体。</li>
+<li>处理员工申请,查询调用记录和管理操作记录。</li>
+</ul>
+<p><strong>普通员工</strong> 登录用户端后,可以查看自己的 AI 身份、已获授权的资源和本月用量。在模型广场或 AI 市场申请需要的资源,再把接入信息配置到 Claude Code、Codex、WorkBuddy 等工具中。</p>
+
+<h2>主要功能</h2>
+<table>
+<thead><tr><th>功能</th><th>能做什么</th></tr></thead>
+<tbody>
+<tr><td>模型纳管</td><td>统一接入不同供应商和自建模型,配置多条可用线路并执行连通性测试</td></tr>
+<tr><td>AI 身份</td><td>为人员、部门和项目创建 Key,分配模型与工具,设置预算和调用限制</td></tr>
+<tr><td>AI 市场</td><td>发布和分发 Skill、MCP Server 与智能体,支持申请和审批</td></tr>
+<tr><td>AI 效能</td><td>查看使用覆盖、调用趋势、模型成本、预算进度和运营报表</td></tr>
+<tr><td>安全与审计</td><td>查询管理操作,检查 Skill 风险,处理 Key 泄露和异常调用</td></tr>
+<tr><td>平台设置</td><td>修改平台显示名称、Logo 和浏览器图标</td></tr>
+</tbody>
+</table>
+
+<h2>第一次使用</h2>
+<p><strong>管理员</strong> 如果平台已经部署完成,建议按这个顺序开始:</p>
+<ol>
+<li>进入「供应商类型与接入格式」,确认上游类型和接口格式。</li>
+<li>按「供应商与凭证」保存服务地址和密钥。</li>
+<li>按「模型与部署」创建模型、添加可用线路并测试。</li>
+<li>发布模型,再为测试用户分配 AI 身份和模型权限。</li>
+<li>使用测试用户登录用户端,完成一次真实调用。</li>
+</ol>
+<p><strong>普通员工</strong>:</p>
+<ol>
+<li>使用管理员提供的账号登录用户端。</li>
+<li>打开「我的 AI 身份」,确认状态为「已激活」。</li>
+<li>打开模型广场或 AI 市场,申请所需资源。</li>
+<li>审批通过后复制 Key、Endpoint 和模型 ID。</li>
+<li>按对应的客户端文档完成配置。</li>
+</ol>
+<a class="next-link" href="#/user">下一步:用户指南 →</a>
+</section>
+
+<!-- 用户指南 -->
+<section class="page" id="page-user">
+<p class="subtitle">使用指南</p>
+<h1>用户指南</h1>
+<p class="lead">查看自己的 AI 身份、申请资源或获取接入信息。</p>
+
+<h2>我的 AI 身份</h2>
+<p>登录用户端后默认进入「我的 AI 身份」页面:</p>
+<ul>
+<li>查看个人主 Key 和场景 Key。</li>
+<li>查看已分配的模型、MCP、Skill 和智能体。</li>
+<li>查看本月用量和预算执行情况。</li>
+</ul>
+
+<h2>模型广场</h2>
+<ul>
+<li>浏览已发布的模型。</li>
+<li>查看模型说明、能力和接入信息。</li>
+<li>申请需要审批的模型。</li>
+</ul>
+
+<h2>AI 市场</h2>
+<ul>
+<li>浏览已发布的 Skill、MCP Server 和智能体。</li>
+<li>查看使用说明和配置方式。</li>
+<li>申请需要审批的资源。</li>
+</ul>
+
+<h2>接入客户端</h2>
+<p>审批通过后,从「我的 AI 身份」复制 Key,从「模型广场 > 查看接入信息」复制 Endpoint 和模型 ID,配置到对应客户端:Claude Code、Codex、WorkBuddy 等。</p>
+<blockquote><p>「我的 AI 身份」页面显示 Key,「模型广场 > 查看接入信息」显示 Endpoint 和模型 ID。接入时要从两个页面取值。</p></blockquote>
+</section>
+
+<!-- API 介绍 -->
+<section class="page" id="page-api">
+<p class="subtitle">使用指南</p>
+<h1>API Key 与管理 API</h1>
+<p class="lead">创建管理 API Key,让受信任的第三方系统调用 ChateTokenManager 管理 API。</p>
+<p>管理后台「安全 > API Key」用于给第三方系统开放 ChateTokenManager 管理 API。例如,企业内部系统可以使用它读取人员、模型或资源信息,并按授权接口执行管理操作。</p>
+
+<h2>使用前确认</h2>
+<p>管理 API Key 权限等同管理员。创建前应确认:</p>
+<ul>
+<li>对接系统由企业管理,并且有明确负责人。</li>
+<li>Key 只保存在服务端,不会下发到浏览器、桌面客户端或移动端。</li>
+<li>已确定用途、调用来源、有效期和停用流程。</li>
+<li>不把同一个 Key 分给多个无法区分的系统。</li>
+</ul>
+
+<h2>新建 API Key</h2>
+<p>进入「安全 > API Key」,点击「新建 API Key」。</p>
+<table>
+<thead><tr><th>字段</th><th>必填</th><th>填写建议</th></tr></thead>
+<tbody>
+<tr><td>名称</td><td>是</td><td>使用「系统名-环境」,例如 oa-prod</td></tr>
+<tr><td>描述</td><td>否</td><td>写清用途、负责人和对接系统</td></tr>
+<tr><td>过期时间</td><td>否</td><td>有明确项目周期时设置;留空表示不过期</td></tr>
+</tbody>
+</table>
+<p>点击「创建」后,列表会显示新 Key。立即复制到对接系统的密钥存储中,不要写进代码仓库、配置样例或工单正文。</p>
+
+<h2>请求管理 API</h2>
+<p>ChateTokenManager 管理 API 的基础路径通常是:</p>
+<pre><code>http://&lt;ChateTokenManager 地址&gt;/api/v1</code></pre>
+<p>在请求头中使用:</p>
+<pre><code>Authorization: Bearer &lt;管理 API Key&gt;</code></pre>
+<p>下面的示例读取供应商列表,用于确认 Key 和地址是否正确:</p>
+<pre><code>curl "http://&lt;ChateTokenManager 地址&gt;/api/v1/providers?page=1&amp;page_size=20" \
+  -H "Authorization: Bearer &lt;管理 API Key&gt;"</code></pre>
+<p>成功时返回 code、message 和 data。具体字段以当前部署版本的接口文档为准。</p>
+
+<h2>查看接口文档</h2>
+<p>浏览器打开:</p>
+<pre><code>http://&lt;ChateTokenManager 地址&gt;/api/docs</code></pre>
+<p>在接口文档页面点击「Authorize」,输入管理 API Key,再选择接口进行测试。测试创建、修改和删除类接口时,先使用非生产数据,并记录测试对象。</p>
+
+<h2>状态与有效期</h2>
+<p>API Key 列表显示:</p>
+<ul>
+<li>当前状态:启用、禁用或已过期。</li>
+<li>创建时间。</li>
+<li>最后使用时间。</li>
+<li>过期时间。</li>
+</ul>
+<p>「最后使用」长期为空时,先确认对接系统是否真的发送了该 Key,以及请求是否到达当前 ChateTokenManager 环境。</p>
+
+<h2>禁用和删除</h2>
+<h3>临时停用</h3>
+<p>点击「禁用」后,使用该 Key 的新请求会被拒绝。故障排查、系统下线或发现异常来源时,优先禁用,确认无影响后再决定是否删除。</p>
+<h3>永久删除</h3>
+<p>删除前确认对接系统已经换用新 Key 或停止调用。删除后无法恢复,所有仍使用旧 Key 的请求都会失败。</p>
+<h3>轮换 Key</h3>
+<ul>
+<li>新建一个用途相同的新 Key。</li>
+<li>把新 Key 更新到对接系统。</li>
+<li>观察新 Key 的「最后使用」时间。</li>
+<li>禁用旧 Key 并确认业务正常。</li>
+<li>删除旧 Key。</li>
+</ul>
+
+<h2>常见问题</h2>
+<table>
+<thead><tr><th>现象</th><th>检查方法</th></tr></thead>
+<tbody>
+<tr><td>401</td><td>Key 是否完整、是否禁用、是否过期,Authorization 格式是否正确</td></tr>
+<tr><td>403</td><td>当前接口是否允许 API Key 身份访问,或接口权限要求是否变化</td></tr>
+<tr><td>404</td><td>地址是否包含 /api/v1,接口路径是否属于当前版本</td></tr>
+<tr><td>浏览器调用暴露 Key</td><td>不要在前端直接调用,改由企业后端服务代理</td></tr>
+<tr><td>无法判断哪个系统在调用</td><td>为每个系统和环境创建独立 Key,不要共用</td></tr>
+</tbody>
+</table>
+<blockquote><p>模型调用所需的 Key 请查看用户指南,不要使用本页的管理 API Key。</p></blockquote>
+</section>
+
+<!-- Dashboard -->
+<section class="page" id="page-dashboard">
+<p class="subtitle">管理指南</p>
+<h1>Dashboard</h1>
+<p class="lead">查看当天调用、成本、待办和服务状态。</p>
+<p>登录管理后台后默认进入 Dashboard。</p>
+
+<h2>查看当天数据</h2>
+<ul>
+<li>在时间筛选中选择今天、本周、本月或自定义日期。</li>
+<li>查看活跃用户、调用次数、成本和待审批数量。</li>
+<li>数字异常时点击对应卡片,或进入左侧相关模块继续查询。</li>
+</ul>
+<table>
+<thead><tr><th>发现的问题</th><th>下一步</th></tr></thead>
+<tbody>
+<tr><td>调用或成本突然增加</td><td>进入「资源审计 > 日志管理」,按时间和模型筛选</td></tr>
+<tr><td>待审批数量增加</td><td>进入「资源审计 > 审批管理」</td></tr>
+<tr><td>模型或资源数量不正确</td><td>进入「模型纳管」或「AI 市场」检查启用状态</td></tr>
+<tr><td>服务状态异常</td><td>进入「AI 实验室 > AI 健康」</td></tr>
+</tbody>
+</table>
+
+<h2>使用快捷操作</h2>
+<p>Dashboard 的快捷操作可直接进入审批、日志、AI Key 和模型管理。处理完成后返回 Dashboard,点击刷新查看最新数据。</p>
+</section>
+
+<!-- AI 身份 -->
+<section class="page" id="page-users">
+<p class="subtitle">管理指南</p>
+<h1>AI 身份</h1>
+<p class="lead">按部门、项目、人员和 AI 身份管理用户权限。</p>
+
+<h2>创建部门或项目</h2>
+<p>需要按组织管理用户时先创建归属:</p>
+<ul>
+<li>进入「AI 身份 > 部门管理」,创建部门并设置上级部门。</li>
+<li>跨部门项目进入「AI 身份 > 项目管理」创建。</li>
+<li>保存后返回人员管理创建用户。</li>
+</ul>
+<p>不需要部门或项目时可以直接创建用户。</p>
+
+<h2>创建用户</h2>
+<ol>
+<li>进入「AI 身份 > 人员管理」。</li>
+<li>点击右上角「新建用户」。</li>
+<li>填写用户信息。</li>
+<li>点击「保存」。</li>
+</ol>
+<table>
+<thead><tr><th>字段</th><th>填写方法</th></tr></thead>
+<tbody>
+<tr><td>用户名</td><td>员工登录名,不能与已有用户重复</td></tr>
+<tr><td>邮箱</td><td>填有效邮箱地址</td></tr>
+<tr><td>姓名</td><td>填审批和用户端显示名称</td></tr>
+<tr><td>密码</td><td>设置初始密码,至少 6 位</td></tr>
+<tr><td>角色</td><td>普通员工选普通用户;需要进入管理后台时才分配管理员角色</td></tr>
+<tr><td>部门</td><td>从部门树选择,可留空</td></tr>
+<tr><td>项目</td><td>可多选,可留空</td></tr>
+</tbody>
+</table>
+<p>保存后,用户列表会出现新用户,状态应为「正常」。系统同时创建该用户的个人主 Key。</p>
+<blockquote><p><strong>注意</strong>:超级管理员(admin)默认不在人员管理列表中显示,这是设计行为,避免误删超管账户。</p></blockquote>
+
+<h2>给用户分配资源</h2>
+<ol>
+<li>进入「AI 身份 > AI 身份管理」。</li>
+<li>选择「人员」标签,搜索用户名或姓名。</li>
+<li>找到用户的主 Key,点击「编辑」。</li>
+<li>在「可用 AI 资源」中勾选模型、MCP、Skill 或智能体。</li>
+<li>设置预算和限流。</li>
+<li>点击「保存」。</li>
+</ol>
+<p>完成标志:列表中的「资源」列显示刚分配的资源数量,Key 状态为「已启用」。再用该用户登录用户端,打开「我的 AI 身份」,确认资源已经出现。</p>
+
+<h2>设置预算</h2>
+<table>
+<thead><tr><th>模式</th><th>填写方法</th></tr></thead>
+<tbody>
+<tr><td>统一预算</td><td>所有已选资源共用一个金额</td></tr>
+<tr><td>分类预算</td><td>分别设置模型和 MCP 预算,可继续细分到单个资源</td></tr>
+<tr><td>自定义</td><td>为每个已选模型或 MCP 单独填写金额</td></tr>
+</tbody>
+</table>
+<p>周期可选日、周或月。预算用于展示和归集,达到金额后不会自动停用 Key。</p>
+
+<h2>设置调用限制</h2>
+<table>
+<thead><tr><th>模式</th><th>填写方法</th></tr></thead>
+<tbody>
+<tr><td>不限流</td><td>不设置平台侧 RPM、TPM 和并发限制</td></tr>
+<tr><td>总限流</td><td>为整个 Key 设置 RPM、TPM 和最大并发</td></tr>
+<tr><td>分模型限流</td><td>为每个已选模型分别设置 RPM 和 TPM</td></tr>
+</tbody>
+</table>
+<p>保存后,用该 Key 发起一次请求。返回 429 时,重新打开 Key 检查限制值;还要确认模型部署没有开启「透传」。</p>
+
+<h2>创建场景 Key</h2>
+<p>需要把一个用户的不同业务分开统计时:</p>
+<ol>
+<li>在 AI 身份管理中找到该用户。</li>
+<li>点击右侧「+场景 Key」。</li>
+<li>选择场景,填写 Key 名称和描述。</li>
+<li>单独选择资源、预算和限流。</li>
+<li>点击「保存」,复制新 Key 到对应客户端。</li>
+</ol>
+<p>个人主 Key 用于用户日常使用,场景 Key 用于独立业务。不要把个人主 Key 交给多人共用。</p>
+
+<h2>批量设置</h2>
+<ol>
+<li>点击页面右上角「批量设置」。</li>
+<li>选择人员范围。</li>
+<li>选择要修改的资源、预算或限流。</li>
+<li>核对影响人数并确认。</li>
+<li>抽查一个用户的 Key 详情和用户端页面。</li>
+</ol>
+
+<h2>停用用户或 Key</h2>
+<ul>
+<li>员工离职:在「人员管理」点击该用户的「禁用」。</li>
+<li>单个场景停用:在「AI 身份管理」停用对应 Key。</li>
+<li>Key 泄露:先停用旧 Key,再查日志、创建新 Key、更新客户端,最后删除旧 Key。</li>
+</ul>
+<p>停用后用旧 Key 测试一次,确认请求已经被拒绝。</p>
+<a class="next-link" href="#/resource-audit">下一步:资源审计 →</a>
+</section>
+
+<!-- 资源审计 -->
+<section class="page" id="page-resource-audit">
+<p class="subtitle">管理指南</p>
+<h1>资源审计</h1>
+<p class="lead">处理资源申请、查询调用日志并下载导出文件。</p>
+
+<h2>审批管理</h2>
+<ol>
+<li>进入「资源审计 > 审批管理」。</li>
+<li>将状态筛选为「待审批」。</li>
+<li>按资源类型或申请人筛选。</li>
+<li>核对申请人、部门、资源和申请理由。</li>
+<li>点击「批准」或「拒绝」,填写备注并确认。</li>
+</ol>
+<p>批准后,资源会加入申请人的个人主 Key。让用户刷新用户端;桌面客户端需要重启后读取新配置。</p>
+
+<h2>日志管理</h2>
+<ol>
+<li>进入「资源审计 > 日志管理」。</li>
+<li>选择模型调用、MCP 调用、Skill 使用或智能体使用。</li>
+<li>按调用时间、用户、模型或状态筛选。</li>
+<li>打开记录查看 AI Key、供应商、错误、耗时和 Token。</li>
+</ol>
+<table>
+<thead><tr><th>日志结果</th><th>处理</th></tr></thead>
+<tbody>
+<tr><td>401</td><td>检查用户、AI 身份 Key 和 Key 状态</td></tr>
+<tr><td>403 或 model not allowed</td><td>在 AI 身份管理中给用户分配模型</td></tr>
+<tr><td>404 或 model not found</td><td>核对模型 ID,再执行模型部署测试</td></tr>
+<tr><td>429</td><td>检查 RPM、TPM、并发限制和上游额度</td></tr>
+<tr><td>500、502、503 或超时</td><td>执行部署测试,检查上游状态和超时设置</td></tr>
+</tbody>
+</table>
+
+<h2>导出任务</h2>
+<ol>
+<li>在日志页面设置筛选条件并点击「导出」。</li>
+<li>进入「资源审计 > 导出任务」。</li>
+<li>等待任务状态变为完成。</li>
+<li>点击「下载」。</li>
+</ol>
+<p>导出失败时记录任务时间和筛选范围,再重新创建一次导出任务。</p>
+</section>
+
+<!-- 智能体中心 -->
+<section class="page" id="page-agent-center">
+<p class="subtitle">管理指南</p>
+<h1>智能体中心</h1>
+<p class="lead">创建、发布和维护企业智能体入口。</p>
+<p>进入「智能体中心 > 智能体列表」。</p>
+
+<h2>新建智能体</h2>
+<ol>
+<li>点击右上角「新建智能体」。</li>
+<li>填写名称、分类、平台和说明。</li>
+<li>填写用户访问智能体所需的地址或配置信息。</li>
+<li>设置在线状态和是否发布。</li>
+<li>点击「保存」。</li>
+</ol>
+<p>保存后,智能体卡片会出现在列表中。用普通测试用户打开「智能体中心」,确认卡片、状态和访问入口正常。</p>
+
+<h2>编辑或下线</h2>
+<ol>
+<li>打开目标智能体。</li>
+<li>修改信息后点击「保存」。</li>
+<li>下线时关闭发布或在线状态。</li>
+<li>使用普通用户账号确认该智能体已不可见或不可访问。</li>
+</ol>
+<p>需要用户申请后使用时,在智能体发布设置中开启审批,并到「资源审计 > 审批管理」处理申请。</p>
+</section>
+
+<!-- AI 市场 -->
+<section class="page" id="page-ai-market">
+<p class="subtitle">管理指南</p>
+<h1>AI 市场</h1>
+<p class="lead">发布和维护 Skill 与 MCP Server。</p>
+
+<h2>Skill 管理</h2>
+<ol>
+<li>进入「AI 市场 > Skill 管理」。</li>
+<li>点击「新建」。</li>
+<li>填写名称、作者、分类、版本、标签和描述。</li>
+<li>填写 Markdown 使用说明并上传 zip 包。</li>
+<li>点击「保存」。</li>
+<li>发起安全审查,处理报告中的风险项。</li>
+<li>开启「发布到用户端」,按需开启领用审批,再保存。</li>
+</ol>
+<p>发布后,用普通测试用户打开 AI 市场,确认 Skill 详情和安装提示词正常。</p>
+
+<h2>MCP 管理</h2>
+<ol>
+<li>进入「AI 市场 > MCP 管理」。</li>
+<li>点击「新建」。</li>
+<li>填写连接和发布信息。</li>
+<li>点击「保存」。</li>
+</ol>
+<table>
+<thead><tr><th>字段</th><th>填写方法</th></tr></thead>
+<tbody>
+<tr><td>名称</td><td>用户端显示名称</td></tr>
+<tr><td>唯一标识</td><td>只使用字母、数字和下划线</td></tr>
+<tr><td>URL</td><td>MCP Server 连接地址</td></tr>
+<tr><td>传输方式</td><td>按服务端选择 SSE 或 Streamable HTTP</td></tr>
+<tr><td>认证方式</td><td>选择无、API Key、Bearer Token 或 Basic</td></tr>
+<tr><td>认证值</td><td>认证方式需要时填写</td></tr>
+<tr><td>计费方式</td><td>选择免费或按次计费</td></tr>
+<tr><td>发布到用户端</td><td>开启后进入 AI 市场</td></tr>
+<tr><td>领用前需要审批</td><td>开启后用户必须先申请</td></tr>
+</tbody>
+</table>
+<p>保存后打开 MCP 详情,确认工具发现成功并能生成接入配置。再用普通测试用户完成一次连接。</p>
+
+<h2>处理领用申请</h2>
+<p>需要审批的 Skill 或 MCP 由用户在 AI 市场提交申请。管理员进入「资源审计 > 审批管理」批准或拒绝。</p>
+</section>
+
+<!-- 供应商类型与接入格式 -->
+<section class="page" id="page-provider-types">
+<p class="subtitle">管理指南 · 模型纳管</p>
+<h1>供应商类型与接入格式</h1>
+<p class="lead">创建供应商时选择正确的类型和接入格式。</p>
+<p>创建供应商前,从上游控制台或接口文档确认以下信息:</p>
+<ul>
+<li>服务由哪家厂商或哪套推理服务提供。</li>
+<li>API Base。</li>
+<li>API Key。</li>
+<li>接口示例使用 /v1/chat/completions、/v1/responses 还是 /v1/messages。</li>
+</ul>
+
+<h2>选择供应商类型</h2>
+<p>在「模型纳管 > 供应商管理 > 新建」的「类型」下拉框中,按真实上游选择。列表中没有对应项时选「其他」。</p>
+<table>
+<thead><tr><th>实际上游</th><th>选择类型</th><th>常用接入格式</th></tr></thead>
+<tbody>
+<tr><td>OpenAI</td><td>OpenAI</td><td>OpenAI</td></tr>
+<tr><td>Anthropic</td><td>Anthropic</td><td>Anthropic</td></tr>
+<tr><td>Azure OpenAI</td><td>Azure OpenAI</td><td>OpenAI</td></tr>
+<tr><td>Google Gemini</td><td>Google</td><td>OpenAI</td></tr>
+<tr><td>DeepSeek</td><td>DeepSeek</td><td>OpenAI;上游提供 Messages 接口时也可选 Anthropic</td></tr>
+<tr><td>AWS Bedrock</td><td>AWS Bedrock</td><td>OpenAI</td></tr>
+<tr><td>Vertex AI</td><td>Vertex AI</td><td>OpenAI</td></tr>
+<tr><td>火山引擎</td><td>火山引擎</td><td>OpenAI;上游提供 Messages 接口时也可选 Anthropic</td></tr>
+<tr><td>阿里云百炼</td><td>百炼</td><td>OpenAI;上游提供 Messages 接口时也可选 Anthropic</td></tr>
+<tr><td>智谱</td><td>智谱</td><td>OpenAI;上游提供 Messages 接口时也可选 Anthropic</td></tr>
+<tr><td>Moonshot</td><td>Moonshot</td><td>OpenAI;上游提供 Messages 接口时也可选 Anthropic</td></tr>
+<tr><td>MiniMax</td><td>MiniMax</td><td>OpenAI;上游提供 Messages 接口时也可选 Anthropic</td></tr>
+<tr><td>小米 MiMo</td><td>小米 MiMo</td><td>按上游开放的接口选择</td></tr>
+<tr><td>vLLM</td><td>vLLM</td><td>OpenAI;服务端开放 Messages 接口时也可选 Anthropic</td></tr>
+<tr><td>SGLang</td><td>SGLang</td><td>OpenAI</td></tr>
+<tr><td>Ollama</td><td>Ollama</td><td>Ollama</td></tr>
+<tr><td>LM Studio</td><td>LM Studio</td><td>LM Studio</td></tr>
+<tr><td>未列出的兼容服务</td><td>其他</td><td>OpenAI 或 Anthropic</td></tr>
+</tbody>
+</table>
+<p>不要因为模型名中有 Claude、GPT 或 DeepSeek,就改变供应商类型。例如,Bedrock 上的 Claude 仍然选择「AWS Bedrock」。</p>
+
+<h2>选择接入格式</h2>
+<p>接入格式看 API 请求协议,不看下游客户端。</p>
+<table>
+<thead><tr><th>上游接口特征</th><th>选择格式</th></tr></thead>
+<tbody>
+<tr><td>文档使用 OpenAI SDK,或路径为 /v1/chat/completions、/v1/responses、/v1/embeddings</td><td>OpenAI</td></tr>
+<tr><td>文档使用 Anthropic SDK,或路径为 /v1/messages</td><td>Anthropic</td></tr>
+<tr><td>上游服务是 LM Studio</td><td>LM Studio</td></tr>
+<tr><td>上游服务是 Ollama</td><td>Ollama</td></tr>
+</tbody>
+</table>
+<p>Claude Code 是下游客户端,不是判断上游格式的依据。上游只提供 OpenAI 兼容接口时,凭证必须选择 OpenAI。</p>
+
+<h2>API Base 怎么填</h2>
+<p>API Base 填基础地址或版本根路径,不填具体业务接口。</p>
+<table>
+<thead><tr><th>地址</th><th>是否可用</th></tr></thead>
+<tbody>
+<tr><td><code>https://api.openai.com/v1</code></td><td>可以</td></tr>
+<tr><td><code>https://api.deepseek.com</code></td><td>可以</td></tr>
+<tr><td><code>https://gateway.example.com/v1</code></td><td>按该网关文档确认</td></tr>
+<tr><td><code>https://api.example.com/v1/chat/completions</code></td><td>不可以,包含了具体接口</td></tr>
+<tr><td><code>https://api.example.com/v1/messages</code></td><td>不可以,包含了具体接口</td></tr>
+<tr><td><code>https://console.example.com</code></td><td>不可以,这是控制台网页</td></tr>
+</tbody>
+</table>
+
+<h2>配置错误时的表现</h2>
+<table>
+<thead><tr><th>现象</th><th>先检查</th></tr></thead>
+<tbody>
+<tr><td>保存凭证后测试返回 404</td><td>接入格式是否选错;API Base 是否带了具体接口路径</td></tr>
+<tr><td>返回协议或参数错误</td><td>OpenAI 与 Anthropic 格式是否选反</td></tr>
+<tr><td>自建服务连接超时</td><td>ChateTokenManager 所在服务器是否能访问该地址;不要填写只在本机有效的 127.0.0.1</td></tr>
+<tr><td>Claude Code 找不到模型</td><td>先确认 Anthropic 部署测试成功,再使用带 (Anthropic) 后缀的模型 ID</td></tr>
+</tbody>
+</table>
+<a class="next-link" href="#/providers">下一步:创建供应商和凭证 →</a>
+</section>
+
+<!-- 供应商与凭证 -->
+<section class="page" id="page-providers">
+<p class="subtitle">管理指南 · 模型纳管</p>
+<h1>供应商与凭证</h1>
+<p class="lead">在管理后台创建供应商、添加凭证并完成测试。</p>
+<p>一套可用配置的关系是:供应商下面创建凭证,模型部署再选择凭证。</p>
+<pre><code>供应商 -&gt; 凭证(格式、API Base、API Key) -&gt; 模型部署(平台模型 ID、厂商模型名)</code></pre>
+
+<h2>创建供应商</h2>
+<ol>
+<li>进入「模型纳管 > 供应商管理」。</li>
+<li>点击供应商列表右上角「新建」。</li>
+<li>按下表填写。</li>
+<li>点击「保存」。</li>
+</ol>
+<table>
+<thead><tr><th>字段</th><th>填写方法</th></tr></thead>
+<tbody>
+<tr><td>名称</td><td>填便于管理员识别的名称,例如「DeepSeek 生产」</td></tr>
+<tr><td>类型</td><td>选择真实上游;没有对应项时选「其他」</td></tr>
+<tr><td>接入格式</td><td>只勾选上游实际支持的格式,可多选</td></tr>
+<tr><td>描述</td><td>可填写账号、区域或用途,不要填写 API Key</td></tr>
+</tbody>
+</table>
+<p>类型和格式不确定时,先查<a href="#/provider-types">供应商类型与接入格式</a>。完成后,左侧供应商列表会出现新记录。点击该记录,右侧显示凭证区域。</p>
+
+<h2>创建凭证</h2>
+<ol>
+<li>在左侧选中刚创建的供应商。</li>
+<li>点击右上角「新建凭证」。</li>
+<li>按下表填写。</li>
+<li>点击「保存」。</li>
+</ol>
+<table>
+<thead><tr><th>字段</th><th>填写方法</th></tr></thead>
+<tbody>
+<tr><td>凭证名称</td><td>填账号或线路名称,例如 deepseek-prod-cn</td></tr>
+<tr><td>接入格式</td><td>从该供应商已勾选的格式中选择一种</td></tr>
+<tr><td>API Base</td><td>填基础地址,不要填 /chat/completions 或 /messages</td></tr>
+<tr><td>API Key</td><td>粘贴上游密钥;Ollama 未启用鉴权时可留空</td></tr>
+</tbody>
+</table>
+<p>一套凭证只选一种格式。上游同时提供 OpenAI 和 Anthropic 接口时,创建两套凭证。保存后,凭证卡片应显示名称、格式、API Base 和「启用」状态。</p>
+
+<h2>测试凭证</h2>
+<ol>
+<li>找到新凭证卡片。</li>
+<li>点击卡片右侧「测试」。</li>
+<li>等待测试结果。</li>
+</ol>
+<p>测试成功后再创建模型。测试失败时按返回结果处理:</p>
+<table>
+<thead><tr><th>结果</th><th>处理</th></tr></thead>
+<tbody>
+<tr><td>401 或 403</td><td>重新粘贴 API Key;确认密钥未过期且账号已开通接口权限</td></tr>
+<tr><td>404</td><td>删除 API Base 末尾的具体接口路径;检查接入格式是否正确</td></tr>
+<tr><td>400 或 422</td><td>检查 OpenAI 与 Anthropic 是否选反</td></tr>
+<tr><td>连接超时</td><td>从 ChateTokenManager 服务器检查域名、端口、防火墙和内网路由</td></tr>
+<tr><td>凭证测试成功,模型测试失败</td><td>到模型部署检查厂商模型名和模型分类</td></tr>
+</tbody>
+</table>
+
+<h2>编辑、禁用或删除</h2>
+<ul>
+<li>修改地址或密钥:点击凭证卡片的「编辑」,保存后重新测试。</li>
+<li>临时停用线路:点击凭证卡片的「禁用」。引用该凭证的部署将不可用。</li>
+<li>删除凭证:先删除或改绑引用它的模型部署,再点击「删除」。</li>
+<li>删除供应商:先处理其下全部凭证和关联部署。</li>
+</ul>
+<p>轮换 API Key 时,先新建一套凭证并测试,再把部署切换到新凭证,最后停用旧凭证。</p>
+<a class="next-link" href="#/models">下一步:创建模型和部署 →</a>
+</section>
+
+<!-- 模型与部署 -->
+<section class="page" id="page-models">
+<p class="subtitle">管理指南 · 模型纳管</p>
+<h1>模型与部署</h1>
+<p class="lead">创建模型、添加上游部署并完成连通性测试。</p>
+<p>开始前,先确认要使用的凭证已经测试成功。</p>
+
+<h2>新建模型</h2>
+<ol>
+<li>进入「模型纳管 > 模型管理」。</li>
+<li>点击模型列表右上角「新建」。</li>
+<li>填写模型信息。</li>
+<li>点击「保存」。</li>
+</ol>
+<table>
+<thead><tr><th>字段</th><th>填写方法</th></tr></thead>
+<tbody>
+<tr><td>模型名称</td><td>用户端显示名称,例如「Claude Sonnet 4.6」</td></tr>
+<tr><td>分类</td><td>按用途选择「对话」「向量」或「重排」</td></tr>
+<tr><td>Logo</td><td>选择用户端模型卡片使用的图标</td></tr>
+<tr><td>能力标签</td><td>按模型实际能力勾选图像、推理、工具调用等标签</td></tr>
+<tr><td>描述</td><td>填适用场景和限制,不要填写密钥或上游地址</td></tr>
+</tbody>
+</table>
+<p>保存后,模型会出现在左侧列表中。此时模型还不能调用,必须继续添加部署。</p>
+
+<h2>添加部署</h2>
+<ol>
+<li>在左侧选中刚创建的模型。</li>
+<li>点击右上角「添加凭证」。</li>
+<li>填写平台模型 ID。</li>
+<li>选择供应商和凭证。</li>
+<li>填写厂商模型名。</li>
+<li>点击「添加」。</li>
+</ol>
+<table>
+<thead><tr><th>字段</th><th>填写方法</th></tr></thead>
+<tbody>
+<tr><td>模型 ID(用户请求时使用)</td><td>自定义平台统一 ID,例如 claude-sonnet-4-6;发布后员工使用这个值</td></tr>
+<tr><td>供应商</td><td>选择凭证所属供应商</td></tr>
+<tr><td>凭证</td><td>选择已经测试成功的凭证</td></tr>
+<tr><td>厂商模型名</td><td>填上游接口要求的准确模型名,例如 claude-sonnet-4-20250514</td></tr>
+<tr><td>备注名称</td><td>填线路名称,例如「官方直连」或「华东生产」</td></tr>
+</tbody>
+</table>
+<p>平台模型 ID 和厂商模型名不是同一个字段:</p>
+<ul>
+<li>员工请求:<code>claude-sonnet-4-6</code></li>
+<li>上游请求:<code>claude-sonnet-4-20250514</code></li>
+</ul>
+<p>选择 Anthropic 格式凭证时,系统还会注册带后缀的模型 ID:<code>claude-sonnet-4-6(Anthropic)</code>。Claude Code 使用带后缀的 ID,OpenAI 兼容客户端使用不带后缀的 ID。</p>
+
+<h2>设置高级参数</h2>
+<p>在「添加凭证」窗口展开「高级设置」。没有明确需求时保留默认值。</p>
+<table>
+<thead><tr><th>字段</th><th>何时修改</th></tr></thead>
+<tbody>
+<tr><td>权重</td><td>同一模型有多条部署,需要按比例分配请求时修改</td></tr>
+<tr><td>优先级</td><td>需要固定主线路和备用线路时修改;数字越小优先级越高</td></tr>
+<tr><td>标签</td><td>需要按线路标签路由时填写,多个标签用逗号分隔</td></tr>
+<tr><td>超时</td><td>上游响应较慢,需要增加单次请求等待时间时修改</td></tr>
+<tr><td>流式超时</td><td>流式响应有单独超时要求时填写</td></tr>
+<tr><td>最大重试</td><td>上游偶发失败时修改;增加后会延长请求时间</td></tr>
+</tbody>
+</table>
+
+<h2>定价</h2>
+<p>选择计费方式后按页面单位填写:</p>
+<ul>
+<li><strong>Token 计费</strong>:单位为「元/百万 Token」,分别填写输入、输出、缓存读取和缓存写入价格。</li>
+<li><strong>按次或包月次数</strong>:填写每次调用价格,不要把整月套餐价格填成单次价格。</li>
+<li><strong>外部价格</strong>:供应商实际收费。</li>
+<li><strong>内部价格</strong>:企业用于部门或项目归集的价格。</li>
+</ul>
+<p>价格填错会直接影响成本报表。保存后到「AI 效能 > 成本」检查一笔测试调用的金额。</p>
+
+<h2>其他开关</h2>
+<table>
+<thead><tr><th>开关</th><th>操作要求</th></tr></thead>
+<tbody>
+<tr><td>透传</td><td>默认关闭。开启后页面提示 RPM/TPM 限流不生效</td></tr>
+<tr><td>丢弃不支持参数</td><td>只有上游明确报「不支持参数」时再开启</td></tr>
+</tbody>
+</table>
+
+<h2>测试部署</h2>
+<ol>
+<li>在模型详情中找到新部署。</li>
+<li>点击部署卡片的「测试」。</li>
+<li>输入测试内容并发送。</li>
+<li>确认页面返回了模型内容。</li>
+</ol>
+<p>完成标志:测试状态成功,并且响应内容、耗时和 Token 数据正常。</p>
+<table>
+<thead><tr><th>测试结果</th><th>处理</th></tr></thead>
+<tbody>
+<tr><td>401 或 invalid key</td><td>返回供应商管理,编辑凭证并重新测试</td></tr>
+<tr><td>404</td><td>检查 API Base 是否包含具体接口;检查厂商模型名</td></tr>
+<tr><td>model not found</td><td>从上游控制台复制厂商模型名,不要填写平台模型 ID</td></tr>
+<tr><td>unsupported parameter</td><td>减少测试参数;确认后再使用「丢弃不支持参数」</td></tr>
+<tr><td>超时</td><td>检查网络和上游状态;必要时增加部署超时</td></tr>
+<tr><td>OpenAI 成功、Anthropic 失败</td><td>检查 Anthropic 凭证是否真的支持 /v1/messages</td></tr>
+</tbody>
+</table>
+
+<h2>添加第二条部署</h2>
+<p>再次点击「添加凭证」,选择另一套凭证并填写厂商模型名。每条部署都要单独测试成功。同一模型下的部署应提供相同类别和相近能力。不要把对话模型和向量模型放在同一个平台模型 ID 下。</p>
+<a class="next-link" href="#/publishing">下一步:发布模型并配置路由 →</a>
+</section>
+
+<!-- 发布与路由 -->
+<section class="page" id="page-publishing">
+<p class="subtitle">管理指南 · 模型纳管</p>
+<h1>发布与路由</h1>
+<p class="lead">发布已测试的模型,并配置多部署路由和故障切换。</p>
+
+<h2>发布模型</h2>
+<ol>
+<li>进入「模型纳管 > 模型管理」。</li>
+<li>选中已经测试成功的模型。</li>
+<li>点击右上角「发布设置」。</li>
+<li>开启「发布到用户端」。</li>
+<li>选择可见范围。</li>
+<li>按需勾选「领用前需要审批」。</li>
+<li>点击「保存」。</li>
+</ol>
+<table>
+<thead><tr><th>设置结果</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>全部用户</td><td>所有用户都能在模型广场看到该模型</td></tr>
+<tr><td>指定部门</td><td>只有所选部门的用户可见</td></tr>
+<tr><td>领用前需要审批</td><td>用户提交申请,管理员批准后才能调用</td></tr>
+<tr><td>不需要审批</td><td>符合可见范围的活跃用户可直接获得资源</td></tr>
+</tbody>
+</table>
+<p>完成后,使用普通测试账号打开「模型广场」,确认模型卡片和接入信息正常。如果用户看得到模型但返回 model not allowed,进入「AI 身份 > AI 身份管理」,确认该用户的主 Key 已包含模型。</p>
+
+<h2>临时停用一条线路</h2>
+<p>上游线路故障时:</p>
+<ol>
+<li>打开模型详情。</li>
+<li>找到故障部署。</li>
+<li>点击部署卡片的「禁用」。</li>
+<li>测试同一模型的其他启用部署。</li>
+</ol>
+<p>只关闭「发布到用户端」不会立即处理已经持有 Key 的调用。需要止损时禁用部署或用户 Key。</p>
+
+<h2>配置全局路由</h2>
+<p>只有同一模型配置了多条部署时才需要修改路由。</p>
+<ol>
+<li>在模型管理页面点击「路由配置」。</li>
+<li>选择路由策略。</li>
+<li>填写失败摘除、冷却、重试和超时参数。</li>
+<li>点击「保存」。</li>
+</ol>
+<table>
+<thead><tr><th>策略</th><th>使用场景</th></tr></thead>
+<tbody>
+<tr><td>轮询 simple-shuffle</td><td>多条同能力线路分摊请求</td></tr>
+<tr><td>最低延迟 latency-based-routing</td><td>优先使用近期响应较快的线路</td></tr>
+<tr><td>最低成本 cost-based-routing</td><td>各部署价格已经准确填写</td></tr>
+<tr><td>最少使用 least-busy</td><td>优先使用当前较空闲的线路</td></tr>
+<tr><td>按用量均衡 usage-based-routing</td><td>按累计用量分配请求</td></tr>
+</tbody>
+</table>
+<table>
+<thead><tr><th>参数</th><th>填写方法</th></tr></thead>
+<tbody>
+<tr><td>连续失败摘除</td><td>一条部署连续失败多少次后临时移出路由</td></tr>
+<tr><td>冷却时间</td><td>被移出的部署等待多少秒后重新参与路由</td></tr>
+<tr><td>全局重试次数</td><td>路由层最多重试次数</td></tr>
+<tr><td>全局超时</td><td>路由层总等待时间</td></tr>
+</tbody>
+</table>
+<p>部署本身也有重试和超时。修改全局值后,用实际客户端检查总等待时间是否可接受。</p>
+
+<h2>添加 Fallback</h2>
+<ol>
+<li>在「路由配置」的 Fallback 链中选择源模型。</li>
+<li>选择源模型失败时使用的备用模型。</li>
+<li>点击「添加」。</li>
+<li>点击「保存」。</li>
+</ol>
+<p>备用模型必须与源模型属于同一类别。对话模型不能回退到向量或重排模型。</p>
+
+<h2>验证路由</h2>
+<ol>
+<li>分别测试每条部署。</li>
+<li>连续调用同一平台模型 ID,确认日志中的供应商或部署符合所选策略。</li>
+<li>临时禁用一条测试部署,再次调用。</li>
+<li>确认剩余部署或 Fallback 能返回结果。</li>
+<li>恢复被禁用的部署。</li>
+</ol>
+<a class="next-link" href="#/users">下一步:给用户分配模型 →</a>
+</section>
+
+<!-- AI 效能 -->
+<section class="page" id="page-efficiency">
+<p class="subtitle">管理指南</p>
+<h1>AI 效能</h1>
+<p class="lead">查看 AI 使用覆盖、成本和预算。</p>
+
+<h2>总览</h2>
+<ol>
+<li>进入「AI 效能 > 总览」。</li>
+<li>选择本月、近 7 天、近 30 天或自定义时间。</li>
+<li>选择按部门或按项目查看。</li>
+<li>查看 AI 覆盖率、平台投入、活跃人均成本和排行榜。</li>
+<li>数据更新时间过旧时点击「点击更新」。</li>
+</ol>
+
+<h2>落地</h2>
+<ol>
+<li>进入「AI 效能 > 落地」。</li>
+<li>选择时间和组织范围。</li>
+<li>查看活跃用户、部门覆盖和使用趋势。</li>
+<li>点击部门或项目继续查看人员明细。</li>
+</ol>
+
+<h2>成本</h2>
+<ol>
+<li>进入「AI 效能 > 成本」。</li>
+<li>选择时间范围。</li>
+<li>按部门、项目、用户、模型或凭证查看。</li>
+<li>对比外部成本和内部成本。</li>
+</ol>
+<p>金额异常时,到「模型纳管 > 模型管理」编辑部署,核对计费方式、单位和价格。修改后发起一笔测试调用,再检查新增记录。</p>
+<blockquote><p><strong>注意</strong>:如果模型部署未配置单价(input_cost/output_cost),即使 token 用量记录正常,成本也会显示为 0。请确保每个部署都配置了正确的价格。</p></blockquote>
+
+<h2>预算</h2>
+<ol>
+<li>进入「AI 效能 > 预算」。</li>
+<li>选择部门、项目或 Key。</li>
+<li>查看预算金额、已使用金额和周期。</li>
+<li>调整预算时进入「AI 身份 > AI 身份管理」,编辑对应 Key。</li>
+</ol>
+<p>预算达到金额后不会自动停用。需要停止调用时,停用 Key、移除资源或设置调用限制。</p>
+</section>
+
+<!-- 安全 -->
+<section class="page" id="page-security">
+<p class="subtitle">管理指南</p>
+<h1>安全</h1>
+<p class="lead">使用 AI Policies、管理员日志和 API Key。</p>
+
+<h2>AI Policies</h2>
+<p>AI Policies 用于审查 Skill zip 包。</p>
+<ol>
+<li>在「AI 市场 > Skill 管理」打开 Skill 并上传 zip 包。</li>
+<li>点击「安全审查」。</li>
+<li>进入「安全 > AI Policies」查看任务。</li>
+<li>点击「查看报告」,处理高风险和建议修改项。</li>
+</ol>
+<p>完整操作见 <a href="#/ai-policies">AI Policies</a>。</p>
+
+<h2>管理员日志</h2>
+<ol>
+<li>进入「安全 > 管理员日志」。</li>
+<li>选择时间范围。</li>
+<li>按操作人、操作、方法或状态筛选。</li>
+<li>点击记录的详情,核对操作对象和变更内容。</li>
+</ol>
+<p>供应商、凭证、模型、用户、AI 身份、审批和系统设置变更都从这里查询。</p>
+
+<h2>API Key</h2>
+<p>「安全 > API Key」用于给受信任的第三方系统创建管理 API Key。</p>
+<ul>
+<li>点击「新建 API Key」。</li>
+<li>填写名称、描述和过期时间。</li>
+<li>点击「创建」,把 Key 保存到对接系统。</li>
+<li>在列表查看状态、最后使用时间和过期时间。</li>
+</ul>
+<p>该 Key 用于调用 ChateTokenManager 管理 API,不用于模型调用。接口地址、请求头和轮换方法见 <a href="#/api">API 介绍</a>。</p>
+</section>
+
+<!-- AI Policies -->
+<section class="page" id="page-ai-policies">
+<p class="subtitle">管理指南 · 安全</p>
+<h1>AI Policies</h1>
+<p class="lead">对 Skill 包发起安全审查并处理审查结果。</p>
+
+<h2>发起审查</h2>
+<ol>
+<li>进入「AI 市场 > Skill 管理」。</li>
+<li>打开要审查的 Skill,确认已经上传 zip 包。</li>
+<li>点击「安全审查」;已有报告时点击「重新审查」。</li>
+<li>进入「安全 > AI Policies」。</li>
+<li>搜索 Skill 名称,等待状态更新。</li>
+</ol>
+<table>
+<thead><tr><th>状态</th><th>下一步</th></tr></thead>
+<tbody>
+<tr><td>审查中</td><td>等待任务完成后刷新列表</td></tr>
+<tr><td>通过</td><td>打开报告确认审查版本,再决定是否发布</td></tr>
+<tr><td>建议修改</td><td>打开报告,按风险项修改 Skill 后重新上传和审查</td></tr>
+<tr><td>高风险</td><td>不要发布;先处理报告中的高风险项</td></tr>
+<tr><td>失败</td><td>按本页「审查失败」处理</td></tr>
+</tbody>
+</table>
+
+<h2>查看报告</h2>
+<ol>
+<li>在结果卡片点击「查看报告」。</li>
+<li>先核对 Skill 名称、版本、包哈希和报告编号。</li>
+<li>查看总体结论和高风险数量。</li>
+<li>逐条打开风险项,核对文件、行号、代码片段和处理建议。</li>
+<li>修改 Skill 后上传新版本,再点击「重新审查」。</li>
+</ol>
+<table>
+<thead><tr><th>报告结果</th><th>管理员操作</th></tr></thead>
+<tbody>
+<tr><td>没有高风险,风险项可接受</td><td>记录审查结果后发布</td></tr>
+<tr><td>存在可修复问题</td><td>修改对应文件,上传新包并重新审查</td></tr>
+<tr><td>存在命令执行、凭证读取、数据外传等高风险</td><td>停止发布,交由 Skill 维护者处理</td></tr>
+<tr><td>报告版本与当前包不一致</td><td>对当前包重新发起审查</td></tr>
+</tbody>
+</table>
+<p>审查报告不会自动阻止发布。管理员需要根据报告决定是否开启「发布到用户端」。</p>
+
+<h2>配置模型复核</h2>
+<p>需要使用模型辅助复核时:</p>
+<ol>
+<li>在 AI Policies 页面点击右上角「LLM 审查引擎配置」。</li>
+<li>开启「启用 LLM 审查引擎」。</li>
+<li>选择一个已经测试成功的 OpenAI 格式对话模型。</li>
+<li>点击「保存」。</li>
+<li>对测试 Skill 发起一次重新审查。</li>
+<li>打开报告,确认模型复核部分已完成。</li>
+</ol>
+<p>模型复核失败时,规则扫描结果仍会保留。报告会标明模型复核是否完成。</p>
+
+<h2>审查失败</h2>
+<table>
+<thead><tr><th>现象</th><th>处理</th></tr></thead>
+<tbody>
+<tr><td>提示没有 zip 包</td><td>返回 Skill 编辑页,上传并保存 zip 包</td></tr>
+<tr><td>长时间停留在审查中</td><td>刷新列表;10 分钟仍无变化时记录 Skill 名称、版本和任务时间,交给部署负责人</td></tr>
+<tr><td>扫描超时</td><td>检查包大小和文件数量,用较小的测试包重试</td></tr>
+<tr><td>模型复核失败</td><td>测试所选模型和凭证;确认模型为已启用的 OpenAI 格式对话模型</td></tr>
+<tr><td>报告只有规则扫描</td><td>检查模型复核开关和报告中的失败说明</td></tr>
+<tr><td>重新上传后仍看到旧结果</td><td>核对报告编号、包哈希和版本,打开最新任务</td></tr>
+</tbody>
+</table>
+<p>当前页面的正式审查对象是 Skill zip 包。</p>
+</section>
+
+<!-- 系统 -->
+<section class="page" id="page-system">
+<p class="subtitle">管理指南</p>
+<h1>系统</h1>
+<p class="lead">修改平台名称和图片。</p>
+
+<h2>品牌</h2>
+<ol>
+<li>进入「系统 > 品牌」。</li>
+<li>修改显示名称后点击「保存」。</li>
+<li>在 Logo、方形 Logo 或 Favicon 右侧点击「上传」。</li>
+<li>上传符合页面格式和大小要求的文件。</li>
+<li>刷新管理后台和用户端检查结果。</li>
+</ol>
+</section>
+
+<!-- AI 实验室 -->
+<section class="page" id="page-ai-lab">
+<p class="subtitle">管理指南</p>
+<h1>AI 实验室</h1>
+<p class="lead">使用报告、AI 健康和当前可用的实验功能。</p>
+
+<h2>报告</h2>
+<ol>
+<li>进入「AI 实验室 > 报告」。</li>
+<li>选择报告周期和组织范围。</li>
+<li>生成报告后检查调用、覆盖、成本和预算数据。</li>
+<li>需要留存时使用页面提供的导出功能。</li>
+</ol>
+<p>报告数据异常时,先到「AI 效能」核对相同时间范围的数据。</p>
+
+<h2>AI 健康</h2>
+<ol>
+<li>进入「AI 实验室 > AI 健康」。</li>
+<li>查看模型、MCP、运行服务和数据更新时间。</li>
+<li>打开异常项查看状态说明。</li>
+<li>模型异常时到模型管理执行部署测试;MCP 异常时到 MCP 管理检查连接。</li>
+</ol>
+
+<h2>其他实验功能</h2>
+<p>左侧菜单还会显示敏感信息识别、A2A、上下文缓存、AI Policies 和文件处理等实验功能。能进入的页面按页面提示使用;没有可点击入口的项目在当前版本无需配置。</p>
+</section>
+
+<!-- Claude Code 接入 -->
+<section class="page" id="page-claude-code">
+<p class="subtitle">最佳实践</p>
+<h1>Claude Code 接入</h1>
+<p class="lead">把 Claude Code 连接到 ChateTokenManager。</p>
+
+<h2>准备信息</h2>
+<p>从 ChateTokenManager 用户端取得:</p>
+<table>
+<thead><tr><th>信息</th><th>获取位置</th></tr></thead>
+<tbody>
+<tr><td>AI 身份 Key</td><td>我的 AI 身份</td></tr>
+<tr><td>Endpoint</td><td>模型广场 > 查看接入信息</td></tr>
+<tr><td>Anthropic 模型 ID</td><td>模型广场 > 查看接入信息,通常带 (Anthropic) 后缀</td></tr>
+</tbody>
+</table>
+<p>如果页面没有 Anthropic 模型 ID,请联系管理员确认该模型是否支持 Claude Code 接入。</p>
+
+<h2>配置 Claude Code</h2>
+<p>编辑用户配置文件:</p>
+<ul>
+<li>macOS、Linux:<code>~/.claude/settings.json</code></li>
+<li>Windows:<code>%USERPROFILE%\.claude\settings.json</code></li>
+</ul>
+<pre><code>{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://&lt;ChateTokenManager Endpoint&gt;",
+    "ANTHROPIC_AUTH_TOKEN": "&lt;AI 身份 Key&gt;",
+    "ANTHROPIC_MODEL": "&lt;模型 ID&gt;(Anthropic)"
+  }
+}</code></pre>
+<p>保存前检查:</p>
+<ul>
+<li><code>ANTHROPIC_BASE_URL</code> 使用模型广场提供的 Endpoint,不要追加 /v1/messages。</li>
+<li><code>ANTHROPIC_AUTH_TOKEN</code> 填 AI 身份 Key,不是供应商 Key 或管理 API Key。</li>
+<li><code>ANTHROPIC_MODEL</code> 完整保留 (Anthropic) 后缀。</li>
+<li>JSON 最后一项后面不要有逗号。</li>
+</ul>
+
+<h2>启动</h2>
+<p>进入工作目录后运行:</p>
+<pre><code>claude</code></pre>
+<p>第一次进入目录时,按提示确认是否信任该目录。</p>
+
+<h2>验证</h2>
+<p>在 Claude Code 中依次运行:</p>
+<pre><code>/status
+/model</code></pre>
+<p>确认 Base URL 指向 ChateTokenManager,模型与配置文件一致。然后发送一个简单问题,再让 Claude Code 读取一个测试文件,确认普通问答和工具调用都正常。</p>
+
+<h2>常见问题</h2>
+<table>
+<thead><tr><th>现象</th><th>处理方法</th></tr></thead>
+<tbody>
+<tr><td>启动后仍要求官方登录</td><td>关闭 Claude Code,检查配置文件路径和 JSON 格式后重启</td></tr>
+<tr><td>/status 不是 ChateTokenManager 地址</td><td>系统环境变量可能覆盖配置,检查旧的 ANTHROPIC_BASE_URL</td></tr>
+<tr><td>401</td><td>重新复制 AI 身份 Key,确认身份已激活</td></tr>
+<tr><td>model not found</td><td>使用模型广场提供的完整 Anthropic 模型 ID</td></tr>
+<tr><td>model not allowed</td><td>联系管理员为你的 AI 身份分配该模型</td></tr>
+<tr><td>普通问答成功但工具失败</td><td>换用标记「工具调用」的模型,并联系管理员检查模型能力</td></tr>
+</tbody>
+</table>
+<p>使用 CC-Switch 管理多套配置时,参见 <a href="#/cc-switch">CC-Switch</a>。</p>
+</section>
+
+<!-- Codex 接入 -->
+<section class="page" id="page-codex">
+<p class="subtitle">最佳实践</p>
+<h1>Codex 接入</h1>
+<p class="lead">把 Codex CLI 连接到 ChateTokenManager。</p>
+
+<h2>准备信息</h2>
+<p>从 ChateTokenManager 用户端取得 AI 身份 Key、Endpoint 和普通模型 ID。Codex 不使用带 (Anthropic) 后缀的模型 ID。</p>
+
+<h2>保存 Key</h2>
+<p>macOS 或 Linux:</p>
+<pre><code>export AIHELMS_API_KEY="&lt;AI 身份 Key&gt;"</code></pre>
+<p>PowerShell:</p>
+<pre><code>$env:AIHELMS_API_KEY = "&lt;AI 身份 Key&gt;"</code></pre>
+
+<h2>配置 Codex</h2>
+<p>编辑:</p>
+<ul>
+<li>macOS、Linux:<code>~/.codex/config.toml</code></li>
+<li>Windows:<code>%USERPROFILE%\.codex\config.toml</code></li>
+</ul>
+<pre><code>model_provider = "aihelms"
+model = "&lt;模型 ID&gt;"
+
+[model_providers.aihelms]
+name = "ChateTokenManager"
+base_url = "http://&lt;ChateTokenManager Endpoint&gt;/v1"
+env_key = "AIHELMS_API_KEY"
+wire_api = "responses"</code></pre>
+<p><code>base_url</code> 填到 /v1,不要写成 /v1/responses。<code>env_key</code> 填环境变量名称,不要把真实 Key 写进 TOML。</p>
+
+<h2>启动和验证</h2>
+<pre><code>codex</code></pre>
+<p>也可以先执行一次简单测试:</p>
+<pre><code>codex exec "只回复:Codex 连接成功"</code></pre>
+<p>启动信息中的 provider 应为 aihelms,model 应为模型广场中的模型 ID。普通回答成功后,再在测试目录验证读取文件和执行简单任务。</p>
+
+<h2>常见问题</h2>
+<table>
+<thead><tr><th>现象</th><th>处理方法</th></tr></thead>
+<tbody>
+<tr><td>缺少环境变量</td><td>在启动 Codex 的同一终端设置 AIHELMS_API_KEY</td></tr>
+<tr><td>404</td><td>base_url 应以 /v1 结尾,不要追加 /responses</td></tr>
+<tr><td>401</td><td>Key 无效、已停用或没有传给当前进程</td></tr>
+<tr><td>model not allowed</td><td>联系管理员为 AI 身份分配目标模型</td></tr>
+<tr><td>自定义模型提示 unknown model</td><td>先确认任务是否成功,再测试上下文和工具能力</td></tr>
+<tr><td>工具调用失败</td><td>使用标记「工具调用」且管理员已经测试通过的模型</td></tr>
+</tbody>
+</table>
+<p>使用 CC-Switch 管理配置时,参见 <a href="#/cc-switch">CC-Switch</a>。</p>
+</section>
+
+<!-- WorkBuddy 接入 -->
+<section class="page" id="page-workbuddy">
+<p class="subtitle">最佳实践</p>
+<h1>WorkBuddy 接入</h1>
+<p class="lead">在 WorkBuddy 中添加 ChateTokenManager 自定义模型。</p>
+
+<h2>准备信息</h2>
+<p>从 ChateTokenManager 用户端取得 AI 身份 Key、Endpoint 和普通模型 ID。</p>
+
+<h2>添加模型</h2>
+<ol>
+<li>打开 WorkBuddy「设置」。</li>
+<li>进入「模型」。</li>
+<li>在自定义模型区域点击添加。</li>
+<li>提供商选择「自定义 API」或「Custom」。</li>
+<li>按页面提示填写并保存。</li>
+</ol>
+<p>默认使用标准协议模式。不要把 URL 写成管理后台地址,也不要直接追加 /chat/completions。</p>
+
+<h2>验证</h2>
+<ol>
+<li>新建空白对话。</li>
+<li>选择刚添加的 ChateTokenManager 模型。</li>
+<li>发送「只回复:WorkBuddy 连接成功」。</li>
+<li>确认没有自动切换到其他模型。</li>
+<li>如果需要文件、图片或工具能力,再分别执行对应测试。</li>
+</ol>
+
+<h2>常见问题</h2>
+<table>
+<thead><tr><th>现象</th><th>处理方法</th></tr></thead>
+<tbody>
+<tr><td>保存后连接失败</td><td>核对 Endpoint、Key 和模型 ID 是否来自同一环境</td></tr>
+<tr><td>404</td><td>URL 填到 /v1,关闭不必要的「自定义协议」开关</td></tr>
+<tr><td>401</td><td>重新复制 AI 身份 Key,不要使用管理 API Key</td></tr>
+<tr><td>model not allowed</td><td>联系管理员分配该模型</td></tr>
+<tr><td>model not found</td><td>使用普通模型 ID,不要填显示名称或 (Anthropic) 后缀</td></tr>
+<tr><td>对话成功但工具失败</td><td>目标模型可能没有工具调用能力,联系管理员确认</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- CC-Switch 接入 -->
+<section class="page" id="page-cc-switch">
+<p class="subtitle">最佳实践</p>
+<h1>CC-Switch 接入</h1>
+<p class="lead">使用 CC-Switch 管理 ChateTokenManager 的 Claude Code 和 Codex 配置。</p>
+<p>CC-Switch 适合在多套 Claude Code 或 Codex 配置之间切换。开始前,从 ChateTokenManager 用户端准备 AI 身份 Key、Endpoint 和模型 ID。</p>
+
+<h2>Claude Code</h2>
+<ol>
+<li>在 CC-Switch 中选择 Claude Code。</li>
+<li>点击添加供应商,选择自定义。</li>
+<li>名称填写 ChateTokenManager Claude。</li>
+<li>Base URL 填 ChateTokenManager Endpoint。</li>
+<li>API Key 填 AI 身份 Key。</li>
+<li>模型填带 (Anthropic) 后缀的模型 ID。</li>
+<li>保存并启用。</li>
+</ol>
+<p>启用后完全退出 Claude Code 并重新运行 claude。使用 /status 和 /model 检查地址及模型。</p>
+
+<h2>Codex</h2>
+<ol>
+<li>在 CC-Switch 中选择 Codex。</li>
+<li>添加自定义供应商,名称填写 ChateTokenManager Codex。</li>
+<li>Base URL 填 <code>&lt;Endpoint&gt;/v1</code>。</li>
+<li>API Key 填 AI 身份 Key。</li>
+<li>模型填普通模型 ID。</li>
+<li>API 协议选择 Responses。</li>
+<li>保存并启用。</li>
+</ol>
+<p>启用后完全退出 Codex 并重新运行 codex。</p>
+
+<h2>使用提醒</h2>
+<ul>
+<li>Claude Code 和 Codex 的 Base URL、模型 ID 不同,建议分别创建供应商配置。</li>
+<li>切换配置前先关闭正在运行的客户端。</li>
+<li>不要同时手工编辑配置文件和用 CC-Switch 保存同一配置。</li>
+<li>导出 CC-Switch 数据时按密钥文件管理,备份可能包含完整 Key。</li>
+</ul>
+
+<h2>常见问题</h2>
+<table>
+<thead><tr><th>现象</th><th>处理方法</th></tr></thead>
+<tbody>
+<tr><td>切换后仍使用旧地址</td><td>完全退出客户端后重启</td></tr>
+<tr><td>Claude Code 找不到模型</td><td>使用带 (Anthropic) 后缀的模型 ID</td></tr>
+<tr><td>Codex 请求地址错误</td><td>Base URL 以 /v1 结尾,协议选择 Responses</td></tr>
+<tr><td>获取模型失败</td><td>手工填写模型广场中的模型 ID</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- 常见问题 -->
+<section class="page" id="page-faq">
+<p class="subtitle">其他</p>
+<h1>常见问题</h1>
+<p class="lead">ChateTokenManager 部署、模型、身份、预算、接口和审查问题。</p>
+
+<h2>供应商、凭证、模型和部署是什么关系?</h2>
+<pre><code>供应商 1 ─&gt; N 凭证
+模型   1 ─&gt; N 部署
+部署   N ─&gt; 1 凭证</code></pre>
+<p>供应商定义服务类型,凭证保存地址和 Key,模型是员工看到的资源,部署负责把模型映射到具体凭证和厂商模型名。</p>
+
+<h2>为什么模型页的按钮叫「添加凭证」?</h2>
+<p>这个操作实际会创建部署。除了选择凭证,还要填写平台模型 ID、厂商模型名、路由、超时和定价。</p>
+
+<h2>平台模型 ID 和厂商模型名有什么区别?</h2>
+<p>平台模型 ID 是员工请求里的 model。厂商模型名只在部署中使用,是 ChateTokenManager 调上游时发送的值。两者可以不同。</p>
+
+<h2>为什么 Anthropic 模型 ID 带 (Anthropic)?</h2>
+<p>平台用后缀区分同一逻辑模型的 OpenAI 和 Anthropic 格式注册。Claude Code 和 /v1/messages 使用带后缀 ID,OpenAI 客户端使用普通 ID。</p>
+
+<h2>用户能看到模型,为什么调用仍失败?</h2>
+<p>可见性和调用权限分开。依次检查:</p>
+<ol>
+<li>用户是否完成领用审批。</li>
+<li>个人主 Key 是否包含模型。</li>
+<li>模型和部署是否启用。</li>
+<li>Key 是否启用。</li>
+<li>Endpoint 和模型 ID 是否复制正确。</li>
+</ol>
+
+<h2>我的 AI 身份页面为什么没有 Endpoint?</h2>
+<p>当前用户端在「我的 AI 身份」显示 Key,在「模型广场 > 查看接入信息」显示 Endpoint 和模型 ID。接入时要从两个页面取值。</p>
+
+<h2>支持哪些接口?</h2>
+<p>平台支持 OpenAI Chat Completions、OpenAI Responses 和 Anthropic Messages。具体模型是否支持工具调用、图像或特殊推理参数,取决于管理员接入的模型服务。</p>
+
+<h2>RPM、TPM 和最大并发是什么?</h2>
+<ul>
+<li>RPM 是每分钟请求数。</li>
+<li>TPM 是每分钟 Token 数。</li>
+<li>最大并发是同一时间处理中的请求数。</li>
+</ul>
+<p>AI 身份支持总 RPM、总 TPM、最大并发,以及按模型 RPM/TPM。</p>
+
+<h2>为什么设置了限流却没有生效?</h2>
+<p>先检查模型部署是否开启「透传」。当前页面明确提示透传会让 RPM/TPM 等限流不生效。再检查限流模式是否保存并同步到正确 Key。</p>
+
+<h2>预算达到后会自动停用吗?</h2>
+<p>预算主要用于展示和归因,达到金额后不会自动停用。需要立即停止调用时,使用调用限制、停用 Key 或移除资源。</p>
+
+<h2>为什么调用成功后日志页面没有记录?</h2>
+<p>调用记录通过后台定时任务从 LiteLLM 同步,默认每 5 分钟一次,加上 LiteLLM 写入延迟,实际看到日志可能需要 5-10 分钟。实时问题先在模型部署页测试,稍后再刷新日志管理页面。</p>
+<blockquote><p>如果长时间(超过 1 小时)仍无记录,检查:1. celery worker 是否正常运行(<code>docker compose logs aihelms | grep "llm_log.sync"</code>)。2. <code>sync_state</code> 表的 <code>llm_logs</code> 游标是否卡住。3. <code>llm_call_logs.model</code> 字段存的是 <code>openai/&lt;model&gt;</code>(带 provider 前缀),后台按模型筛选可能对不上,清除筛选条件看全部记录。</p></blockquote>
+
+<h2>为什么 token 用量有记录但成本为 0?</h2>
+<p>成本计算依赖模型部署中配置的单价(input_cost/output_cost)。如果部署未配价,即使 token 正常记录,external_cost 和 internal_cost 也会是 0。解决方法:</p>
+<ol>
+<li>进入「模型纳管 > 模型管理」。</li>
+<li>编辑对应部署,填写外部/内部输入价和输出价(单位:¥/百万 token)。</li>
+<li>保存后,新调用会正常计算成本。</li>
+<li>历史记录需要触发 <code>llm_log.recalc_cost</code> 任务重算。</li>
+</ol>
+
+<h2>为什么人员管理看不到 admin 用户?</h2>
+<p>超级管理员(is_super_admin=True)默认从人员管理列表中过滤掉,避免被误编辑或删除。这是设计行为。如需查看或编辑超管,可以直接查询数据库,或调整 <code>apps/repositories/user_repo.py</code> 的过滤条件。</p>
+
+<h2>AI Policies 会自动拦截高风险 Skill 吗?</h2>
+<p>不会。它生成规则扫描和可选 LLM 复核报告,不修改文件,也不自动阻止发布。管理员要根据证据人工决定。</p>
+
+<h2>AI Policies 是 OWASP 认证吗?</h2>
+<p>不是。风险分类参考 OWASP Agentic Skills Top 10,不表示 OWASP 对产品或报告认证、认可或背书。</p>
+
+<h2>MCP、Agent 和 Prompt 都能做安全审查吗?</h2>
+<p>当前正式审查对象是 Skill zip 包。其他对象的审计在 AI 实验室中属于预告内容。</p>
+
+<h2>Skill 和 MCP Server 如何交付给员工?</h2>
+<p>Skill 详情提供 Agent 安装提示词。MCP 详情提供 mcpServers 配置、工具清单和使用说明。需要审批的资源在批准后进入员工个人主 Key。</p>
+
+<h2>用户端支持英文吗?</h2>
+<p>支持中文和英文切换。语言设置不改变 API 配置。</p>
+
+<h2>Key 泄露后怎么办?</h2>
+<ol>
+<li>立即停用 Key。</li>
+<li>按 Key 和时间范围查调用日志。</li>
+<li>创建新 Key 并更新客户端。</li>
+<li>最后确认旧 Key 已无法调用。</li>
+<li>供应商 API Key 泄露时还要到上游控制台轮换凭证。</li>
+</ol>
+</section>
+
+</main>
+</div>
+
+<script>
+  // 主题切换
+  const themeBtn = document.getElementById('themeBtn');
+  const iconMoon = document.getElementById('iconMoon');
+  const iconSun = document.getElementById('iconSun');
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    iconMoon.style.display = t === 'dark' ? 'none' : 'block';
+    iconSun.style.display = t === 'dark' ? 'block' : 'none';
+    localStorage.setItem('ctm-theme', t);
+  }
+  const saved = localStorage.getItem('ctm-theme');
+  if (saved) applyTheme(saved);
+  else if (window.matchMedia('(prefers-color-scheme: dark)').matches) applyTheme('dark');
+  themeBtn.addEventListener('click', () => {
+    const cur = document.documentElement.getAttribute('data-theme');
+    applyTheme(cur === 'dark' ? 'light' : 'dark');
+  });
+
+  // 移动端菜单
+  const menuBtn = document.getElementById('menuBtn');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('overlay');
+  function toggleSidebar(open) {
+    sidebar.classList.toggle('open', open);
+    overlay.classList.toggle('show', open);
+  }
+  menuBtn.addEventListener('click', () => toggleSidebar(!sidebar.classList.contains('open')));
+  overlay.addEventListener('click', () => toggleSidebar(false));
+
+  // 页面路由
+  const navLinks = document.querySelectorAll('.nav-link');
+  const pages = document.querySelectorAll('.page');
+
+  // page id 映射:hash -> page element id
+  const pageMap = {
+    '': 'page-introduction',
+    'introduction': 'page-introduction-detail',
+    'user': 'page-user',
+    'api': 'page-api',
+    'dashboard': 'page-dashboard',
+    'users': 'page-users',
+    'resource-audit': 'page-resource-audit',
+    'agent-center': 'page-agent-center',
+    'ai-market': 'page-ai-market',
+    'provider-types': 'page-provider-types',
+    'providers': 'page-providers',
+    'models': 'page-models',
+    'publishing': 'page-publishing',
+    'efficiency': 'page-efficiency',
+    'security': 'page-security',
+    'ai-policies': 'page-ai-policies',
+    'system': 'page-system',
+    'ai-lab': 'page-ai-lab',
+    'claude-code': 'page-claude-code',
+    'codex': 'page-codex',
+    'workbuddy': 'page-workbuddy',
+    'cc-switch': 'page-cc-switch',
+    'faq': 'page-faq'
+  };
+
+  function showPage(hash) {
+    const key = hash.replace(/^#\//, '');
+    const pageId = pageMap[key] || 'page-introduction';
+    pages.forEach(p => p.classList.toggle('active', p.id === pageId));
+    navLinks.forEach(l => {
+      const lkey = l.getAttribute('data-page');
+      const isActive = (key === '' && lkey === 'introduction') || lkey === key;
+      l.classList.toggle('active', isActive);
+    });
+    window.scrollTo(0, 0);
+    toggleSidebar(false);
+  }
+
+  function handleHash() {
+    const hash = window.location.hash || '#/';
+    showPage(hash);
+  }
+
+  window.addEventListener('hashchange', handleHash);
+  window.addEventListener('DOMContentLoaded', handleHash);
+  handleHash();
+
+  navLinks.forEach(l => l.addEventListener('click', (e) => {
+    // 让 hashchange 处理,这里只关闭菜单
+    toggleSidebar(false);
+  }));
+</script>
+
+</body>
+</html>
