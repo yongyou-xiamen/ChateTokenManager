@@ -20,8 +20,10 @@ async def list_audit_logs(
     status: str | None = Query(None),
     action: str | None = Query(None),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("audit_log:read")),
+    current_user: dict = Depends(require_permission("audit_log:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
+    is_super_admin = current_user.get("is_super_admin", False)
     result = await audit_log_service.list_logs(
         session,
         page=page,
@@ -32,6 +34,8 @@ async def list_audit_logs(
         method=method,
         status=status,
         action=action,
+        tenant_id=tenant_id,
+        is_super_admin=is_super_admin,
     )
     return {"code": 200, "message": "ok", "data": result}
 
@@ -39,7 +43,11 @@ async def list_audit_logs(
 @router.get("/filters")
 async def get_audit_log_filters(
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("audit_log:read")),
+    current_user: dict = Depends(require_permission("audit_log:read")),
 ):
-    result = await audit_log_service.list_filters(session)
+    tenant_id = current_user.get("tenant_id")
+    is_super_admin = current_user.get("is_super_admin", False)
+    result = await audit_log_service.list_filters(
+        session, tenant_id=tenant_id, is_super_admin=is_super_admin
+    )
     return {"code": 200, "message": "ok", "data": result}

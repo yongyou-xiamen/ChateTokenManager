@@ -53,6 +53,7 @@ async def create_department(
             raise NotFoundError("parent department", parent_id)
 
     dept = Department(name=name, parent_id=parent_id, description=description)
+    dept.tenant_id = tenant_id or 1
     dept = await department_repo.create(session, dept)
     await session.commit()
     await session.refresh(dept)

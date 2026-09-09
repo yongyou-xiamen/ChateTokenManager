@@ -72,6 +72,7 @@ async def create_credential(
         credential_values=credential_values,
         credential_info=credential_info or {},
     )
+    credential.tenant_id = tenant_id or 1
     credential = await credential_repo.create(session, credential)
 
     # Sync to LiteLLM. Some compatible providers need LiteLLM-only auth headers;

@@ -55,6 +55,7 @@ async def create_provider(
         description=description,
         config=config or {},
     )
+    provider.tenant_id = tenant_id or 1
     provider = await provider_repo.create(session, provider)
     await session.commit()
     await session.refresh(provider)

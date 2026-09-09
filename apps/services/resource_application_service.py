@@ -84,6 +84,7 @@ async def create_application(
         reason=reason,
         request_config=request_config or {},
     )
+    app.tenant_id = tenant_id or 1
     app = await resource_application_repo.create(session, app)
     await session.commit()
     await session.refresh(app)

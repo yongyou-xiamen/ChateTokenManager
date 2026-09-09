@@ -16,9 +16,21 @@ async def find_logs(
     method: str | None = None,
     status: str | None = None,
     action: str | None = None,
+    tenant_id: int | None = None,
+    is_super_admin: bool = False,
 ) -> list[AdminAuditLog]:
     stmt = select(AdminAuditLog).order_by(AdminAuditLog.id.desc())
-    stmt = _apply_filters(stmt, start_time, end_time, user_id, method, status, action)
+    stmt = _apply_filters(
+        stmt,
+        start_time,
+        end_time,
+        user_id,
+        method,
+        status,
+        action,
+        tenant_id,
+        is_super_admin,
+    )
     offset = (page - 1) * page_size
     stmt = stmt.limit(page_size).offset(offset)
     result = await session.execute(stmt)
@@ -33,25 +45,45 @@ async def count_logs(
     method: str | None = None,
     status: str | None = None,
     action: str | None = None,
+    tenant_id: int | None = None,
+    is_super_admin: bool = False,
 ) -> int:
     stmt = select(func.count(AdminAuditLog.id))
-    stmt = _apply_filters(stmt, start_time, end_time, user_id, method, status, action)
+    stmt = _apply_filters(
+        stmt,
+        start_time,
+        end_time,
+        user_id,
+        method,
+        status,
+        action,
+        tenant_id,
+        is_super_admin,
+    )
     result = await session.execute(stmt)
     return result.scalar_one()
 
 
-async def find_distinct_actors(session: AsyncSession) -> list[tuple[int, str]]:
+async def find_distinct_actors(
+    session: AsyncSession, tenant_id: int | None = None, is_super_admin: bool = False
+) -> list[tuple[int, str]]:
     stmt = (
         select(AdminAuditLog.user_id, AdminAuditLog.username)
         .distinct()
         .order_by(AdminAuditLog.username)
     )
+    if not is_super_admin and tenant_id is not None:
+        stmt = stmt.where(AdminAuditLog.tenant_id == tenant_id)
     result = await session.execute(stmt)
     return [(row[0], row[1]) for row in result.all()]
 
 
-async def find_distinct_actions(session: AsyncSession) -> list[str]:
+async def find_distinct_actions(
+    session: AsyncSession, tenant_id: int | None = None, is_super_admin: bool = False
+) -> list[str]:
     stmt = select(AdminAuditLog.action).distinct().order_by(AdminAuditLog.action)
+    if not is_super_admin and tenant_id is not None:
+        stmt = stmt.where(AdminAuditLog.tenant_id == tenant_id)
     result = await session.execute(stmt)
     return [row[0] for row in result.all()]
 
@@ -63,7 +95,19 @@ async def delete_before(session: AsyncSession, before: datetime) -> int:
     return result.rowcount or 0
 
 
-def _apply_filters(stmt, start_time, end_time, user_id, method, status, action):
+def _apply_filters(
+    stmt,
+    start_time,
+    end_time,
+    user_id,
+    method,
+    status,
+    action,
+    tenant_id=None,
+    is_super_admin=False,
+):
+    if not is_super_admin and tenant_id is not None:
+        stmt = stmt.where(AdminAuditLog.tenant_id == tenant_id)
     if start_time is not None:
         stmt = stmt.where(AdminAuditLog.created_at >= start_time)
     if end_time is not None:

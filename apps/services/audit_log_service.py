@@ -17,6 +17,8 @@ async def list_logs(
     method: str | None = None,
     status: str | None = None,
     action: str | None = None,
+    tenant_id: int | None = None,
+    is_super_admin: bool = False,
 ) -> dict:
     total = await audit_log_repo.count_logs(
         session,
@@ -26,6 +28,8 @@ async def list_logs(
         method=method,
         status=status,
         action=action,
+        tenant_id=tenant_id,
+        is_super_admin=is_super_admin,
     )
     logs = await audit_log_repo.find_logs(
         session,
@@ -37,6 +41,8 @@ async def list_logs(
         method=method,
         status=status,
         action=action,
+        tenant_id=tenant_id,
+        is_super_admin=is_super_admin,
     )
     return {
         "items": [_serialize(log) for log in logs],
@@ -46,9 +52,17 @@ async def list_logs(
     }
 
 
-async def list_filters(session: AsyncSession) -> dict:
-    actors = await audit_log_repo.find_distinct_actors(session)
-    actions = await audit_log_repo.find_distinct_actions(session)
+async def list_filters(
+    session: AsyncSession,
+    tenant_id: int | None = None,
+    is_super_admin: bool = False,
+) -> dict:
+    actors = await audit_log_repo.find_distinct_actors(
+        session, tenant_id=tenant_id, is_super_admin=is_super_admin
+    )
+    actions = await audit_log_repo.find_distinct_actions(
+        session, tenant_id=tenant_id, is_super_admin=is_super_admin
+    )
     return {
         "actors": [{"user_id": uid, "username": uname} for uid, uname in actors],
         "actions": actions,

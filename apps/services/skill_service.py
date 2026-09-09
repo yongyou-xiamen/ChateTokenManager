@@ -127,6 +127,7 @@ async def create_skill(
         requires_approval=requires_approval,
         created_by=created_by,
     )
+    skill.tenant_id = tenant_id or 1
     skill = await skill_repo.create(session, skill)
 
     # 发布且不需要审批时，自动同步到所有主 Key

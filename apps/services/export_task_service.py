@@ -201,6 +201,7 @@ async def create_export_task(
         created_by_name=str(current_user.get("username", "")),
         retry_of_task_id=retry_of_task_id,
     )
+    task.tenant_id = tenant_id or 1
     task = await export_task_repo.create(session, task)
     await session.commit()
     await session.refresh(task)

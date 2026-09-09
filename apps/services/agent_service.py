@@ -100,6 +100,7 @@ async def create_agent(
         cost_attribution=cost_attribution,
         created_by=created_by,
     )
+    agent.tenant_id = tenant_id or 1
     agent = await agent_repo.create(session, agent)
 
     # 发布且不需要审批时，自动同步到所有主 Key

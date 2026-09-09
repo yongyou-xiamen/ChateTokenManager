@@ -141,6 +141,7 @@ async def create_server(
         requires_approval=requires_approval,
         created_by=created_by,
     )
+    server.tenant_id = tenant_id or 1
     server = await mcp_repo.create_server(session, server)
     await session.flush()
 

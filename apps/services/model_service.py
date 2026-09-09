@@ -134,6 +134,7 @@ async def create_model(
         description=description,
         logo_provider_type=logo_provider_type or "",
     )
+    model.tenant_id = tenant_id or 1
     model = await model_repo.create(session, model)
     await session.commit()
     await session.refresh(model)
@@ -387,6 +388,7 @@ async def create_deployment(
         cost_per_call=cost_per_call,
         monthly_call_quota=monthly_call_quota,
     )
+    deployment.tenant_id = tenant_id or 1
     deployment = await model_repo.create_deployment(session, deployment)
 
     # Sync to LiteLLM
@@ -566,6 +568,7 @@ async def create_access_group(
         description=description,
         model_ids=model_ids or [],
     )
+    group.tenant_id = tenant_id or 1
     group = await model_repo.create_access_group(session, group)
     await session.commit()
     await session.refresh(group)
