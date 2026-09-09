@@ -33,7 +33,8 @@ async def get_model_health_rows(session: AsyncSession) -> list:
 
 
 async def get_data_update_row(session: AsyncSession):
-    sql = text("""
+    sql = text(
+        """
         SELECT
             (SELECT NULLIF(GREATEST(
             COALESCE((SELECT MAX(last_aggregated_at)::timestamptz FROM aihelms.cost_summary_daily), '-infinity'::timestamptz),
@@ -41,5 +42,6 @@ async def get_data_update_row(session: AsyncSession):
             COALESCE((SELECT MAX(called_at)::timestamptz FROM aihelms.mcp_call_logs), '-infinity'::timestamptz)
         ), '-infinity'::timestamptz)) AS latest_at,
             (SELECT MAX(summary_date) FROM aihelms.cost_summary_daily) AS latest_date
-    """)
+    """
+    )
     return (await session.execute(sql)).first()

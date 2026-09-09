@@ -55,8 +55,7 @@ def test_export_datetime_parses_date_and_datetime_structurally() -> None:
 def test_application_domain_values_provide_export_labels() -> None:
     assert resource_application_service.ResourceType.label_for("model") == "模型"
     assert (
-        resource_application_service.ApplicationStatus.label_for("pending")
-        == "待审批"
+        resource_application_service.ApplicationStatus.label_for("pending") == "待审批"
     )
     assert resource_application_service.ResourceType.label_for("unknown") == "unknown"
 
@@ -78,9 +77,7 @@ async def test_approval_export_uses_end_of_day_and_bulk_resource_queries(
     user = SimpleNamespace(
         display_name="申请人",
         username="applicant",
-        departments=[
-            SimpleNamespace(department=SimpleNamespace(name="研发部"))
-        ],
+        departments=[SimpleNamespace(department=SimpleNamespace(name="研发部"))],
     )
     application = SimpleNamespace(
         user=user,

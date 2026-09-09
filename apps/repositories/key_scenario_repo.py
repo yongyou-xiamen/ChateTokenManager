@@ -19,9 +19,7 @@ async def find_by_id(session: AsyncSession, scenario_id: int) -> KeyScenario | N
 
 
 async def find_by_name(session: AsyncSession, name: str) -> KeyScenario | None:
-    result = await session.execute(
-        select(KeyScenario).where(KeyScenario.name == name)
-    )
+    result = await session.execute(select(KeyScenario).where(KeyScenario.name == name))
     return result.scalar_one_or_none()
 
 
@@ -31,7 +29,11 @@ async def find_all(
     page_size: int = 50,
     keyword: str | None = None,
 ) -> list[KeyScenario]:
-    stmt = select(KeyScenario).where(KeyScenario.is_active == True).order_by(KeyScenario.id)
+    stmt = (
+        select(KeyScenario)
+        .where(KeyScenario.is_active == True)
+        .order_by(KeyScenario.id)
+    )
     if keyword:
         stmt = stmt.where(KeyScenario.name.ilike(f"%{keyword}%"))
     offset = (page - 1) * page_size
@@ -50,6 +52,8 @@ async def count_all(session: AsyncSession, keyword: str | None = None) -> int:
 
 async def find_all_active(session: AsyncSession) -> list[KeyScenario]:
     result = await session.execute(
-        select(KeyScenario).where(KeyScenario.is_active == True).order_by(KeyScenario.id)
+        select(KeyScenario)
+        .where(KeyScenario.is_active == True)
+        .order_by(KeyScenario.id)
     )
     return list(result.scalars().all())

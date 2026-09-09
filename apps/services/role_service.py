@@ -16,7 +16,9 @@ async def list_roles(session: AsyncSession) -> list[dict]:
     return [_serialize_role(r) for r in roles]
 
 
-async def create_role(session: AsyncSession, name: str, display_name: str, description: str) -> dict:
+async def create_role(
+    session: AsyncSession, name: str, display_name: str, description: str
+) -> dict:
     result = await session.execute(select(Role).where(Role.name == name))
     if result.scalar_one_or_none():
         raise ConflictError("角色名已存在")
@@ -28,7 +30,12 @@ async def create_role(session: AsyncSession, name: str, display_name: str, descr
     return _serialize_role(role)
 
 
-async def update_role(session: AsyncSession, role_id: int, display_name: str | None, description: str | None) -> dict:
+async def update_role(
+    session: AsyncSession,
+    role_id: int,
+    display_name: str | None,
+    description: str | None,
+) -> dict:
     result = await session.execute(select(Role).where(Role.id == role_id))
     role = result.scalar_one_or_none()
     if not role:
@@ -57,7 +64,9 @@ async def delete_role(session: AsyncSession, role_id: int) -> None:
     await session.commit()
 
 
-async def update_role_permissions(session: AsyncSession, role_id: int, permission_ids: list[int]) -> dict:
+async def update_role_permissions(
+    session: AsyncSession, role_id: int, permission_ids: list[int]
+) -> dict:
     result = await session.execute(select(Role).where(Role.id == role_id))
     role = result.scalar_one_or_none()
     if not role:
@@ -65,7 +74,9 @@ async def update_role_permissions(session: AsyncSession, role_id: int, permissio
     if role.is_system:
         raise ConflictError("系统角色权限不可修改")
 
-    await session.execute(delete(RolePermission).where(RolePermission.role_id == role_id))
+    await session.execute(
+        delete(RolePermission).where(RolePermission.role_id == role_id)
+    )
     for perm_id in permission_ids:
         session.add(RolePermission(role_id=role_id, permission_id=perm_id))
     await session.commit()
@@ -74,7 +85,9 @@ async def update_role_permissions(session: AsyncSession, role_id: int, permissio
 
 
 async def list_permissions(session: AsyncSession) -> list[dict]:
-    result = await session.execute(select(Permission).order_by(Permission.resource, Permission.action))
+    result = await session.execute(
+        select(Permission).order_by(Permission.resource, Permission.action)
+    )
     return [
         {
             "id": p.id,
@@ -97,7 +110,13 @@ def _serialize_role(role: Role) -> dict:
         "is_system": role.is_system,
         "created_at": fmt_local_time(role.created_at),
         "permissions": [
-            {"id": rp.permission.id, "code": rp.permission.code, "name": rp.permission.name, "resource": rp.permission.resource, "action": rp.permission.action}
+            {
+                "id": rp.permission.id,
+                "code": rp.permission.code,
+                "name": rp.permission.name,
+                "resource": rp.permission.resource,
+                "action": rp.permission.action,
+            }
             for rp in role.permissions
         ],
     }

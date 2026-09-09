@@ -17,6 +17,7 @@ from services.icon_url import resolve_icon_url
 
 # ────────────── LLM ──────────────
 
+
 async def list_llm_logs(
     session: AsyncSession,
     page: int = 1,
@@ -31,7 +32,15 @@ async def list_llm_logs(
     status: str | None = None,
 ) -> dict:
     total = await usage_log_repo.count_llm_logs(
-        session, start_time, end_time, user_id, ai_key_id, model, models, provider, status
+        session,
+        start_time,
+        end_time,
+        user_id,
+        ai_key_id,
+        model,
+        models,
+        provider,
+        status,
     )
     logs = await usage_log_repo.find_llm_logs(
         session,
@@ -48,9 +57,19 @@ async def list_llm_logs(
     )
     users = await usage_log_repo.load_users(session, [log.user_id for log in logs])
     keys = await usage_log_repo.load_ai_keys(session, [log.ai_key_id for log in logs])
-    deployments = await usage_log_repo.load_deployments(session, [log.deployment_id for log in logs])
+    deployments = await usage_log_repo.load_deployments(
+        session, [log.deployment_id for log in logs]
+    )
     return {
-        "items": [_serialize_llm(log, users, keys, deployments.get(log.deployment_id) if log.deployment_id else None) for log in logs],
+        "items": [
+            _serialize_llm(
+                log,
+                users,
+                keys,
+                deployments.get(log.deployment_id) if log.deployment_id else None,
+            )
+            for log in logs
+        ],
         "total": total,
         "page": page,
         "page_size": page_size,
@@ -132,19 +151,39 @@ def _llm_cost_breakdown(log: LlmCallLog, deployment: dict | None) -> dict[str, s
     input_tokens = max((log.prompt_tokens or 0) - cache_read - cache_creation, 0)
     output_tokens = log.completion_tokens or 0
     components = {
-        "internal_input_cost": _decimal(model_info.get("internal_input_cost")) * input_tokens / million,
-        "internal_output_cost": _decimal(model_info.get("internal_output_cost")) * output_tokens / million,
-        "internal_cache_read_cost": _decimal(model_info.get("internal_cache_read_cost")) * cache_read / million,
-        "internal_cache_creation_cost": _decimal(model_info.get("internal_cache_creation_cost")) * cache_creation / million,
-        "external_input_cost": _decimal(model_info.get("input_cost")) * input_tokens / million,
-        "external_output_cost": _decimal(model_info.get("output_cost")) * output_tokens / million,
-        "external_cache_read_cost": _decimal(model_info.get("cache_read_cost")) * cache_read / million,
-        "external_cache_creation_cost": _decimal(model_info.get("cache_creation_cost")) * cache_creation / million,
+        "internal_input_cost": _decimal(model_info.get("internal_input_cost"))
+        * input_tokens
+        / million,
+        "internal_output_cost": _decimal(model_info.get("internal_output_cost"))
+        * output_tokens
+        / million,
+        "internal_cache_read_cost": _decimal(model_info.get("internal_cache_read_cost"))
+        * cache_read
+        / million,
+        "internal_cache_creation_cost": _decimal(
+            model_info.get("internal_cache_creation_cost")
+        )
+        * cache_creation
+        / million,
+        "external_input_cost": _decimal(model_info.get("input_cost"))
+        * input_tokens
+        / million,
+        "external_output_cost": _decimal(model_info.get("output_cost"))
+        * output_tokens
+        / million,
+        "external_cache_read_cost": _decimal(model_info.get("cache_read_cost"))
+        * cache_read
+        / million,
+        "external_cache_creation_cost": _decimal(model_info.get("cache_creation_cost"))
+        * cache_creation
+        / million,
     }
     return {key: _format_cost(value) for key, value in components.items()}
 
 
-def _serialize_llm(log: LlmCallLog, users: dict, keys: dict, deployment: dict | None = None) -> dict:
+def _serialize_llm(
+    log: LlmCallLog, users: dict, keys: dict, deployment: dict | None = None
+) -> dict:
     user = users.get(log.user_id) if log.user_id else None
     key = keys.get(log.ai_key_id) if log.ai_key_id else None
     return {
@@ -174,6 +213,7 @@ def _serialize_llm(log: LlmCallLog, users: dict, keys: dict, deployment: dict | 
 
 
 # ────────────── MCP ──────────────
+
 
 async def list_mcp_logs(
     session: AsyncSession,
@@ -268,6 +308,7 @@ def _serialize_mcp(log: McpCallLog, users: dict, keys: dict, servers: dict) -> d
 
 # ────────────── Skill ──────────────
 
+
 async def list_skill_logs(
     session: AsyncSession,
     page: int = 1,
@@ -324,6 +365,7 @@ def _resolve_skill_icon_urls(skills: dict[int, dict]) -> None:
 
 # ────────────── Agent ──────────────
 
+
 async def list_agent_logs(
     session: AsyncSession,
     page: int = 1,
@@ -340,9 +382,7 @@ async def list_agent_logs(
     pairs = await usage_log_repo.find_agent_logs(
         session, page, page_size, start_time, end_time, user_id, agent_id, platform
     )
-    users = await usage_log_repo.load_users(
-        session, [log.user_id for log, _ in pairs]
-    )
+    users = await usage_log_repo.load_users(session, [log.user_id for log, _ in pairs])
     return {
         "items": [_serialize_agent(log, agent, users) for log, agent in pairs],
         "total": total,
@@ -356,9 +396,14 @@ async def agent_filters(session: AsyncSession) -> dict:
     users = await usage_log_repo.load_users(session, raw["user_ids"])
     # 加载 agent
     from sqlalchemy import select
-    agents = (await session.execute(
-        select(Agent).where(Agent.id.in_(raw["agent_ids"]))
-    )).scalars().all() if raw["agent_ids"] else []
+
+    agents = (
+        (await session.execute(select(Agent).where(Agent.id.in_(raw["agent_ids"]))))
+        .scalars()
+        .all()
+        if raw["agent_ids"]
+        else []
+    )
     return {
         "users": [users[u] for u in raw["user_ids"] if u in users],
         "agents": [
@@ -375,9 +420,7 @@ async def agent_filters(session: AsyncSession) -> dict:
     }
 
 
-def _serialize_agent(
-    log: AgentUsageLog, agent: Agent | None, users: dict
-) -> dict:
+def _serialize_agent(log: AgentUsageLog, agent: Agent | None, users: dict) -> dict:
     return {
         "id": log.id,
         "user": users.get(log.user_id),

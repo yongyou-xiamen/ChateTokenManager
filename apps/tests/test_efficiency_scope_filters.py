@@ -44,9 +44,7 @@ def test_cost_filter_without_alias_correlates_outer_cost_user():
 
 def test_project_dimension_join_only_attributes_selected_project():
     params = {}
-    _name, join_sql, _label = _cost_dimension_config(
-        "project", params, None, [8]
-    )
+    _name, join_sql, _label = _cost_dimension_config("project", params, None, [8])
 
     assert "up_dim.project_id IN (:dimension_project_0)" in join_sql
     assert params == {"dimension_project_0": 8}
@@ -56,8 +54,7 @@ def test_project_dimension_join_only_attributes_selected_project():
         "project", multiple_params, None, [8, 10]
     )
     assert clause == (
-        " AND up_dim.project_id IN "
-        "(:dimension_project_0, :dimension_project_1)"
+        " AND up_dim.project_id IN " "(:dimension_project_0, :dimension_project_1)"
     )
     assert multiple_params == {
         "dimension_project_0": 8,
@@ -266,9 +263,7 @@ async def test_budget_scope_global_usage_matches_scope_cost(monkeypatch):
         AsyncMock(return_value=[]),
     )
 
-    result = await efficiency_budget_service.get_budget(
-        session, "2026-07", [28], None
-    )
+    result = await efficiency_budget_service.get_budget(session, "2026-07", [28], None)
 
     get_total_cost.assert_awaited_once_with(
         session, date(2026, 7, 1), date(2026, 7, 17), [28], None

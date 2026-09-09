@@ -14,7 +14,9 @@ class CreateServerRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=128)
     server_name: str = Field(..., min_length=1, max_length=128)
     url: str = Field(..., min_length=1)
-    transport: str = Field("sse", pattern=r"^(sse|http|streamable_http|streamableHttp)$")
+    transport: str = Field(
+        "sse", pattern=r"^(sse|http|streamable_http|streamableHttp)$"
+    )
     auth_type: str = Field("none", max_length=30)
     credentials: dict | None = None
     description: str = Field("", max_length=2000)
@@ -43,7 +45,9 @@ class UpdateServerRequest(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=128)
     server_name: str | None = Field(None, min_length=1, max_length=128)
     url: str | None = None
-    transport: str | None = Field(None, pattern=r"^(sse|http|streamable_http|streamableHttp)$")
+    transport: str | None = Field(
+        None, pattern=r"^(sse|http|streamable_http|streamableHttp)$"
+    )
     auth_type: str | None = None
     credentials: dict | None = None
     description: str | None = None
@@ -91,7 +95,13 @@ async def list_published_servers(
 ):
     """公开接口：已认证用户可查看已发布的 MCP Server 列表。"""
     data = await mcp_service.list_servers(
-        session, page, page_size, category, is_active=None, is_published=True, status=None
+        session,
+        page,
+        page_size,
+        category,
+        is_active=None,
+        is_published=True,
+        status=None,
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -202,7 +212,9 @@ async def delete_server(
     return {"code": 200, "message": "MCP Server 删除成功", "data": None}
 
 
-@router.get("/servers/{server_id}/connect-config", summary="获取 MCP 接入配置（用户端）")
+@router.get(
+    "/servers/{server_id}/connect-config", summary="获取 MCP 接入配置（用户端）"
+)
 async def get_connect_config(
     server_id: int,
     session: AsyncSession = Depends(get_db),
@@ -216,7 +228,14 @@ async def get_connect_config(
 
     # 获取用户的 personal_main key
     keys_data = await ai_key_service.get_my_keys(session, current_user["id"])
-    main_key = next((k for k in keys_data.get("personal", []) if k.get("key_type") == "personal_main"), None)
+    main_key = next(
+        (
+            k
+            for k in keys_data.get("personal", [])
+            if k.get("key_type") == "personal_main"
+        ),
+        None,
+    )
     user_key = main_key.get("litellm_key_id", "") if main_key else ""
 
     base_url = settings.litellm_public_url.rstrip("/")
@@ -231,19 +250,21 @@ async def get_connect_config(
                 "description": server_data.get("description", ""),
                 "isActive": True,
                 "name": server_data["name"],
-                "headers": {
-                    "x-litellm-api-key": f"Bearer {user_key}"
-                }
+                "headers": {"x-litellm-api-key": f"Bearer {user_key}"},
             }
         }
     }
 
-    agent_prompt = (
-        f"请帮我安装 {server_data['name']} MCP 服务。\n\n"
-    )
+    agent_prompt = f"请帮我安装 {server_data['name']} MCP 服务。\n\n"
 
     tools = server_data.get("tools") or []
-    tools_info = [{"name": t["display_name"] or t["tool_name"], "description": t.get("description", "")} for t in tools]
+    tools_info = [
+        {
+            "name": t["display_name"] or t["tool_name"],
+            "description": t.get("description", ""),
+        }
+        for t in tools
+    ]
 
     return {
         "code": 200,
@@ -257,7 +278,7 @@ async def get_connect_config(
             "instructions": server_data.get("instructions", ""),
             "documentation_url": server_data.get("documentation_url", ""),
             "tools": tools_info,
-        }
+        },
     }
 
 
@@ -342,7 +363,10 @@ async def create_category(
 ):
     try:
         data = await mcp_service.create_category(
-            session, name=req.name, description=req.description, sort_order=req.sort_order
+            session,
+            name=req.name,
+            description=req.description,
+            sort_order=req.sort_order,
         )
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=str(e))

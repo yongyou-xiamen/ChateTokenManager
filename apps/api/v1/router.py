@@ -17,11 +17,13 @@ from api.v1.export_tasks import router as export_tasks_router
 from api.v1.key_scenarios import router as key_scenarios_router
 from api.v1.mcp import router as mcp_router
 from api.v1.models import router as models_router
+from api.v1.platform import router as platform_router
 from api.v1.projects import router as projects_router
 from api.v1.providers import router as providers_router
 from api.v1.resource_applications import router as resource_applications_router
 from api.v1.roles import router as roles_router
 from api.v1.skills import router as skills_router
+from api.v1.tenant import router as tenant_router
 from api.v1.usage_logs import router as usage_logs_router
 from api.v1.users import router as users_router
 from core.config import settings
@@ -55,6 +57,8 @@ router.include_router(business_scenarios_router, tags=["AI 身份"])
 router.include_router(efficiency_router, tags=["AI 效能"])
 router.include_router(dashboard_router, tags=["系统"])
 router.include_router(branding_router, tags=["系统"])
+router.include_router(platform_router, tags=["平台管理"])
+router.include_router(tenant_router, tags=["租户"])
 
 
 @router.get("/ping", tags=["系统"])

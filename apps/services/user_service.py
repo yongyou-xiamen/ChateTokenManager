@@ -13,9 +13,18 @@ from services import ai_key_service
 logger = logging.getLogger(__name__)
 
 
-async def list_users(session: AsyncSession, page: int = 1, page_size: int = 20, keyword: str = "", is_admin: bool | None = None, is_active: bool | None = None) -> dict:
+async def list_users(
+    session: AsyncSession,
+    page: int = 1,
+    page_size: int = 20,
+    keyword: str = "",
+    is_admin: bool | None = None,
+    is_active: bool | None = None,
+) -> dict:
     total = await user_repo.count_users(session, keyword, is_admin, is_active)
-    users = await user_repo.find_users(session, page, page_size, keyword, is_admin, is_active)
+    users = await user_repo.find_users(
+        session, page, page_size, keyword, is_admin, is_active
+    )
     items = [_serialize_user(u) for u in users]
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
@@ -120,7 +129,9 @@ async def delete_user(session: AsyncSession, user_id: int) -> None:
     await session.commit()
 
 
-async def reset_password(session: AsyncSession, user_id: int, new_password: str) -> None:
+async def reset_password(
+    session: AsyncSession, user_id: int, new_password: str
+) -> None:
     user = await user_repo.find_user_by_id(session, user_id)
     if not user:
         raise NotFoundError("user", user_id)
@@ -128,7 +139,9 @@ async def reset_password(session: AsyncSession, user_id: int, new_password: str)
     await session.commit()
 
 
-async def update_user_roles(session: AsyncSession, user_id: int, role_ids: list[int]) -> None:
+async def update_user_roles(
+    session: AsyncSession, user_id: int, role_ids: list[int]
+) -> None:
     user = await user_repo.find_user_by_id(session, user_id)
     if not user:
         raise NotFoundError("user", user_id)
@@ -136,10 +149,9 @@ async def update_user_roles(session: AsyncSession, user_id: int, role_ids: list[
     # super_admin 角色不可通过后台分配
     from models.db import Role
     from sqlalchemy import select
+
     if role_ids:
-        result = await session.execute(
-            select(Role).where(Role.id.in_(role_ids))
-        )
+        result = await session.execute(select(Role).where(Role.id.in_(role_ids)))
         roles = list(result.scalars().all())
         assigned_role_names = {r.name for r in roles}
         if "super_admin" in assigned_role_names:
@@ -152,7 +164,9 @@ async def update_user_roles(session: AsyncSession, user_id: int, role_ids: list[
     await session.commit()
 
 
-async def update_user_departments(session: AsyncSession, user_id: int, department_ids: list[int]) -> None:
+async def update_user_departments(
+    session: AsyncSession, user_id: int, department_ids: list[int]
+) -> None:
     user = await user_repo.find_user_by_id(session, user_id)
     if not user:
         raise NotFoundError("user", user_id)
@@ -160,7 +174,9 @@ async def update_user_departments(session: AsyncSession, user_id: int, departmen
     await session.commit()
 
 
-async def update_user_projects(session: AsyncSession, user_id: int, project_ids: list[int]) -> None:
+async def update_user_projects(
+    session: AsyncSession, user_id: int, project_ids: list[int]
+) -> None:
     user = await user_repo.find_user_by_id(session, user_id)
     if not user:
         raise NotFoundError("user", user_id)
@@ -179,9 +195,25 @@ def _serialize_user(user: User) -> dict:
         "is_active": user.is_active,
         "is_admin": user.is_admin,
         "created_at": fmt_local_time(user.created_at),
-        "roles": [{"id": ur.role.id, "name": ur.role.name, "display_name": ur.role.display_name} for ur in user.roles],
-        "departments": [{"id": ud.department.id, "name": ud.department.name, "is_manager": ud.is_manager} for ud in user.departments],
-        "projects": [{"id": up.project.id, "name": up.project.name} for up in user.projects],
+        "roles": [
+            {
+                "id": ur.role.id,
+                "name": ur.role.name,
+                "display_name": ur.role.display_name,
+            }
+            for ur in user.roles
+        ],
+        "departments": [
+            {
+                "id": ud.department.id,
+                "name": ud.department.name,
+                "is_manager": ud.is_manager,
+            }
+            for ud in user.departments
+        ],
+        "projects": [
+            {"id": up.project.id, "name": up.project.name} for up in user.projects
+        ],
     }
 
 

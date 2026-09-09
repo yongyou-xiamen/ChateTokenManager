@@ -31,7 +31,9 @@ async def list_scenarios(
     session: AsyncSession = Depends(get_db),
     _: dict = Depends(require_permission("user:read")),
 ):
-    result = await key_scenario_service.list_scenarios(session, page, page_size, keyword)
+    result = await key_scenario_service.list_scenarios(
+        session, page, page_size, keyword
+    )
     return {"code": 200, "message": "ok", "data": result}
 
 

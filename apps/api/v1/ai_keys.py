@@ -145,7 +145,9 @@ async def list_keys(
     session: AsyncSession = Depends(get_db),
     _: dict = Depends(require_permission("user:read")),
 ):
-    result = await ai_key_service.list_keys(session, page, page_size, owner_type, owner_id, key_type)
+    result = await ai_key_service.list_keys(
+        session, page, page_size, owner_type, owner_id, key_type
+    )
     return {"code": 200, "message": "ok", "data": result}
 
 
@@ -203,6 +205,7 @@ async def batch_create_keys(
     current_user: dict = Depends(require_permission("user:update")),
 ):
     from exceptions import ValidationError as VE
+
     try:
         results = await ai_key_service.batch_create_keys(
             session,
@@ -261,7 +264,9 @@ async def list_identity(
     _: dict = Depends(require_permission("user:read")),
 ):
     try:
-        result = await ai_key_service.list_identity(session, tab, page, page_size, keyword)
+        result = await ai_key_service.list_identity(
+            session, tab, page, page_size, keyword
+        )
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"code": 200, "message": "ok", "data": result}
@@ -334,6 +339,7 @@ async def batch_update_keys(
     key_ids = list(req.key_ids) if req.key_ids else []
     if req.user_ids:
         from repositories import ai_key_repo
+
         for uid in req.user_ids:
             main_key = await ai_key_repo.find_personal_main(session, uid)
             if main_key:
@@ -345,7 +351,8 @@ async def batch_update_keys(
     for key_id in key_ids:
         try:
             await ai_key_service.update_key(
-                session, key_id,
+                session,
+                key_id,
                 models=req.models,
                 mcps=req.mcps,
                 skills=req.skills,
@@ -389,7 +396,8 @@ async def update_key(
 ):
     try:
         key = await ai_key_service.update_key(
-            session, key_id,
+            session,
+            key_id,
             name=req.name,
             description=req.description,
             tags=req.tags,
@@ -453,11 +461,15 @@ async def get_available_models(
 ):
     try:
         models = await litellm_client.list_models()
-        model_names = [m.get("model_name", m.get("model_info", {}).get("id", "")) for m in models if m]
+        model_names = [
+            m.get("model_name", m.get("model_info", {}).get("id", ""))
+            for m in models
+            if m
+        ]
         # 过滤掉被禁用通道的占位名（脱离路由组的 __disabled__ 后缀部署）
-        model_names = sorted(set(
-            n for n in model_names if n and not n.endswith("__disabled__")
-        ))
+        model_names = sorted(
+            set(n for n in model_names if n and not n.endswith("__disabled__"))
+        )
     except litellm_client.LiteLLMError:
         logger.warning("failed to fetch models from litellm")
         model_names = []

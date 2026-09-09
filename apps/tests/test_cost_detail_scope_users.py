@@ -138,7 +138,11 @@ async def test_export_department_cost_includes_token_columns(monkeypatch):
     header, rows = await export_task_builders._build_efficiency_rows(
         object(),
         "cost_department",
-        {"dimension": "department", "start_date": "2026-07-01", "end_date": "2026-07-17"},
+        {
+            "dimension": "department",
+            "start_date": "2026-07-01",
+            "end_date": "2026-07-17",
+        },
     )
 
     assert "输入Token" in header

@@ -44,13 +44,15 @@ async def _aggregate() -> None:
                 await session.flush()
 
             earliest = await session.execute(
-                text("""
+                text(
+                    """
                     SELECT MIN(ts) FROM (
                         SELECT MIN(started_at) AS ts FROM aihelms.llm_call_logs
                         UNION ALL
                         SELECT MIN(called_at) AS ts FROM aihelms.mcp_call_logs
                     ) t
-                """)
+                """
+                )
             )
             earliest_ts = earliest.scalar()
             summary_count = await session.execute(
@@ -65,16 +67,19 @@ async def _aggregate() -> None:
             # cost_summary_daily 是平台日志的派生汇总。滚动窗口重建可以修复漏聚合，
             # 不修改 llm_call_logs / mcp_call_logs 等业务源数据。
             await session.execute(
-                text("""
+                text(
+                    """
                     DELETE FROM aihelms.cost_summary_daily
                     WHERE summary_date >= :rebuild_start
-                """),
+                """
+                ),
                 {"rebuild_start": rebuild_start},
             )
 
             # LLM 日志聚合
             await session.execute(
-                text("""
+                text(
+                    """
                     INSERT INTO aihelms.cost_summary_daily (
                         summary_date, user_id, ai_key_id, model, provider_id,
                         cost_type, key_type, total_requests, successful_requests,
@@ -109,13 +114,15 @@ async def _aggregate() -> None:
                     WHERE l.started_at::date >= :rebuild_start
                       AND l.started_at < :now
                     GROUP BY 1,2,3,4,5,6,7
-                """),
+                """
+                ),
                 {"rebuild_start": rebuild_start, "now": now},
             )
 
             # MCP 日志聚合
             await session.execute(
-                text("""
+                text(
+                    """
                     INSERT INTO aihelms.cost_summary_daily (
                         summary_date, user_id, ai_key_id, server_id, cost_type,
                         key_type, total_requests, successful_requests, failed_requests,
@@ -141,7 +148,8 @@ async def _aggregate() -> None:
                     WHERE m.called_at::date >= :rebuild_start
                       AND m.called_at < :now
                     GROUP BY 1,2,3,4,5,6
-                """),
+                """
+                ),
                 {"rebuild_start": rebuild_start, "now": now},
             )
 
@@ -150,7 +158,9 @@ async def _aggregate() -> None:
 
             sync_state.last_sync_at = now
             await session.commit()
-            logger.info("efficiency aggregation completed: rebuild_start=%s", rebuild_start)
+            logger.info(
+                "efficiency aggregation completed: rebuild_start=%s", rebuild_start
+            )
     except Exception:
         logger.error("efficiency aggregation failed", exc_info=True)
 
@@ -159,7 +169,8 @@ async def _update_budget_used(session) -> None:
     """批量更新每个 ai_key 在其 budget_duration 周期内的累计成本。"""
     for duration, interval in [("30d", "30 days"), ("7d", "7 days"), ("1d", "1 day")]:
         await session.execute(
-            text(f"""
+            text(
+                f"""
                 WITH key_costs AS (
                     SELECT ai_key_id, COALESCE(SUM(cost), 0) AS total_cost
                     FROM (
@@ -183,12 +194,14 @@ async def _update_budget_used(session) -> None:
                   AND (k.budget_limit IS NOT NULL
                        OR k.budget_models_total IS NOT NULL
                        OR k.budget_mcps_total IS NOT NULL)
-            """),
+            """
+            ),
             {"duration": duration},
         )
     # 没有调用记录的 Key，归零
     await session.execute(
-        text("""
+        text(
+            """
             UPDATE aihelms.ai_keys
             SET budget_used = 0
             WHERE (budget_limit IS NOT NULL
@@ -201,5 +214,6 @@ async def _update_budget_used(session) -> None:
                   SELECT DISTINCT ai_key_id FROM aihelms.mcp_call_logs
                   WHERE ai_key_id IS NOT NULL
               )
-        """)
+        """
+        )
     )

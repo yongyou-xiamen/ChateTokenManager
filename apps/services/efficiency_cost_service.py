@@ -75,10 +75,22 @@ async def get_cost(
         session, start_date, end_date, department_id, cost_filters, project_id
     )
     by_scope = await efficiency_repo.get_cost_by_dimension(
-        session, start_date, end_date, dimension, cost_filters, department_id, project_id
+        session,
+        start_date,
+        end_date,
+        dimension,
+        cost_filters,
+        department_id,
+        project_id,
     )
     raw_pc = await efficiency_repo.get_per_capita_cost_by_dimension(
-        session, start_date, end_date, dimension, cost_filters, department_id, project_id
+        session,
+        start_date,
+        end_date,
+        dimension,
+        cost_filters,
+        department_id,
+        project_id,
     )
 
     return {
@@ -156,7 +168,9 @@ async def get_cost_detail(
                     "cache_creation_tokens": item["cache_creation_tokens"],
                     "internal_cost": item["internal_cost"],
                     "external_cost": item["external_cost"],
-                    "cost_diff": round(item["internal_cost"] - item["external_cost"], 4),
+                    "cost_diff": round(
+                        item["internal_cost"] - item["external_cost"], 4
+                    ),
                     "avg_cost": (
                         round(item["internal_cost"] / item["requests"], 4)
                         if item["requests"] > 0
@@ -171,7 +185,9 @@ async def get_cost_detail(
             item["external_cost"] = round(item["external_cost"], 6)
             item["cost"] = item["internal_cost"]
             item["cost_diff"] = round(item["internal_cost"] - item["external_cost"], 4)
-            item["ratio"] = round(item["internal_cost"] / total_cost, 4) if total_cost > 0 else 0
+            item["ratio"] = (
+                round(item["internal_cost"] / total_cost, 4) if total_cost > 0 else 0
+            )
             item["avg_cost"] = (
                 round(item["internal_cost"] / item["requests"], 4)
                 if item["requests"] > 0
@@ -215,7 +231,9 @@ async def get_cost_detail(
                     "requests": item["requests"],
                     "internal_cost": item["internal_cost"],
                     "external_cost": item["external_cost"],
-                    "cost_diff": round(item["internal_cost"] - item["external_cost"], 4),
+                    "cost_diff": round(
+                        item["internal_cost"] - item["external_cost"], 4
+                    ),
                     "avg_cost": (
                         round(item["internal_cost"] / item["requests"], 4)
                         if item["requests"] > 0
@@ -226,12 +244,16 @@ async def get_cost_detail(
         items = list(grouped.values())
         total_cost = sum(item["internal_cost"] for item in items)
         for item in items:
-            item["tool_count"] = len({t["namespaced_tool_name"] or t["tool_name"] for t in item["tools"]})
+            item["tool_count"] = len(
+                {t["namespaced_tool_name"] or t["tool_name"] for t in item["tools"]}
+            )
             item["internal_cost"] = round(item["internal_cost"], 6)
             item["external_cost"] = round(item["external_cost"], 6)
             item["cost"] = item["internal_cost"]
             item["cost_diff"] = round(item["internal_cost"] - item["external_cost"], 4)
-            item["ratio"] = round(item["internal_cost"] / total_cost, 4) if total_cost > 0 else 0
+            item["ratio"] = (
+                round(item["internal_cost"] / total_cost, 4) if total_cost > 0 else 0
+            )
             item["avg_cost"] = (
                 round(item["internal_cost"] / item["requests"], 4)
                 if item["requests"] > 0
@@ -269,7 +291,12 @@ async def get_cost_detail(
         session, start_date, end_date, dimension, ct, department_id, project_id
     )
     prev_raw = await efficiency_repo.get_cost_detail_by_dimension(
-        session, *_prev_period(start_date, end_date), dimension, ct, department_id, project_id
+        session,
+        *_prev_period(start_date, end_date),
+        dimension,
+        ct,
+        department_id,
+        project_id,
     )
     prev_by_name = {item["name"]: item["internal_cost"] for item in prev_raw}
     items = [
@@ -289,7 +316,9 @@ async def get_cost_detail(
             "cache_creation_tokens": item["cache_creation_tokens"],
             "per_capita_cost": item["per_capita"],
             "active_per_capita_cost": item["active_per_capita"],
-            "cost_change": _calc_change(item["internal_cost"], prev_by_name.get(item["name"], 0)),
+            "cost_change": _calc_change(
+                item["internal_cost"], prev_by_name.get(item["name"], 0)
+            ),
         }
         for item in raw
     ]

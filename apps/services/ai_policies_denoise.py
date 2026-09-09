@@ -350,11 +350,7 @@ def classify_item(item: dict) -> dict:
         effective_severity = "info"
         counts_toward_score = False
         denoise_reason = "命中位于非运行时文件，仅作为复核提示。"
-    elif (
-        category == "AST03"
-        and rule_id == "LP3"
-        and not evidence.get("matched_text")
-    ):
+    elif category == "AST03" and rule_id == "LP3" and not evidence.get("matched_text"):
         finding_type = "review_note"
         effective_severity = "info"
         counts_toward_score = False

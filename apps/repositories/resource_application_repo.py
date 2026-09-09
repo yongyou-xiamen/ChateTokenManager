@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.db import ResourceApplication
 
 
-async def create(session: AsyncSession, app: ResourceApplication) -> ResourceApplication:
+async def create(
+    session: AsyncSession, app: ResourceApplication
+) -> ResourceApplication:
     session.add(app)
     await session.flush()
     await session.refresh(app)

@@ -32,7 +32,9 @@ async def list_credentials(
     session: AsyncSession = Depends(get_db),
     _: dict = Depends(require_permission("user:read")),
 ):
-    result = await credential_service.list_credentials(session, page, page_size, provider_id)
+    result = await credential_service.list_credentials(
+        session, page, page_size, provider_id
+    )
     return {"code": 200, "message": "ok", "data": result}
 
 
@@ -70,7 +72,9 @@ async def get_credential(
     _: dict = Depends(require_permission("user:read")),
 ):
     try:
-        credential = await credential_service.get_credential_by_id(session, credential_id)
+        credential = await credential_service.get_credential_by_id(
+            session, credential_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="凭证不存在")
     return {"code": 200, "message": "ok", "data": credential}
@@ -85,7 +89,8 @@ async def update_credential(
 ):
     try:
         credential = await credential_service.update_credential(
-            session, credential_id,
+            session,
+            credential_id,
             credential_values=req.credential_values,
             provider_id=req.provider_id,
             credential_info=req.credential_info,

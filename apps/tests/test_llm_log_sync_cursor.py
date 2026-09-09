@@ -37,7 +37,7 @@ async def _insert_spend_logs(
         await session.execute(
             text(
                 'INSERT INTO public."LiteLLM_SpendLogs" '
-                '(request_id, call_type, api_key, spend, total_tokens, prompt_tokens, '
+                "(request_id, call_type, api_key, spend, total_tokens, prompt_tokens, "
                 'completion_tokens, "startTime", "endTime", model, status) '
                 "VALUES (:rid, 'acompletion', :api_key, 0, 10, 6, 4, "
                 ":start_time, :end_time, 'pytest-model', 'success')"
@@ -139,12 +139,12 @@ async def test_llm_log_sync_dense_window_advances_cursor_past_newest_row(sync_en
     await llm_log_tasks._sync()
     cursor_after_second = await _read_cursor(sync_env)
 
-    assert cursor_after_first >= newest, (
-        f"首轮未追平积压：游标 {cursor_after_first} < 最新记录 {newest}"
-    )
-    assert cursor_after_second >= newest, (
-        f"游标回退：{cursor_after_first} -> {cursor_after_second}"
-    )
+    assert (
+        cursor_after_first >= newest
+    ), f"首轮未追平积压：游标 {cursor_after_first} < 最新记录 {newest}"
+    assert (
+        cursor_after_second >= newest
+    ), f"游标回退：{cursor_after_first} -> {cursor_after_second}"
 
 
 @pytest.mark.asyncio
@@ -169,9 +169,9 @@ async def test_llm_log_sync_stalled_cursor_logs_error(sync_env, monkeypatch, cap
     with caplog.at_level(logging.ERROR, logger=llm_log_tasks.__name__):
         await llm_log_tasks._sync()
 
-    assert "cursor did not advance" in caplog.text, (
-        f"游标卡住时未报 ERROR，实际日志：{caplog.text!r}"
-    )
+    assert (
+        "cursor did not advance" in caplog.text
+    ), f"游标卡住时未报 ERROR，实际日志：{caplog.text!r}"
 
 
 @pytest.mark.asyncio
@@ -196,6 +196,6 @@ async def test_llm_log_reconcile_backfills_newest_rows_first(sync_env):
         synced_ids = [row[0] for row in result.fetchall()]
 
     newest_ids = {f"{TEST_PREFIX}{i:04d}" for i in range(BATCH_SIZE, BATCH_SIZE * 2)}
-    assert set(synced_ids) == newest_ids, (
-        f"应先补最新 {BATCH_SIZE} 条 {sorted(newest_ids)}，实际补了 {synced_ids}"
-    )
+    assert (
+        set(synced_ids) == newest_ids
+    ), f"应先补最新 {BATCH_SIZE} 条 {sorted(newest_ids)}，实际补了 {synced_ids}"

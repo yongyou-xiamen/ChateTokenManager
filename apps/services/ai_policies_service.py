@@ -385,9 +385,7 @@ def _normalize_finding(raw: dict, zip_path: str = "") -> dict:
         "description": description,
         "recommendation": recommendation,
         "file_role": file_role,
-        "path_bucket": ai_policies_denoise.normalized_path_bucket(
-            file_name, file_role
-        ),
+        "path_bucket": ai_policies_denoise.normalized_path_bucket(file_name, file_role),
         "location": {
             "file": file_name,
             "start_line": start_line,
@@ -694,9 +692,7 @@ def _legacy_group_to_items(group: dict) -> list[dict]:
             "finding": snippet,
             "code_snippet": snippet,
             "severity": str(
-                localized.get("scanner_severity")
-                or localized.get("severity")
-                or "low"
+                localized.get("scanner_severity") or localized.get("severity") or "low"
             ).upper(),
         }
         file_role = ai_policies_denoise.file_role_for(file_name, raw)
@@ -722,7 +718,8 @@ def _legacy_group_to_items(group: dict) -> list[dict]:
                 "snippet": snippet,
                 "matched_text": snippet,
             },
-            "must_review": (localized.get("severity") or "") in {
+            "must_review": (localized.get("severity") or "")
+            in {
                 "critical",
                 "high",
             },
@@ -867,8 +864,10 @@ def _serialize_audit(
     display_findings = (
         _display_findings(audit.findings or []) if include_findings else []
     )
-    summary_findings = display_findings if include_findings else _display_findings(
-        audit.findings or []
+    summary_findings = (
+        display_findings
+        if include_findings
+        else _display_findings(audit.findings or [])
     )
     metrics = _display_metrics(audit, summary_findings)
     data = {

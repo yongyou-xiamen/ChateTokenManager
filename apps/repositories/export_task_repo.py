@@ -32,7 +32,9 @@ async def find_all(
     source: str | None = None,
     status: str | None = None,
 ) -> list[ExportTask]:
-    stmt = select(ExportTask).order_by(ExportTask.created_at.desc(), ExportTask.id.desc())
+    stmt = select(ExportTask).order_by(
+        ExportTask.created_at.desc(), ExportTask.id.desc()
+    )
     stmt = _apply_filters(stmt, source, status)
     stmt = stmt.limit(page_size).offset((page - 1) * page_size)
     result = await session.execute(stmt)

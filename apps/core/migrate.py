@@ -29,12 +29,14 @@ async def run_migrations() -> None:
     conn = await asyncpg.connect(_asyncpg_dsn())
     try:
         # 确保迁移记录表存在
-        await conn.execute("""
+        await conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS aihelms.schema_migrations (
                 version VARCHAR(128) PRIMARY KEY,
                 executed_at TIMESTAMPTZ DEFAULT NOW()
             )
-        """)
+        """
+        )
 
         # 获取已执行的迁移
         rows = await conn.fetch("SELECT version FROM aihelms.schema_migrations")

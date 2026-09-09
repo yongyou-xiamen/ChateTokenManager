@@ -561,29 +561,37 @@ async def test_run_llm_review_does_not_fake_category_reviews_when_unparsed(
 
 
 def test_llm_response_content_accepts_common_openai_shapes() -> None:
-    assert ai_policies_llm._response_content(
-        {"choices": [{"message": {"content": '{"ok":true}'}}]}
-    ) == '{"ok":true}'
-    assert ai_policies_llm._response_content(
-        {
-            "choices": [
-                {
-                    "message": {
-                        "content": [
-                            {"type": "text", "text": '{"ok":'},
-                            {"type": "text", "text": "true}"},
-                        ]
+    assert (
+        ai_policies_llm._response_content(
+            {"choices": [{"message": {"content": '{"ok":true}'}}]}
+        )
+        == '{"ok":true}'
+    )
+    assert (
+        ai_policies_llm._response_content(
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": [
+                                {"type": "text", "text": '{"ok":'},
+                                {"type": "text", "text": "true}"},
+                            ]
+                        }
                     }
-                }
-            ]
-        }
-    ) == '{"ok":true}'
-    assert ai_policies_llm._response_content(
-        {"choices": [{"text": '{"ok":true}'}]}
-    ) == '{"ok":true}'
-    assert ai_policies_llm._response_content(
-        {"output_text": '{"ok":true}'}
-    ) == '{"ok":true}'
+                ]
+            }
+        )
+        == '{"ok":true}'
+    )
+    assert (
+        ai_policies_llm._response_content({"choices": [{"text": '{"ok":true}'}]})
+        == '{"ok":true}'
+    )
+    assert (
+        ai_policies_llm._response_content({"output_text": '{"ok":true}'})
+        == '{"ok":true}'
+    )
 
 
 def test_llm_review_normalizes_common_enum_values() -> None:
@@ -975,8 +983,7 @@ def test_nested_markdown_prompt_injection_is_documentation_noise() -> None:
         "severity": "HIGH",
         "location": {
             "file": (
-                "legal-job-search/extensions/interactive-resume/"
-                "dify-integration.md"
+                "legal-job-search/extensions/interactive-resume/" "dify-integration.md"
             ),
             "start_line": 224,
         },
@@ -1053,8 +1060,7 @@ def test_shell_true_external_command_remains_high_risk() -> None:
         "severity": "HIGH",
         "location": {"file": "runner.py"},
         "code_snippet": (
-            "cmd = 'pandoc ' + request.args['file']\n"
-            "subprocess.run(cmd, shell=True)"
+            "cmd = 'pandoc ' + request.args['file']\n" "subprocess.run(cmd, shell=True)"
         ),
     }
 
@@ -1156,18 +1162,21 @@ def test_known_vulnerable_dependency_is_not_downgraded_to_unpinned_low() -> None
 
 
 def test_llm_review_completed_accepts_intent_analysis_only() -> None:
-    assert ai_policies_service._llm_review_completed(
-        {
-            "status": "completed",
-            "finding_reviews": [],
-            "intent_analysis": {
-                "declared_intent": "生成文档",
-                "actual_behavior": "读取输入并生成 Markdown",
-                "consistency": "高度一致",
-                "basis": "入口说明和脚本行为一致",
-            },
-        }
-    ) is True
+    assert (
+        ai_policies_service._llm_review_completed(
+            {
+                "status": "completed",
+                "finding_reviews": [],
+                "intent_analysis": {
+                    "declared_intent": "生成文档",
+                    "actual_behavior": "读取输入并生成 Markdown",
+                    "consistency": "高度一致",
+                    "basis": "入口说明和脚本行为一致",
+                },
+            }
+        )
+        is True
+    )
 
 
 def test_redline_finding_cannot_be_downgraded_by_llm() -> None:

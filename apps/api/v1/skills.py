@@ -35,7 +35,10 @@ async def create_category(
 ):
     try:
         data = await skill_service.create_category(
-            session, name=req.name, description=req.description, sort_order=req.sort_order
+            session,
+            name=req.name,
+            description=req.description,
+            sort_order=req.sort_order,
         )
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=str(e))
@@ -64,7 +67,9 @@ async def list_published_skills(
     _: dict = Depends(get_current_user),
 ):
     """公开接口：已认证用户可查看已发布的 Skill 列表。"""
-    data = await skill_service.list_skills(session, page, page_size, category, is_published=True)
+    data = await skill_service.list_skills(
+        session, page, page_size, category, is_published=True
+    )
     return {"code": 200, "message": "ok", "data": data}
 
 
@@ -77,7 +82,9 @@ async def list_skills(
     session: AsyncSession = Depends(get_db),
     _: dict = Depends(require_permission("skill:read")),
 ):
-    data = await skill_service.list_skills(session, page, page_size, category, is_published)
+    data = await skill_service.list_skills(
+        session, page, page_size, category, is_published
+    )
     return {"code": 200, "message": "ok", "data": data}
 
 
@@ -202,7 +209,11 @@ async def update_skill(
 
     try:
         data = await skill_service.update_skill(
-            session, skill_id, zip_content=zip_content, zip_filename=zip_filename, **kwargs
+            session,
+            skill_id,
+            zip_content=zip_content,
+            zip_filename=zip_filename,
+            **kwargs,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Skill 不存在")
@@ -229,7 +240,9 @@ async def download_skill(
     current_user: dict = Depends(require_permission("skill:read")),
 ):
     try:
-        zip_path, download_name, _ = await skill_service.get_skill_zip(session, skill_id)
+        zip_path, download_name, _ = await skill_service.get_skill_zip(
+            session, skill_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Skill 或 zip 文件不存在")
     await skill_service.record_skill_usage(

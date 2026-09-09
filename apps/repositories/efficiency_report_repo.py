@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.db import EfficiencyReport, EfficiencySuggestion
 
+
 async def list_reports(
     session: AsyncSession, page: int = 1, page_size: int = 20
 ) -> tuple[list[EfficiencyReport], int]:
@@ -23,25 +24,37 @@ async def list_reports(
     return list(result.scalars().all()), total
 
 
-async def get_report_by_id(session: AsyncSession, report_id: int) -> EfficiencyReport | None:
+async def get_report_by_id(
+    session: AsyncSession, report_id: int
+) -> EfficiencyReport | None:
     return await session.get(EfficiencyReport, report_id)
 
 
-async def create_report(session: AsyncSession, report: EfficiencyReport) -> EfficiencyReport:
+async def create_report(
+    session: AsyncSession, report: EfficiencyReport
+) -> EfficiencyReport:
     session.add(report)
     await session.flush()
     return report
 
 
-async def list_suggestions_by_report(session: AsyncSession, report_id: int) -> list[EfficiencySuggestion]:
+async def list_suggestions_by_report(
+    session: AsyncSession, report_id: int
+) -> list[EfficiencySuggestion]:
     result = await session.execute(
-        select(EfficiencySuggestion).where(EfficiencySuggestion.report_id == report_id).order_by(EfficiencySuggestion.id)
+        select(EfficiencySuggestion)
+        .where(EfficiencySuggestion.report_id == report_id)
+        .order_by(EfficiencySuggestion.id)
     )
     return list(result.scalars().all())
 
 
 async def update_suggestion_status(
-    session: AsyncSession, suggestion_id: int, status: str, note: str, updated_by: int,
+    session: AsyncSession,
+    suggestion_id: int,
+    status: str,
+    note: str,
+    updated_by: int,
 ) -> EfficiencySuggestion | None:
     suggestion = await session.get(EfficiencySuggestion, suggestion_id)
     if not suggestion:

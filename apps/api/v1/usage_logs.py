@@ -12,6 +12,7 @@ router = APIRouter(prefix="/usage-logs", tags=["usage-logs"])
 
 # ───────── LLM ─────────
 
+
 @router.get("/llm")
 async def list_llm_logs(
     page: int = Query(1, ge=1),
@@ -36,7 +37,7 @@ async def list_llm_logs(
         user_id=user_id,
         ai_key_id=ai_key_id,
         model=model,
-        models=[m.strip() for m in models.split(',') if m.strip()] if models else None,
+        models=[m.strip() for m in models.split(",") if m.strip()] if models else None,
         provider=provider,
         status=status,
     )
@@ -66,6 +67,7 @@ async def get_llm_log(
 
 
 # ───────── MCP ─────────
+
 
 @router.get("/mcp")
 async def list_mcp_logs(
@@ -120,6 +122,7 @@ async def get_mcp_log(
 
 # ───────── Skill ─────────
 
+
 @router.get("/skill")
 async def list_skill_logs(
     page: int = Query(1, ge=1),
@@ -155,6 +158,7 @@ async def get_skill_log_filters(
 
 
 # ───────── Agent ─────────
+
 
 @router.get("/agent")
 async def list_agent_logs(

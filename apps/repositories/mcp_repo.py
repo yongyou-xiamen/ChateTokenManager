@@ -19,13 +19,21 @@ async def find_server_by_id(session: AsyncSession, server_id: int) -> McpServer 
     return result.scalar_one_or_none()
 
 
-async def find_server_by_server_id(session: AsyncSession, server_id: str) -> McpServer | None:
-    result = await session.execute(select(McpServer).where(McpServer.server_id == server_id))
+async def find_server_by_server_id(
+    session: AsyncSession, server_id: str
+) -> McpServer | None:
+    result = await session.execute(
+        select(McpServer).where(McpServer.server_id == server_id)
+    )
     return result.scalar_one_or_none()
 
 
-async def find_server_by_name(session: AsyncSession, server_name: str) -> McpServer | None:
-    result = await session.execute(select(McpServer).where(McpServer.server_name == server_name))
+async def find_server_by_name(
+    session: AsyncSession, server_name: str
+) -> McpServer | None:
+    result = await session.execute(
+        select(McpServer).where(McpServer.server_name == server_name)
+    )
     return result.scalar_one_or_none()
 
 
@@ -97,7 +105,9 @@ async def create_tool(session: AsyncSession, tool: McpTool) -> McpTool:
     return tool
 
 
-async def bulk_create_tools(session: AsyncSession, tools: list[McpTool]) -> list[McpTool]:
+async def bulk_create_tools(
+    session: AsyncSession, tools: list[McpTool]
+) -> list[McpTool]:
     session.add_all(tools)
     await session.flush()
     for tool in tools:
@@ -107,7 +117,9 @@ async def bulk_create_tools(session: AsyncSession, tools: list[McpTool]) -> list
 
 async def find_tools_by_server(session: AsyncSession, server_id: int) -> list[McpTool]:
     result = await session.execute(
-        select(McpTool).where(McpTool.server_id == server_id).order_by(McpTool.tool_name)
+        select(McpTool)
+        .where(McpTool.server_id == server_id)
+        .order_by(McpTool.tool_name)
     )
     return list(result.scalars().all())
 
@@ -175,7 +187,9 @@ async def list_categories(session: AsyncSession) -> list[McpCategory]:
     return list(result.scalars().all())
 
 
-async def find_category_by_id(session: AsyncSession, category_id: int) -> McpCategory | None:
+async def find_category_by_id(
+    session: AsyncSession, category_id: int
+) -> McpCategory | None:
     result = await session.execute(
         select(McpCategory).where(McpCategory.id == category_id)
     )
@@ -183,9 +197,7 @@ async def find_category_by_id(session: AsyncSession, category_id: int) -> McpCat
 
 
 async def find_category_by_name(session: AsyncSession, name: str) -> McpCategory | None:
-    result = await session.execute(
-        select(McpCategory).where(McpCategory.name == name)
-    )
+    result = await session.execute(select(McpCategory).where(McpCategory.name == name))
     return result.scalar_one_or_none()
 
 

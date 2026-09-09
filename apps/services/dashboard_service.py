@@ -32,7 +32,9 @@ def _prev_period(start_date: date, end_date: date) -> tuple[date, date]:
     return prev_end - timedelta(days=days - 1), prev_end
 
 
-async def get_dashboard(session: AsyncSession, start_date: date, end_date: date) -> dict:
+async def get_dashboard(
+    session: AsyncSession, start_date: date, end_date: date
+) -> dict:
     """聚合 Dashboard 所有板块数据。"""
     prev_start, prev_end = _prev_period(start_date, end_date)
     status = await _get_status(session, start_date, end_date, prev_start, prev_end)
@@ -99,7 +101,9 @@ async def _get_status(
     current = await _range_status(session, start_date, end_date)
     previous = await _range_status(session, prev_start, prev_end)
     token_stats = await dashboard_repo.get_token_stats(session, start_date, end_date)
-    cost_change_percent = _calc_change(current["internalCost"], previous["internalCost"])
+    cost_change_percent = _calc_change(
+        current["internalCost"], previous["internalCost"]
+    )
 
     return {
         "activeUsers": current["activeUsers"],
@@ -124,15 +128,25 @@ async def _get_status(
     }
 
 
-async def _range_status(session: AsyncSession, start_date: date, end_date: date) -> dict:
+async def _range_status(
+    session: AsyncSession, start_date: date, end_date: date
+) -> dict:
     return await dashboard_repo.get_range_status(session, start_date, end_date)
 
-async def _get_request_trend(session: AsyncSession, start_date: date, end_date: date) -> list[dict]:
+
+async def _get_request_trend(
+    session: AsyncSession, start_date: date, end_date: date
+) -> list[dict]:
     return await dashboard_repo.get_request_trend(session, start_date, end_date)
 
-async def _get_latest_pending_approvals(session: AsyncSession) -> tuple[list[dict], int]:
+
+async def _get_latest_pending_approvals(
+    session: AsyncSession,
+) -> tuple[list[dict], int]:
     total_result = await session.execute(
-        select(func.count(ResourceApplication.id)).where(ResourceApplication.status == "pending")
+        select(func.count(ResourceApplication.id)).where(
+            ResourceApplication.status == "pending"
+        )
     )
     total = int(total_result.scalar() or 0)
     result = await session.execute(
@@ -143,19 +157,23 @@ async def _get_latest_pending_approvals(session: AsyncSession) -> tuple[list[dic
     )
     rows = []
     for app in result.scalars().all():
-        applicant = app.user.display_name or app.user.username if app.user else "未知用户"
-        rows.append({
-            "id": app.id,
-            "type": "approval",
-            "applicant": applicant,
-            "resourceType": app.resource_type,
-            "resourceTypeLabel": _resource_type_label(app.resource_type),
-            "resourceName": _build_resource_title(app.resource_type, app.reason),
-            "reason": app.reason or "",
-            "createdAt": app.created_at.isoformat() if app.created_at else None,
-            "timeAgo": _time_ago(app.created_at),
-            "linkUrl": f"/resource-approval?status=pending&keyword={app.id}",
-        })
+        applicant = (
+            app.user.display_name or app.user.username if app.user else "未知用户"
+        )
+        rows.append(
+            {
+                "id": app.id,
+                "type": "approval",
+                "applicant": applicant,
+                "resourceType": app.resource_type,
+                "resourceTypeLabel": _resource_type_label(app.resource_type),
+                "resourceName": _build_resource_title(app.resource_type, app.reason),
+                "reason": app.reason or "",
+                "createdAt": app.created_at.isoformat() if app.created_at else None,
+                "timeAgo": _time_ago(app.created_at),
+                "linkUrl": f"/resource-approval?status=pending&keyword={app.id}",
+            }
+        )
     return rows, total
 
 
@@ -214,6 +232,7 @@ async def _get_service_status(session: AsyncSession) -> list[dict]:
 async def _get_model_health_summary(session: AsyncSession) -> dict:
     return await dashboard_repo.get_model_health_summary(session)
 
+
 async def _get_docker_status() -> dict:
     checks = [
         os.path.exists("/.dockerenv"),
@@ -247,6 +266,7 @@ async def _get_docker_status() -> dict:
 async def _get_last_updated_at(session: AsyncSession) -> datetime | None:
     return await dashboard_repo.get_last_updated_at(session)
 
+
 async def _get_resources(session: AsyncSession) -> list[dict]:
     models_total = await _count(session, Model)
     models_published = await _count(session, Model, Model.is_published.is_(True))
@@ -264,21 +284,83 @@ async def _get_resources(session: AsyncSession) -> list[dict]:
     projects_total = await _count(session, Project)
 
     return [
-        {"name": "模型", "icon": "model", "total": models_total, "active": models_published, "activeLabel": "已发布", "linkPath": "/models"},
-        {"name": "MCP", "icon": "mcp", "total": mcp_total, "active": mcp_published, "activeLabel": "已发布", "linkPath": "/mcp"},
-        {"name": "Skill", "icon": "skill", "total": skills_total, "active": skills_published, "activeLabel": "已发布", "linkPath": "/skills"},
-        {"name": "智能体", "icon": "agent", "total": agents_total, "active": agents_published, "activeLabel": "已发布", "linkPath": "/agents"},
-        {"name": "AI Key", "icon": "ai_key", "total": ai_keys_total, "active": ai_keys_active, "activeLabel": "启用", "linkPath": "/ai-keys"},
-        {"name": "用户", "icon": "user", "total": users_total, "active": users_active, "activeLabel": "启用", "linkPath": "/users"},
-        {"name": "部门", "icon": "department", "total": departments_total, "active": None, "activeLabel": "", "linkPath": "/departments"},
-        {"name": "项目", "icon": "project", "total": projects_total, "active": None, "activeLabel": "", "linkPath": "/projects"},
+        {
+            "name": "模型",
+            "icon": "model",
+            "total": models_total,
+            "active": models_published,
+            "activeLabel": "已发布",
+            "linkPath": "/models",
+        },
+        {
+            "name": "MCP",
+            "icon": "mcp",
+            "total": mcp_total,
+            "active": mcp_published,
+            "activeLabel": "已发布",
+            "linkPath": "/mcp",
+        },
+        {
+            "name": "Skill",
+            "icon": "skill",
+            "total": skills_total,
+            "active": skills_published,
+            "activeLabel": "已发布",
+            "linkPath": "/skills",
+        },
+        {
+            "name": "智能体",
+            "icon": "agent",
+            "total": agents_total,
+            "active": agents_published,
+            "activeLabel": "已发布",
+            "linkPath": "/agents",
+        },
+        {
+            "name": "AI Key",
+            "icon": "ai_key",
+            "total": ai_keys_total,
+            "active": ai_keys_active,
+            "activeLabel": "启用",
+            "linkPath": "/ai-keys",
+        },
+        {
+            "name": "用户",
+            "icon": "user",
+            "total": users_total,
+            "active": users_active,
+            "activeLabel": "启用",
+            "linkPath": "/users",
+        },
+        {
+            "name": "部门",
+            "icon": "department",
+            "total": departments_total,
+            "active": None,
+            "activeLabel": "",
+            "linkPath": "/departments",
+        },
+        {
+            "name": "项目",
+            "icon": "project",
+            "total": projects_total,
+            "active": None,
+            "activeLabel": "",
+            "linkPath": "/projects",
+        },
     ]
 
 
 async def _get_recent_activities(session: AsyncSession) -> list[dict]:
-    result = await session.execute(select(AdminAuditLog).order_by(AdminAuditLog.created_at.desc()).limit(5))
+    result = await session.execute(
+        select(AdminAuditLog).order_by(AdminAuditLog.created_at.desc()).limit(5)
+    )
     return [
-        {"actor": log.username or "系统", "action": log.action or log.path, "timeAgo": _time_ago(log.created_at)}
+        {
+            "actor": log.username or "系统",
+            "action": log.action or log.path,
+            "timeAgo": _time_ago(log.created_at),
+        }
         for log in result.scalars().all()
     ]
 

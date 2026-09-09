@@ -124,7 +124,11 @@ def _serialize_task(task: ExportTask) -> dict:
         "row_count": task.row_count,
         "error_message": task.error_message,
         "retry_of_task_id": task.retry_of_task_id,
-        "download_url": f"/api/v1/export-tasks/{task.id}/download" if task.status == "success" and task.file_name else None,
+        "download_url": (
+            f"/api/v1/export-tasks/{task.id}/download"
+            if task.status == "success" and task.file_name
+            else None
+        ),
         "can_retry": task.status in {"failed", "canceled"},
         "can_cancel": task.status in {"pending", "running"},
     }
@@ -147,9 +151,7 @@ def _write_csv(path: Path, header: list[str], rows: list[list[object]]) -> None:
     with path.open("w", encoding="utf-8-sig", newline="") as fp:
         writer = csv.writer(fp)
         writer.writerow(header)
-        writer.writerows(
-            [[_sanitize_csv_cell(value) for value in row] for row in rows]
-        )
+        writer.writerows([[_sanitize_csv_cell(value) for value in row] for row in rows])
 
 
 async def list_export_tasks(
@@ -226,7 +228,9 @@ async def process_export_task(session: AsyncSession, task_id: int) -> None:
 
     file_path: Path | None = None
     try:
-        header, rows = await build_export_rows(session, task.source, task.export_type, task.params or {})
+        header, rows = await build_export_rows(
+            session, task.source, task.export_type, task.params or {}
+        )
         await session.refresh(task)
         if task.cancel_requested or task.status == "canceled":
             task.status = "canceled"
@@ -322,7 +326,11 @@ async def cleanup_export_tasks(
                 deleted_files += 1
         await session.delete(task)
     await session.commit()
-    return {"deleted_tasks": len(tasks), "deleted_files": deleted_files, "retention_days": retention_days}
+    return {
+        "deleted_tasks": len(tasks),
+        "deleted_files": deleted_files,
+        "retention_days": retention_days,
+    }
 
 
 async def fail_stale_running_tasks(session: AsyncSession) -> int:
@@ -342,5 +350,7 @@ async def get_export_task(session: AsyncSession, task_id: int) -> ExportTask | N
 
 
 def _default_task_name(source: str, export_type: str) -> str:
-    source_label = next((item["label"] for item in SOURCE_OPTIONS if item["key"] == source), source)
+    source_label = next(
+        (item["label"] for item in SOURCE_OPTIONS if item["key"] == source), source
+    )
     return f"{source_label}-{export_type}"

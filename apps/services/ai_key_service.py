@@ -26,9 +26,12 @@ KEY_TYPE_PROJECT_MAIN = "project_main"
 KEY_TYPE_PROJECT_SCENE = "project_scene"
 
 VALID_KEY_TYPES = {
-    KEY_TYPE_PERSONAL_MAIN, KEY_TYPE_PERSONAL_SCENE,
-    KEY_TYPE_DEPT_MAIN, KEY_TYPE_DEPT_SCENE,
-    KEY_TYPE_PROJECT_MAIN, KEY_TYPE_PROJECT_SCENE,
+    KEY_TYPE_PERSONAL_MAIN,
+    KEY_TYPE_PERSONAL_SCENE,
+    KEY_TYPE_DEPT_MAIN,
+    KEY_TYPE_DEPT_SCENE,
+    KEY_TYPE_PROJECT_MAIN,
+    KEY_TYPE_PROJECT_SCENE,
 }
 SCENE_KEY_TYPES = {
     KEY_TYPE_PERSONAL_SCENE,
@@ -55,7 +58,9 @@ async def list_keys(
     key_type: str | None = None,
 ) -> dict:
     total = await ai_key_repo.count_all(session, owner_type, owner_id, key_type)
-    items = await ai_key_repo.find_all(session, page, page_size, owner_type, owner_id, key_type)
+    items = await ai_key_repo.find_all(
+        session, page, page_size, owner_type, owner_id, key_type
+    )
     return {
         "items": [_serialize_key(k) for k in items],
         "total": total,
@@ -116,7 +121,9 @@ async def create_key(
     # Check main key uniqueness (only one main key per owner)
     main_types = {KEY_TYPE_PERSONAL_MAIN, KEY_TYPE_DEPT_MAIN, KEY_TYPE_PROJECT_MAIN}
     if key_type in main_types:
-        existing = await ai_key_repo.find_main_key(session, owner_type, owner_id, key_type)
+        existing = await ai_key_repo.find_main_key(
+            session, owner_type, owner_id, key_type
+        )
         if existing:
             raise ConflictError("该归属已有主 Key")
 
@@ -164,9 +171,7 @@ async def create_key(
 
     # Sync to LiteLLM
     litellm_duration = budget_duration if budget_duration and budget_limit else duration
-    litellm_models, _ = await _expand_models_with_anthropic(
-        session, models or [], None
-    )
+    litellm_models, _ = await _expand_models_with_anthropic(session, models or [], None)
     mcp_server_names = await _resolve_mcp_server_names(session, mcps or [])
     result = await litellm_client.create_key(
         key_alias=key_alias,
@@ -282,7 +287,11 @@ async def update_key(
         key,
         models_changed=models is not None,
         mcps_changed=mcps is not None,
-        budget_changed=(budget_limit is not None or budget_hard_limit is not None or budget_duration is not None),
+        budget_changed=(
+            budget_limit is not None
+            or budget_hard_limit is not None
+            or budget_duration is not None
+        ),
         model_budgets_changed=model_budgets is not None,
         rate_limits_changed=rate_limit_changed,
         session=session,
@@ -347,7 +356,9 @@ async def _expand_models_with_anthropic(
     """Expand model list with (Anthropic) variants for models that have anthropic deployments."""
     if not model_ids:
         return model_ids, model_budgets
-    anthropic_models = await model_repo.find_model_ids_with_anthropic_deployments(session, model_ids)
+    anthropic_models = await model_repo.find_model_ids_with_anthropic_deployments(
+        session, model_ids
+    )
     if not anthropic_models:
         return model_ids, model_budgets
 
@@ -437,7 +448,9 @@ async def toggle_key(session: AsyncSession, key_id: int) -> dict:
     return _serialize_key(key)
 
 
-async def sync_user_keys_active(session: AsyncSession, user_id: int, active: bool) -> int:
+async def sync_user_keys_active(
+    session: AsyncSession, user_id: int, active: bool
+) -> int:
     """随用户启用/禁用，同步其名下所有 AI Key 在 LiteLLM 侧的可用性。
 
     禁用用户 -> 名下 key 预算卡成 0（沿用 toggle_key 的禁用模式）；
@@ -509,7 +522,9 @@ async def batch_create_keys(
     for user_id in user_ids:
         user = await user_repo.find_user_by_id(session, user_id)
         if not user:
-            results.append({"user_id": user_id, "success": False, "error": "用户不存在"})
+            results.append(
+                {"user_id": user_id, "success": False, "error": "用户不存在"}
+            )
             continue
 
         name = name_template.replace("{username}", user.username or "")
@@ -577,7 +592,9 @@ async def get_my_keys(session: AsyncSession, user_id: int) -> dict:
     }
 
 
-async def create_personal_main_key(session: AsyncSession, user_id: int, username: str) -> AiKey | None:
+async def create_personal_main_key(
+    session: AsyncSession, user_id: int, username: str
+) -> AiKey | None:
     """Auto-create a personal main key for a new user (enabled, with public resources)."""
     existing = await ai_key_repo.find_personal_main(session, user_id)
     if existing:
@@ -632,7 +649,9 @@ async def get_public_resources(session: AsyncSession) -> dict[str, list]:
 
     models_result = await session.execute(
         select(Model.model_id).where(
-            Model.is_published == True, Model.requires_approval == False, Model.is_active == True
+            Model.is_published == True,
+            Model.requires_approval == False,
+            Model.is_active == True,
         )
     )
     skills_result = await session.execute(
@@ -647,7 +666,9 @@ async def get_public_resources(session: AsyncSession) -> dict[str, list]:
     )
     agents_result = await session.execute(
         select(Agent.id).where(
-            Agent.is_published == True, Agent.requires_approval == False, Agent.is_active == True
+            Agent.is_published == True,
+            Agent.requires_approval == False,
+            Agent.is_active == True,
         )
     )
     return {
@@ -673,13 +694,18 @@ async def sync_public_resource_to_all_keys(
         if resource_id not in field:
             field.append(resource_id)
             from sqlalchemy.orm.attributes import flag_modified
+
             flag_modified(key, resource_type)
             updated += 1
             if resource_type == "models":
                 await _sync_key_to_litellm(
-                    key, models_changed=True, mcps_changed=False,
-                    budget_changed=False, model_budgets_changed=False,
-                    rate_limits_changed=key.rate_limit_mode == RATE_LIMIT_MODE_PER_MODEL,
+                    key,
+                    models_changed=True,
+                    mcps_changed=False,
+                    budget_changed=False,
+                    model_budgets_changed=False,
+                    rate_limits_changed=key.rate_limit_mode
+                    == RATE_LIMIT_MODE_PER_MODEL,
                     session=session,
                 )
     if updated:
@@ -706,27 +732,41 @@ async def list_identity(
 async def _list_identity_users(
     session: AsyncSession, page: int, page_size: int, keyword: str | None
 ) -> dict:
-    users, total = await user_repo.find_users_paginated(session, page, page_size, keyword)
+    users, total = await user_repo.find_users_paginated(
+        session, page, page_size, keyword
+    )
     items = []
     for user in users:
         user_keys = await ai_key_repo.find_by_user(session, user.id)
-        main_key = next((k for k in user_keys if k.key_type == KEY_TYPE_PERSONAL_MAIN), None)
+        main_key = next(
+            (k for k in user_keys if k.key_type == KEY_TYPE_PERSONAL_MAIN), None
+        )
         scene_keys = [k for k in user_keys if k.key_type == KEY_TYPE_PERSONAL_SCENE]
 
         dept_name = ""
         if user.departments:
-            dept_name = user.departments[0].department.name if user.departments[0].department else ""
+            dept_name = (
+                user.departments[0].department.name
+                if user.departments[0].department
+                else ""
+            )
 
-        items.append({
-            "user": {
-                "id": user.id,
-                "username": user.username,
-                "display_name": user.display_name,
-                "department_name": dept_name,
-            },
-            "main_key": _serialize_key_with_models(main_key, session) if main_key else None,
-            "scene_keys": [_serialize_key_with_models(k, session) for k in scene_keys],
-        })
+        items.append(
+            {
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "display_name": user.display_name,
+                    "department_name": dept_name,
+                },
+                "main_key": (
+                    _serialize_key_with_models(main_key, session) if main_key else None
+                ),
+                "scene_keys": [
+                    _serialize_key_with_models(k, session) for k in scene_keys
+                ],
+            }
+        )
 
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
@@ -734,36 +774,48 @@ async def _list_identity_users(
 async def _list_identity_departments(
     session: AsyncSession, page: int, page_size: int, keyword: str | None
 ) -> dict:
-    depts, total = await department_repo.find_paginated(session, page, page_size, keyword)
+    depts, total = await department_repo.find_paginated(
+        session, page, page_size, keyword
+    )
     items = []
     for dept in depts:
         dept_keys = await ai_key_repo.find_by_owner(session, "department", dept.id)
-        main_key = next((k for k in dept_keys if k.key_type == KEY_TYPE_DEPT_MAIN), None)
+        main_key = next(
+            (k for k in dept_keys if k.key_type == KEY_TYPE_DEPT_MAIN), None
+        )
         scene_keys = [k for k in dept_keys if k.key_type == KEY_TYPE_DEPT_SCENE]
-        items.append({
-            "department": {"id": dept.id, "name": dept.name},
-            "main_key": _serialize_key(main_key) if main_key else None,
-            "scene_keys": [_serialize_key(k) for k in scene_keys],
-            "keys": [_serialize_key(k) for k in dept_keys],
-        })
+        items.append(
+            {
+                "department": {"id": dept.id, "name": dept.name},
+                "main_key": _serialize_key(main_key) if main_key else None,
+                "scene_keys": [_serialize_key(k) for k in scene_keys],
+                "keys": [_serialize_key(k) for k in dept_keys],
+            }
+        )
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
 async def _list_identity_projects(
     session: AsyncSession, page: int, page_size: int, keyword: str | None
 ) -> dict:
-    projects, total = await project_repo.find_paginated(session, page, page_size, keyword)
+    projects, total = await project_repo.find_paginated(
+        session, page, page_size, keyword
+    )
     items = []
     for proj in projects:
         proj_keys = await ai_key_repo.find_by_owner(session, "project", proj.id)
-        main_key = next((k for k in proj_keys if k.key_type == KEY_TYPE_PROJECT_MAIN), None)
+        main_key = next(
+            (k for k in proj_keys if k.key_type == KEY_TYPE_PROJECT_MAIN), None
+        )
         scene_keys = [k for k in proj_keys if k.key_type == KEY_TYPE_PROJECT_SCENE]
-        items.append({
-            "project": {"id": proj.id, "name": proj.name},
-            "main_key": _serialize_key(main_key) if main_key else None,
-            "scene_keys": [_serialize_key(k) for k in scene_keys],
-            "keys": [_serialize_key(k) for k in proj_keys],
-        })
+        items.append(
+            {
+                "project": {"id": proj.id, "name": proj.name},
+                "main_key": _serialize_key(main_key) if main_key else None,
+                "scene_keys": [_serialize_key(k) for k in scene_keys],
+                "keys": [_serialize_key(k) for k in proj_keys],
+            }
+        )
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
@@ -781,15 +833,17 @@ async def get_model_limits(session: AsyncSession, key_id: int) -> list[dict]:
         model = await model_repo.find_by_id(session, limit.model_id)
         if not model:
             continue
-        result.append({
-            "model_id": model.id,
-            "model_name": model.name,
-            "model_model_id": model.model_id,
-            "tpm": limit.tpm,
-            "rpm": limit.rpm,
-            "max_tokens": limit.max_tokens,
-            "max_calls": limit.max_calls,
-        })
+        result.append(
+            {
+                "model_id": model.id,
+                "model_name": model.name,
+                "model_model_id": model.model_id,
+                "tpm": limit.tpm,
+                "rpm": limit.rpm,
+                "max_tokens": limit.max_tokens,
+                "max_calls": limit.max_calls,
+            }
+        )
     return result
 
 
@@ -847,7 +901,9 @@ async def delete_model_limit(session: AsyncSession, key_id: int, model_id: int) 
     if not key:
         raise NotFoundError("ai_key", key_id)
 
-    deleted = await ai_key_model_limit_repo.delete_by_key_and_model(session, key_id, model_id)
+    deleted = await ai_key_model_limit_repo.delete_by_key_and_model(
+        session, key_id, model_id
+    )
     if not deleted:
         raise NotFoundError("model_limit", f"{key_id}/{model_id}")
     await _sync_key_to_litellm(
@@ -870,7 +926,9 @@ def _serialize_key_with_models(key: AiKey, session) -> dict:
     return data
 
 
-async def _resolve_owner(session: AsyncSession, owner_type: str, owner_id: int) -> str | None:
+async def _resolve_owner(
+    session: AsyncSession, owner_type: str, owner_id: int
+) -> str | None:
     """Resolve the LiteLLM team_id for the owner. Returns None for personal keys."""
     if owner_type == "user":
         user = await user_repo.find_user_by_id(session, owner_id)
@@ -890,7 +948,9 @@ async def _resolve_owner(session: AsyncSession, owner_type: str, owner_id: int) 
     return None
 
 
-async def _resolve_litellm_user(session: AsyncSession, owner_type: str, owner_id: int) -> str | None:
+async def _resolve_litellm_user(
+    session: AsyncSession, owner_type: str, owner_id: int
+) -> str | None:
     """Resolve the LiteLLM user_id. Only for personal keys."""
     if owner_type == "user":
         user = await user_repo.find_user_by_id(session, owner_id)
@@ -1016,7 +1076,9 @@ def _build_key_alias(key_type: str, owner_type: str, owner_id: int, name: str) -
     return f"{owner_type}:{owner_id}/{name}"
 
 
-async def _save_rate_limits(session: AsyncSession, key_id: int, rate_limits: list[dict]) -> None:
+async def _save_rate_limits(
+    session: AsyncSession, key_id: int, rate_limits: list[dict]
+) -> None:
     """Save rate limits (TPM/RPM per model) for a key."""
     incoming_model_ids = set()
     for item in rate_limits:
@@ -1038,7 +1100,9 @@ async def _save_rate_limits(session: AsyncSession, key_id: int, rate_limits: lis
     existing = await ai_key_model_limit_repo.find_by_key_id(session, key_id)
     for limit in existing:
         if limit.model_id not in incoming_model_ids:
-            await ai_key_model_limit_repo.delete_by_key_and_model(session, key_id, limit.model_id)
+            await ai_key_model_limit_repo.delete_by_key_and_model(
+                session, key_id, limit.model_id
+            )
 
     await session.flush()
 
@@ -1063,8 +1127,14 @@ def _serialize_key(key: AiKey) -> dict:
         "budget_hard_limit": key.budget_hard_limit,
         "budget_duration": key.budget_duration,
         "budget_scope": key.budget_scope,
-        "budget_models_total": str(key.budget_models_total) if key.budget_models_total is not None else None,
-        "budget_mcps_total": str(key.budget_mcps_total) if key.budget_mcps_total is not None else None,
+        "budget_models_total": (
+            str(key.budget_models_total)
+            if key.budget_models_total is not None
+            else None
+        ),
+        "budget_mcps_total": (
+            str(key.budget_mcps_total) if key.budget_mcps_total is not None else None
+        ),
         "budget_models_per": key.budget_models_per,
         "budget_mcps_per": key.budget_mcps_per,
         "model_budgets": key.model_budgets or {},

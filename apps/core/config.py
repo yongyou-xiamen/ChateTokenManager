@@ -92,10 +92,18 @@ class Settings(BaseSettings):
             self.litellm_url = f"http://{self.litellm_host}:{self.litellm_port}"
         if not self.litellm_public_url:
             # 用 NGINX_SERVER_NAME + LITELLM_PORT 拼接对外 LiteLLM 地址
-            host = self.nginx_server_name.split()[0] if self.nginx_server_name else "localhost"
+            host = (
+                self.nginx_server_name.split()[0]
+                if self.nginx_server_name
+                else "localhost"
+            )
             self.litellm_public_url = f"http://{host}:{self.litellm_port}"
         if not self.platform_public_url:
-            host = self.nginx_server_name.split()[0] if self.nginx_server_name else "localhost"
+            host = (
+                self.nginx_server_name.split()[0]
+                if self.nginx_server_name
+                else "localhost"
+            )
             port_suffix = "" if self.web_port == 80 else f":{self.web_port}"
             self.platform_public_url = f"http://{host}{port_suffix}"
         if not self.skills_storage_dir:
@@ -107,7 +115,9 @@ class Settings(BaseSettings):
         return self
 
     class Config:
-        env_file = str(__import__("pathlib").Path(__file__).resolve().parent.parent.parent / ".env")
+        env_file = str(
+            __import__("pathlib").Path(__file__).resolve().parent.parent.parent / ".env"
+        )
         extra = "ignore"
 
 

@@ -10,7 +10,9 @@ from repositories import provider_repo, credential_repo
 logger = logging.getLogger(__name__)
 
 
-async def list_providers(session: AsyncSession, page: int = 1, page_size: int = 50) -> dict:
+async def list_providers(
+    session: AsyncSession, page: int = 1, page_size: int = 50
+) -> dict:
     total = await provider_repo.count_all(session, is_active=True)
     items = await provider_repo.find_all(session, page, page_size, is_active=True)
     return {
@@ -105,7 +107,9 @@ def _serialize(provider: Provider) -> dict:
         "name": provider.name,
         "provider_type": provider.provider_type,
         "billing_type": provider.billing_type,
-        "monthly_budget": str(provider.monthly_budget) if provider.monthly_budget else None,
+        "monthly_budget": (
+            str(provider.monthly_budget) if provider.monthly_budget else None
+        ),
         "monthly_used": str(provider.monthly_used) if provider.monthly_used else "0",
         "is_active": provider.is_active,
         "description": provider.description,

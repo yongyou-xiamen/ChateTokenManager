@@ -41,7 +41,9 @@ async def get_ai_health(session: AsyncSession) -> dict:
         for r in await efficiency_health_repo.get_mcp_health_rows(session)
     ]
     mcp_total = len(mcp_rows)
-    mcp_healthy = sum(1 for row in mcp_rows if row["status"] in {"healthy", "success", "online", "ok"})
+    mcp_healthy = sum(
+        1 for row in mcp_rows if row["status"] in {"healthy", "success", "online", "ok"}
+    )
 
     model_rows = []
     for r in await efficiency_health_repo.get_model_health_rows(session):
@@ -77,14 +79,30 @@ async def get_ai_health(session: AsyncSession) -> dict:
         now_for_diff = now.replace(tzinfo=None)
     else:
         now_for_diff = now
-    update_minutes = int((now_for_diff - latest_at).total_seconds() // 60) if latest_at else None
-    data_state = "healthy" if update_minutes is not None and update_minutes <= 60 else "warning"
+    update_minutes = (
+        int((now_for_diff - latest_at).total_seconds() // 60) if latest_at else None
+    )
+    data_state = (
+        "healthy" if update_minutes is not None and update_minutes <= 60 else "warning"
+    )
 
     docker_items = []
     in_container = os.path.exists("/.dockerenv")
     docker_socket = os.path.exists("/var/run/docker.sock")
-    docker_items.append({"name": "容器运行环境", "status": "healthy" if in_container else "unknown", "value": "已检测" if in_container else "未检测"})
-    docker_items.append({"name": "Docker Socket", "status": "healthy" if docker_socket else "unknown", "value": "可访问" if docker_socket else "未挂载"})
+    docker_items.append(
+        {
+            "name": "容器运行环境",
+            "status": "healthy" if in_container else "unknown",
+            "value": "已检测" if in_container else "未检测",
+        }
+    )
+    docker_items.append(
+        {
+            "name": "Docker Socket",
+            "status": "healthy" if docker_socket else "unknown",
+            "value": "可访问" if docker_socket else "未挂载",
+        }
+    )
     docker_version = ""
     if docker_socket:
         try:
@@ -97,9 +115,17 @@ async def get_ai_health(session: AsyncSession) -> dict:
                 check=False,
             )
             docker_version = proc.stdout.strip()
-            docker_items.append({"name": "Docker Engine", "status": "healthy" if docker_version else "warning", "value": docker_version or "未返回版本"})
+            docker_items.append(
+                {
+                    "name": "Docker Engine",
+                    "status": "healthy" if docker_version else "warning",
+                    "value": docker_version or "未返回版本",
+                }
+            )
         except Exception:
-            docker_items.append({"name": "Docker Engine", "status": "warning", "value": "未返回版本"})
+            docker_items.append(
+                {"name": "Docker Engine", "status": "warning", "value": "未返回版本"}
+            )
     docker_healthy = sum(1 for item in docker_items if item["status"] == "healthy")
     docker_state = _ratio_state(docker_healthy, len(docker_items))
 
@@ -134,7 +160,11 @@ async def get_ai_health(session: AsyncSession) -> dict:
             "healthy": 1 if data_state == "healthy" else 0,
             "total": 1,
             "state": data_state,
-            "description": "最近更新时间正常" if data_state == "healthy" else "最近更新时间超过1小时或暂无数据",
+            "description": (
+                "最近更新时间正常"
+                if data_state == "healthy"
+                else "最近更新时间超过1小时或暂无数据"
+            ),
         },
     ]
 
@@ -145,10 +175,12 @@ async def get_ai_health(session: AsyncSession) -> dict:
         "docker": docker_items,
         "data_update": {
             "last_updated_at": _iso_or_none(latest_at),
-            "latest_summary_date": str(latest_date.date() if hasattr(latest_date, "date") else latest_date) if latest_date else None,
+            "latest_summary_date": (
+                str(latest_date.date() if hasattr(latest_date, "date") else latest_date)
+                if latest_date
+                else None
+            ),
             "minutes_since_update": update_minutes,
             "state": data_state,
         },
     }
-
-

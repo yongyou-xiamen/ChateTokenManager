@@ -21,6 +21,21 @@ class Base(DeclarativeBase):
     pass
 
 
+class Tenant(Base):
+    __tablename__ = "tenants"
+    __table_args__ = {"schema": "aihelms"}
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    slug: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    status: Mapped[str] = mapped_column(Text, default="active")
+    settings: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class User(Base):
     __tablename__ = "users"
     __table_args__ = {"schema": "aihelms"}
@@ -36,6 +51,10 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     is_super_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    tenant_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("aihelms.tenants.id"), nullable=False, default=1
+    )
+    is_tenant_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     litellm_user_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -104,6 +123,7 @@ class Role(Base):
     display_name: Mapped[str] = mapped_column(String(128), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
     is_system: Mapped[bool] = mapped_column(Boolean, default=False)
+    tenant_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
@@ -969,6 +989,7 @@ class AdminAuditLog(Base):
     user_agent: Mapped[str] = mapped_column(String(500), default="")
     duration_ms: Mapped[int] = mapped_column(Integer, default=0)
     request_summary: Mapped[str] = mapped_column(Text, default="")
+    tenant_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

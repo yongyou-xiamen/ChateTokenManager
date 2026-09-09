@@ -6,6 +6,22 @@
 -- AIHelms 业务 schema
 CREATE SCHEMA IF NOT EXISTS aihelms;
 
+-- 租户表(多租户基础设施)
+CREATE TABLE IF NOT EXISTS aihelms.tenants (
+    id BIGINT PRIMARY KEY,
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    settings JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 默认租户(承载现有数据)
+INSERT INTO aihelms.tenants (id, name, slug, status)
+VALUES (1, 'Default', 'default', 'active')
+ON CONFLICT (id) DO NOTHING;
+
 -- 用户表
 CREATE TABLE IF NOT EXISTS aihelms.users (
     id BIGSERIAL PRIMARY KEY,
@@ -19,6 +35,8 @@ CREATE TABLE IF NOT EXISTS aihelms.users (
     is_active BOOLEAN DEFAULT true,
     is_admin BOOLEAN DEFAULT false,
     is_super_admin BOOLEAN DEFAULT false,
+    tenant_id BIGINT NOT NULL DEFAULT 1 REFERENCES aihelms.tenants(id),
+    is_tenant_admin BOOLEAN DEFAULT false,
     litellm_user_id VARCHAR(100),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -104,6 +122,7 @@ CREATE TABLE IF NOT EXISTS aihelms.roles (
     display_name VARCHAR(128) NOT NULL,
     description TEXT DEFAULT '',
     is_system BOOLEAN DEFAULT false,
+    tenant_id BIGINT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -851,12 +870,14 @@ CREATE TABLE IF NOT EXISTS aihelms.admin_audit_logs (
     user_agent VARCHAR(500) DEFAULT '',
     duration_ms INT DEFAULT 0,
     request_summary TEXT DEFAULT '',        -- 脱敏后的 request body（完整存储，不截断）
+    tenant_id BIGINT,                       -- 租户隔离(nullable: 历史日志/登录失败无 tenant)
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON aihelms.admin_audit_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON aihelms.admin_audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON aihelms.admin_audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant ON aihelms.admin_audit_logs(tenant_id);
 
 -- 公共导出任务
 CREATE TABLE IF NOT EXISTS aihelms.export_tasks (

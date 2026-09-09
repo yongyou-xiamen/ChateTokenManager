@@ -5,7 +5,9 @@ from sqlalchemy.pool import NullPool
 
 from core.config import settings
 
-engine = create_async_engine(settings.database_url, echo=False, pool_size=10, max_overflow=20)
+engine = create_async_engine(
+    settings.database_url, echo=False, pool_size=10, max_overflow=20
+)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 # Celery worker 用独立的无池引擎，避免 fork 后 event loop 冲突

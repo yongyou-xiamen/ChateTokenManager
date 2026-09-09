@@ -14,7 +14,9 @@ def _risk_level(rate: float) -> str:
     return "safe"
 
 
-def _parse_budget_month(month: str | None) -> tuple[date, date, date, int, int, bool, str]:
+def _parse_budget_month(
+    month: str | None,
+) -> tuple[date, date, date, int, int, bool, str]:
     today = date.today()
     if month:
         year, month_num = map(int, month.split("-"))
@@ -33,7 +35,15 @@ def _parse_budget_month(month: str | None) -> tuple[date, date, date, int, int, 
     else:
         usage_end = month_end
         days_passed = 0
-    return month_start, month_end, usage_end, days_in_month, days_passed, is_current_month, f"{year:04d}-{month_num:02d}"
+    return (
+        month_start,
+        month_end,
+        usage_end,
+        days_in_month,
+        days_passed,
+        is_current_month,
+        f"{year:04d}-{month_num:02d}",
+    )
 
 
 async def get_budget(
@@ -42,7 +52,15 @@ async def get_budget(
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
 ) -> dict:
-    month_start, month_end, usage_end, days_in_month, days_passed, is_current_month, month_key = _parse_budget_month(month)
+    (
+        month_start,
+        month_end,
+        usage_end,
+        days_in_month,
+        days_passed,
+        is_current_month,
+        month_key,
+    ) = _parse_budget_month(month)
 
     keys = await efficiency_repo.get_all_keys_with_budget(session)
     selected_key_ids = await efficiency_repo.get_scope_budget_key_ids(
@@ -207,7 +225,15 @@ async def get_budget_alerts(
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
 ) -> list[dict]:
-    month_start, _month_end, usage_end, days_in_month, days_passed, is_current_month, _month_key = _parse_budget_month(month)
+    (
+        month_start,
+        _month_end,
+        usage_end,
+        days_in_month,
+        days_passed,
+        is_current_month,
+        _month_key,
+    ) = _parse_budget_month(month)
 
     selected_key_ids = await efficiency_repo.get_scope_budget_key_ids(
         session, department_ids, project_ids

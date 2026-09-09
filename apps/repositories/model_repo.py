@@ -70,7 +70,9 @@ async def count_all(
     return result.scalar_one()
 
 
-async def find_all_active(session: AsyncSession, published_only: bool = False) -> list[Model]:
+async def find_all_active(
+    session: AsyncSession, published_only: bool = False
+) -> list[Model]:
     stmt = select(Model).where(Model.is_active == True)
     if published_only:
         stmt = stmt.where(Model.is_published == True)
@@ -81,21 +83,27 @@ async def find_all_active(session: AsyncSession, published_only: bool = False) -
 # --- Deployments ---
 
 
-async def create_deployment(session: AsyncSession, deployment: ModelDeployment) -> ModelDeployment:
+async def create_deployment(
+    session: AsyncSession, deployment: ModelDeployment
+) -> ModelDeployment:
     session.add(deployment)
     await session.flush()
     await session.refresh(deployment)
     return deployment
 
 
-async def find_deployment_by_id(session: AsyncSession, deployment_id: int) -> ModelDeployment | None:
+async def find_deployment_by_id(
+    session: AsyncSession, deployment_id: int
+) -> ModelDeployment | None:
     result = await session.execute(
         select(ModelDeployment).where(ModelDeployment.id == deployment_id)
     )
     return result.scalar_one_or_none()
 
 
-async def find_deployments_by_model(session: AsyncSession, model_id: int) -> list[ModelDeployment]:
+async def find_deployments_by_model(
+    session: AsyncSession, model_id: int
+) -> list[ModelDeployment]:
     result = await session.execute(
         select(ModelDeployment)
         .where(ModelDeployment.model_id == model_id)
@@ -109,7 +117,10 @@ async def find_all_active_deployments(session: AsyncSession) -> list[ModelDeploy
     result = await session.execute(
         select(ModelDeployment)
         .where(ModelDeployment.is_active == True)
-        .options(selectinload(ModelDeployment.model), selectinload(ModelDeployment.credential))
+        .options(
+            selectinload(ModelDeployment.model),
+            selectinload(ModelDeployment.credential),
+        )
         .order_by(ModelDeployment.model_id, ModelDeployment.id)
     )
     return list(result.scalars().all())
@@ -151,21 +162,27 @@ async def find_model_ids_with_anthropic_deployments(
 # --- Access Groups ---
 
 
-async def create_access_group(session: AsyncSession, group: ModelAccessGroup) -> ModelAccessGroup:
+async def create_access_group(
+    session: AsyncSession, group: ModelAccessGroup
+) -> ModelAccessGroup:
     session.add(group)
     await session.flush()
     await session.refresh(group)
     return group
 
 
-async def find_access_group_by_id(session: AsyncSession, group_id: int) -> ModelAccessGroup | None:
+async def find_access_group_by_id(
+    session: AsyncSession, group_id: int
+) -> ModelAccessGroup | None:
     result = await session.execute(
         select(ModelAccessGroup).where(ModelAccessGroup.id == group_id)
     )
     return result.scalar_one_or_none()
 
 
-async def find_access_group_by_name(session: AsyncSession, group_name: str) -> ModelAccessGroup | None:
+async def find_access_group_by_name(
+    session: AsyncSession, group_name: str
+) -> ModelAccessGroup | None:
     result = await session.execute(
         select(ModelAccessGroup).where(ModelAccessGroup.group_name == group_name)
     )
@@ -187,7 +204,9 @@ async def get_router_settings(session: AsyncSession) -> RouterSettings | None:
     return result.scalar_one_or_none()
 
 
-async def upsert_router_settings(session: AsyncSession, settings: RouterSettings) -> RouterSettings:
+async def upsert_router_settings(
+    session: AsyncSession, settings: RouterSettings
+) -> RouterSettings:
     existing = await get_router_settings(session)
     if existing:
         existing.routing_strategy = settings.routing_strategy
@@ -209,7 +228,9 @@ async def upsert_router_settings(session: AsyncSession, settings: RouterSettings
 # --- Model Visibility ---
 
 
-async def find_visibility_by_model(session: AsyncSession, model_id: int) -> list[ModelDepartmentVisibility]:
+async def find_visibility_by_model(
+    session: AsyncSession, model_id: int
+) -> list[ModelDepartmentVisibility]:
     result = await session.execute(
         select(ModelDepartmentVisibility)
         .where(ModelDepartmentVisibility.model_id == model_id)
@@ -222,15 +243,18 @@ async def set_visibility_departments(
     session: AsyncSession, model_id: int, department_ids: list[int]
 ) -> None:
     await session.execute(
-        sa_delete(ModelDepartmentVisibility)
-        .where(ModelDepartmentVisibility.model_id == model_id)
+        sa_delete(ModelDepartmentVisibility).where(
+            ModelDepartmentVisibility.model_id == model_id
+        )
     )
     for dept_id in department_ids:
         session.add(ModelDepartmentVisibility(model_id=model_id, department_id=dept_id))
     await session.flush()
 
 
-async def find_user_visibility_by_model(session: AsyncSession, model_id: int) -> list[ModelUserVisibility]:
+async def find_user_visibility_by_model(
+    session: AsyncSession, model_id: int
+) -> list[ModelUserVisibility]:
     result = await session.execute(
         select(ModelUserVisibility)
         .where(ModelUserVisibility.model_id == model_id)
@@ -243,8 +267,7 @@ async def set_visibility_users(
     session: AsyncSession, model_id: int, user_ids: list[int]
 ) -> None:
     await session.execute(
-        sa_delete(ModelUserVisibility)
-        .where(ModelUserVisibility.model_id == model_id)
+        sa_delete(ModelUserVisibility).where(ModelUserVisibility.model_id == model_id)
     )
     for user_id in user_ids:
         session.add(ModelUserVisibility(model_id=model_id, user_id=user_id))

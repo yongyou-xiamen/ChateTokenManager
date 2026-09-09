@@ -126,10 +126,7 @@ async def get_period_token_stats(
     cache_read_tokens, cache_creation_tokens = int(row[2]), int(row[3])
     return {
         "total": (
-            input_tokens
-            + output_tokens
-            + cache_read_tokens
-            + cache_creation_tokens
+            input_tokens + output_tokens + cache_read_tokens + cache_creation_tokens
         ),
         "input": input_tokens,
         "output": output_tokens,
@@ -171,7 +168,9 @@ async def get_scope_overview(
             " GROUP BY p.id, p.name ORDER BY total_cost DESC"
         )
     else:
-        id_filter = build_id_filter("d.id", department_ids, params, "overview_department")
+        id_filter = build_id_filter(
+            "d.id", department_ids, params, "overview_department"
+        )
         sql = text(
             "WITH RECURSIVE dept_tree AS ("
             " SELECT id, name, parent_id, name::text AS path"
@@ -321,11 +320,16 @@ async def get_dept_adoption_table(
     for r in result.fetchall():
         total = int(r[2])
         active = int(r[3])
-        rows.append({
-            "id": r[0], "name": r[1], "total": total, "active": active,
-            "coverage": round(active / total * 100, 1) if total > 0 else 0,
-            "daily_calls": round(int(r[4]) / days, 1),
-        })
+        rows.append(
+            {
+                "id": r[0],
+                "name": r[1],
+                "total": total,
+                "active": active,
+                "coverage": round(active / total * 100, 1) if total > 0 else 0,
+                "daily_calls": round(int(r[4]) / days, 1),
+            }
+        )
     return rows
 
 
@@ -355,11 +359,16 @@ async def get_project_adoption_table(
     for r in result.fetchall():
         total = int(r[2])
         active = int(r[3])
-        rows.append({
-            "id": r[0], "name": r[1], "total": total, "active": active,
-            "coverage": round(active / total * 100, 1) if total > 0 else 0,
-            "daily_calls": round(int(r[4]) / days, 1),
-        })
+        rows.append(
+            {
+                "id": r[0],
+                "name": r[1],
+                "total": total,
+                "active": active,
+                "coverage": round(active / total * 100, 1) if total > 0 else 0,
+                "daily_calls": round(int(r[4]) / days, 1),
+            }
+        )
     return rows
 
 
@@ -390,7 +399,9 @@ async def get_adoption_scope_users(
         f" GROUP BY u.id, u.username, u.display_name, u.position, d.name"
         f" ORDER BY total_calls DESC, u.id DESC"
     )
-    result = await session.execute(sql, {"start": start_date, "end": end_date, "scope_id": scope_id})
+    result = await session.execute(
+        sql, {"start": start_date, "end": end_date, "scope_id": scope_id}
+    )
     return [
         {
             "id": r[0],
@@ -401,11 +412,12 @@ async def get_adoption_scope_users(
             "total_calls": int(r[5] or 0),
             "llm_calls": int(r[6] or 0),
             "mcp_calls": int(r[7] or 0),
-            "last_active": str(r[8].date() if hasattr(r[8], "date") else r[8]) if r[8] else "",
+            "last_active": (
+                str(r[8].date() if hasattr(r[8], "date") else r[8]) if r[8] else ""
+            ),
         }
         for r in result.fetchall()
     ]
-
 
 
 async def get_agent_hotness(
@@ -416,7 +428,10 @@ async def get_agent_hotness(
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
 ) -> list[dict]:
-    params: dict = {"start": start_date, "end_next": end_date + datetime.timedelta(days=1)}
+    params: dict = {
+        "start": start_date,
+        "end_next": end_date + datetime.timedelta(days=1),
+    }
     log_filter = build_scope_filter(
         "l.user_id", department_ids, project_ids, params, "agent_usage"
     )
@@ -441,8 +456,13 @@ async def get_agent_hotness(
     today = date.today()
     return [
         {
-            "id": r[0], "name": r[1], "platform": r[2], "department": r[3] or "",
-            "scope_names": r[3] or "", "user_count": int(r[4]), "monthly_calls": int(r[5]),
+            "id": r[0],
+            "name": r[1],
+            "platform": r[2],
+            "department": r[3] or "",
+            "scope_names": r[3] or "",
+            "user_count": int(r[4]),
+            "monthly_calls": int(r[5]),
             "days_online": (today - r[6].date()).days if r[6] else 0,
         }
         for r in result.fetchall()
@@ -457,7 +477,10 @@ async def get_mcp_hotness(
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
 ) -> list[dict]:
-    params: dict = {"start": start_date, "end_next": end_date + datetime.timedelta(days=1)}
+    params: dict = {
+        "start": start_date,
+        "end_next": end_date + datetime.timedelta(days=1),
+    }
     log_filter = build_scope_filter(
         "l.user_id", department_ids, project_ids, params, "mcp_usage"
     )
@@ -478,7 +501,14 @@ async def get_mcp_hotness(
     )
     result = await session.execute(sql, params)
     return [
-        {"id": r[0], "name": r[1], "user_count": int(r[2]), "monthly_calls": int(r[3]), "cost": float(r[4]), "scope_names": r[5] or ""}
+        {
+            "id": r[0],
+            "name": r[1],
+            "user_count": int(r[2]),
+            "monthly_calls": int(r[3]),
+            "cost": float(r[4]),
+            "scope_names": r[5] or "",
+        }
         for r in result.fetchall()
     ]
 
@@ -491,7 +521,10 @@ async def get_skill_hotness(
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
 ) -> list[dict]:
-    params: dict = {"start": start_date, "end_next": end_date + datetime.timedelta(days=1)}
+    params: dict = {
+        "start": start_date,
+        "end_next": end_date + datetime.timedelta(days=1),
+    }
     log_filter = build_scope_filter(
         "l.user_id", department_ids, project_ids, params, "skill_usage"
     )
@@ -512,7 +545,13 @@ async def get_skill_hotness(
     )
     result = await session.execute(sql, params)
     return [
-        {"id": r[0], "name": r[1], "install_count": int(r[2]), "monthly_downloads": int(r[3]), "scope_names": r[4] or ""}
+        {
+            "id": r[0],
+            "name": r[1],
+            "install_count": int(r[2]),
+            "monthly_downloads": int(r[3]),
+            "scope_names": r[4] or "",
+        }
         for r in result.fetchall()
     ]
 
@@ -551,8 +590,11 @@ async def get_unused_users(
     result = await session.execute(sql, params)
     return [
         {
-            "display_name": r[1], "department": r[2], "position": r[3],
-            "has_key": bool(r[4]), "last_active": str(r[5]) if r[5] else None,
+            "display_name": r[1],
+            "department": r[2],
+            "position": r[3],
+            "has_key": bool(r[4]),
+            "last_active": str(r[5]) if r[5] else None,
         }
         for r in result.fetchall()
     ]

@@ -11,7 +11,11 @@ from repositories.efficiency_scope_filter import bind_scope_ids, build_id_filter
 
 async def get_all_keys_with_budget(session: AsyncSession) -> list[AiKey]:
     result = await session.execute(
-        select(AiKey).where(AiKey.is_active.is_(True), AiKey.budget_limit.isnot(None), AiKey.budget_limit > 0)
+        select(AiKey).where(
+            AiKey.is_active.is_(True),
+            AiKey.budget_limit.isnot(None),
+            AiKey.budget_limit > 0,
+        )
     )
     return list(result.scalars().all())
 
@@ -71,12 +75,21 @@ async def get_budget_used_for_keys(
     return float((await session.execute(sql, params)).scalar() or 0)
 
 
-async def get_budget_used_for_key(session: AsyncSession, key_id: int, start_date: date, end_date: date) -> float:
+async def get_budget_used_for_key(
+    session: AsyncSession, key_id: int, start_date: date, end_date: date
+) -> float:
     sql = text(
         "SELECT COALESCE(SUM(internal_cost), 0) FROM aihelms.cost_summary_daily"
         " WHERE ai_key_id = :key_id AND summary_date >= :start AND summary_date <= :end"
     )
-    return float((await session.execute(sql, {"key_id": key_id, "start": start_date, "end": end_date})).scalar() or 0)
+    return float(
+        (
+            await session.execute(
+                sql, {"key_id": key_id, "start": start_date, "end": end_date}
+            )
+        ).scalar()
+        or 0
+    )
 
 
 async def get_budget_usage_by_key(
@@ -159,11 +172,20 @@ async def get_dept_budget_usage(
     for r in result.fetchall():
         user_budget, user_used = float(r[2]), float(r[3])
         scope_budget, scope_used = float(r[5]), float(r[6])
-        rows.append({
-            "id": r[0], "name": r[1], "budget": user_budget + scope_budget, "used": user_used + scope_used,
-            "user_key_budget": user_budget, "user_key_used": user_used, "user_key_count": int(r[4]),
-            "scope_key_budget": scope_budget, "scope_key_used": scope_used, "scope_key_count": int(r[7]),
-        })
+        rows.append(
+            {
+                "id": r[0],
+                "name": r[1],
+                "budget": user_budget + scope_budget,
+                "used": user_used + scope_used,
+                "user_key_budget": user_budget,
+                "user_key_used": user_used,
+                "user_key_count": int(r[4]),
+                "scope_key_budget": scope_budget,
+                "scope_key_used": scope_used,
+                "scope_key_count": int(r[7]),
+            }
+        )
     return rows
 
 
@@ -229,11 +251,20 @@ async def get_project_budget_usage(
     for r in result.fetchall():
         user_budget, user_used = float(r[2]), float(r[3])
         scope_budget, scope_used = float(r[5]), float(r[6])
-        rows.append({
-            "id": r[0], "name": r[1], "budget": user_budget + scope_budget, "used": user_used + scope_used,
-            "user_key_budget": user_budget, "user_key_used": user_used, "user_key_count": int(r[4]),
-            "scope_key_budget": scope_budget, "scope_key_used": scope_used, "scope_key_count": int(r[7]),
-        })
+        rows.append(
+            {
+                "id": r[0],
+                "name": r[1],
+                "budget": user_budget + scope_budget,
+                "used": user_used + scope_used,
+                "user_key_budget": user_budget,
+                "user_key_used": user_used,
+                "user_key_count": int(r[4]),
+                "scope_key_budget": scope_budget,
+                "scope_key_used": scope_used,
+                "scope_key_count": int(r[7]),
+            }
+        )
     return rows
 
 
@@ -263,8 +294,12 @@ async def get_key_top10_budget(
     result = await session.execute(sql, params)
     return [
         {
-            "name": r[1], "owner_type": r[2], "owner": r[3] or "", "key_type": r[4],
-            "budget": float(r[5]), "used": float(r[6]),
+            "name": r[1],
+            "owner_type": r[2],
+            "owner": r[3] or "",
+            "key_type": r[4],
+            "budget": float(r[5]),
+            "used": float(r[6]),
             "rate": round(float(r[6]) / float(r[5]) * 100, 1) if float(r[5]) > 0 else 0,
         }
         for r in result.fetchall()

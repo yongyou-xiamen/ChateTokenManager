@@ -36,6 +36,20 @@ async def get_current_user(request: Request) -> dict:
     return identity
 
 
+async def get_current_user_optional(request: Request) -> dict | None:
+    """解析 token 注入身份，失败返回 None（不抛异常）。供中间件使用。"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+    token = auth_header.split(" ", 1)[1]
+    try:
+        if looks_like_api_key(token):
+            return await _authenticate_api_key(token)
+        return _authenticate_jwt(token)
+    except HTTPException:
+        return None
+
+
 def _authenticate_jwt(token: str) -> dict:
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
@@ -49,6 +63,9 @@ def _authenticate_jwt(token: str) -> dict:
         "username": payload.get("username", ""),
         "identity_type": "user",
         "is_admin": payload.get("is_admin", False),
+        "is_super_admin": payload.get("is_super_admin", False),
+        "is_tenant_admin": payload.get("is_tenant_admin", False),
+        "tenant_id": payload.get("tenant_id"),
         "permissions": payload.get("permissions", []),
     }
 
@@ -70,6 +87,9 @@ async def _authenticate_api_key(token: str) -> dict:
         "username": api_key.name,
         "identity_type": "api_key",
         "is_admin": True,
+        "is_super_admin": True,
+        "is_tenant_admin": False,
+        "tenant_id": None,
         "permissions": [],
     }
 
@@ -84,10 +104,21 @@ async def _update_last_used(key_id: int) -> None:
 
 def require_permission(permission_code: str):
     async def checker(current_user: dict = Depends(get_current_user)) -> dict:
-        if current_user["is_admin"]:
+        if current_user.get("is_super_admin") or current_user.get("is_tenant_admin"):
             return current_user
         if permission_code not in current_user["permissions"]:
             raise HTTPException(status_code=403, detail="权限不足")
+        return current_user
+
+    return checker
+
+
+def require_super_admin():
+    """平台超管专用依赖。"""
+
+    async def checker(current_user: dict = Depends(get_current_user)) -> dict:
+        if not current_user.get("is_super_admin"):
+            raise HTTPException(status_code=403, detail="需要平台超管权限")
         return current_user
 
     return checker

@@ -3,7 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.deps import get_db, require_permission
 from exceptions import NotFoundError, ConflictError
-from models.role import CreateRoleRequest, UpdateRoleRequest, UpdateRolePermissionsRequest
+from models.role import (
+    CreateRoleRequest,
+    UpdateRoleRequest,
+    UpdateRolePermissionsRequest,
+)
 from services import role_service
 
 router = APIRouter(prefix="/roles", tags=["roles"])
@@ -25,7 +29,9 @@ async def create_role(
     _: dict = Depends(require_permission("role:create")),
 ):
     try:
-        role = await role_service.create_role(session, req.name, req.display_name, req.description)
+        role = await role_service.create_role(
+            session, req.name, req.display_name, req.description
+        )
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=str(e))
     return {"code": 200, "message": "角色创建成功", "data": role}
@@ -39,7 +45,9 @@ async def update_role(
     _: dict = Depends(require_permission("role:update")),
 ):
     try:
-        role = await role_service.update_role(session, role_id, req.display_name, req.description)
+        role = await role_service.update_role(
+            session, role_id, req.display_name, req.description
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="角色不存在")
     except ConflictError as e:
@@ -70,7 +78,9 @@ async def update_role_permissions(
     _: dict = Depends(require_permission("role:update")),
 ):
     try:
-        role = await role_service.update_role_permissions(session, role_id, req.permission_ids)
+        role = await role_service.update_role_permissions(
+            session, role_id, req.permission_ids
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="角色不存在")
     except ConflictError as e:

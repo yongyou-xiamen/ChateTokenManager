@@ -79,7 +79,8 @@ async def update_provider(
 ):
     try:
         provider = await provider_service.update_provider(
-            session, provider_id,
+            session,
+            provider_id,
             name=req.name,
             provider_type=req.provider_type,
             billing_type=req.billing_type,

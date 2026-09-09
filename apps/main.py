@@ -10,7 +10,8 @@ from core.database import close_engine
 from core.exception_handlers import register_exception_handlers
 from core.logging import setup_logging
 from core.migrate import run_migrations
-from services.auth_service import ensure_super_admin
+from core.tenant import TenantContextMiddleware
+from services.auth_service import ensure_default_tenant, ensure_super_admin
 
 # Initialize logging before anything else
 setup_logging()
@@ -19,6 +20,7 @@ setup_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await run_migrations()
+    await ensure_default_tenant()
     await ensure_super_admin(settings.super_admin_password)
     yield
     await close_engine()
@@ -54,6 +56,7 @@ app = FastAPI(
 )
 
 app.add_middleware(AuditLogMiddleware)
+app.add_middleware(TenantContextMiddleware)
 register_exception_handlers(app)
 app.include_router(api_v1_router, prefix="/api/v1")
 app.include_router(api_v2_router, prefix="/api/v2")

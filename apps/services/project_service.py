@@ -12,7 +12,9 @@ from services import litellm_client
 logger = logging.getLogger(__name__)
 
 
-async def list_projects(session: AsyncSession, page: int = 1, page_size: int = 20, keyword: str = "") -> dict:
+async def list_projects(
+    session: AsyncSession, page: int = 1, page_size: int = 20, keyword: str = ""
+) -> dict:
     total = await project_repo.count_projects(session, keyword)
     projects = await project_repo.find_projects(session, page, page_size, keyword)
     items = [_serialize_project(p) for p in projects]
@@ -26,7 +28,9 @@ async def get_project_by_id(session: AsyncSession, project_id: int) -> dict:
     return _serialize_project(project)
 
 
-async def create_project(session: AsyncSession, name: str, description: str = "") -> dict:
+async def create_project(
+    session: AsyncSession, name: str, description: str = ""
+) -> dict:
     project = Project(name=name, description=description)
     project = await project_repo.create(session, project)
 
@@ -41,7 +45,13 @@ async def create_project(session: AsyncSession, name: str, description: str = ""
     return _serialize_project(project)
 
 
-async def update_project(session: AsyncSession, project_id: int, name: str | None = None, description: str | None = None, is_active: bool | None = None) -> dict:
+async def update_project(
+    session: AsyncSession,
+    project_id: int,
+    name: str | None = None,
+    description: str | None = None,
+    is_active: bool | None = None,
+) -> dict:
     project = await project_repo.find_by_id(session, project_id)
     if not project:
         raise NotFoundError("project", project_id)
@@ -100,7 +110,9 @@ async def get_project_members(session: AsyncSession, project_id: int) -> list[di
     ]
 
 
-async def add_project_member(session: AsyncSession, project_id: int, user_id: int) -> None:
+async def add_project_member(
+    session: AsyncSession, project_id: int, user_id: int
+) -> None:
     project = await project_repo.find_by_id(session, project_id)
     if not project or not project.is_active:
         raise NotFoundError("project", project_id)
@@ -116,12 +128,16 @@ async def add_project_member(session: AsyncSession, project_id: int, user_id: in
     await project_repo.add_member(session, user_id, project_id)
 
     if project.litellm_team_id and user.litellm_user_id:
-        await litellm_client.add_team_member(project.litellm_team_id, user.litellm_user_id)
+        await litellm_client.add_team_member(
+            project.litellm_team_id, user.litellm_user_id
+        )
 
     await session.commit()
 
 
-async def remove_project_member(session: AsyncSession, project_id: int, user_id: int) -> None:
+async def remove_project_member(
+    session: AsyncSession, project_id: int, user_id: int
+) -> None:
     project = await project_repo.find_by_id(session, project_id)
     if not project:
         raise NotFoundError("project", project_id)
@@ -133,7 +149,9 @@ async def remove_project_member(session: AsyncSession, project_id: int, user_id:
     await project_repo.remove_member(session, user_id, project_id)
 
     if project.litellm_team_id and user.litellm_user_id:
-        await litellm_client.remove_team_member(project.litellm_team_id, user.litellm_user_id)
+        await litellm_client.remove_team_member(
+            project.litellm_team_id, user.litellm_user_id
+        )
 
     await session.commit()
 

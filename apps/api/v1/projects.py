@@ -44,7 +44,9 @@ async def create_project(
     session: AsyncSession = Depends(get_db),
     _: dict = Depends(require_permission("project:create")),
 ):
-    project = await project_service.create_project(session, name=req.name, description=req.description)
+    project = await project_service.create_project(
+        session, name=req.name, description=req.description
+    )
     return {"code": 200, "message": "项目创建成功", "data": project}
 
 
@@ -57,7 +59,11 @@ async def update_project(
 ):
     try:
         project = await project_service.update_project(
-            session, project_id, name=req.name, description=req.description, is_active=req.is_active
+            session,
+            project_id,
+            name=req.name,
+            description=req.description,
+            is_active=req.is_active,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="项目不存在")

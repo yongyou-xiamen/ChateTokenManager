@@ -1,7 +1,7 @@
 """管理员操作审计日志中间件
 
 ASGI 中间件，拦截写方法（POST/PUT/DELETE/PATCH），异步落表 admin_audit_logs。
-- 仅管理员（is_admin=True）的请求被记录；登录接口无条件记录
+- 仅管理员（is_super_admin 或 is_tenant_admin）的请求被记录；登录接口无条件记录
 - 请求体敏感字段脱敏后完整存储
 - 写日志失败不影响业务请求
 - 兼容流式响应（StreamingResponse）
@@ -127,22 +127,25 @@ def _schedule_audit(
 
     state = scope.get("state") or {}
     user = state.get("current_user")
+    tenant_id = None
 
     if is_login:
         if status_code == 200 and user:
             user_id = user["id"]
             username = user["username"]
             identity_type = user.get("identity_type", "user")
+            tenant_id = user.get("tenant_id")
         else:
             user_id = 0
             username = _extract_username_from_body(body_bytes)
             identity_type = "user"
     else:
-        if not user or not user.get("is_admin"):
+        if not user or not (user.get("is_super_admin") or user.get("is_tenant_admin")):
             return
         user_id = user["id"]
         username = user["username"]
         identity_type = user.get("identity_type", "user")
+        tenant_id = user.get("tenant_id")
 
     route = scope.get("route")
     summary = getattr(route, "summary", None) if route else None
@@ -171,6 +174,7 @@ def _schedule_audit(
             user_agent=user_agent,
             duration_ms=duration_ms,
             request_summary=request_summary,
+            tenant_id=tenant_id,
         )
     )
 
@@ -234,6 +238,7 @@ async def _write_audit_log(
     user_agent: str,
     duration_ms: int,
     request_summary: str,
+    tenant_id: int | None = None,
 ) -> None:
     try:
         async with async_session() as session:
@@ -249,6 +254,7 @@ async def _write_audit_log(
                 user_agent=user_agent,
                 duration_ms=duration_ms,
                 request_summary=request_summary,
+                tenant_id=tenant_id,
             )
             session.add(log)
             await session.commit()

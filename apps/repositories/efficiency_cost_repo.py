@@ -39,8 +39,12 @@ def _llm_cost_component_expr(price_key: str, tokens_expr: str) -> str:
 
 
 def _build_cost_filters(
-    start_date: date, end_date: date, cost_type: str | None, department_id,
-    table_alias: str = "", project_id=None,
+    start_date: date,
+    end_date: date,
+    cost_type: str | None,
+    department_id,
+    table_alias: str = "",
+    project_id=None,
 ) -> tuple[str, dict]:
     prefix = f"{table_alias}." if table_alias else ""
     user_col = f"{prefix}user_id" if prefix else "cost_summary_daily.user_id"
@@ -76,13 +80,17 @@ def _build_cost_filters(
     return filters, params
 
 
-
 async def get_cost_trend(
-    session: AsyncSession, start_date: date, end_date: date,
-    cost_type: str | None = None, department_id: int | None = None,
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    cost_type: str | None = None,
+    department_id: int | None = None,
     project_id: int | None = None,
 ) -> list[dict]:
-    filters, params = _build_cost_filters(start_date, end_date, cost_type, department_id, project_id=project_id)
+    filters, params = _build_cost_filters(
+        start_date, end_date, cost_type, department_id, project_id=project_id
+    )
     sql = text(
         f"SELECT summary_date::date AS d, cost_type,"
         f" COALESCE(SUM(internal_cost), 0) AS internal_cost,"
@@ -110,7 +118,9 @@ async def get_cost_by_type(
     cost_type: str | None = None,
     project_id: int | None = None,
 ) -> list[dict]:
-    filters, params = _build_cost_filters(start_date, end_date, cost_type, department_id, project_id=project_id)
+    filters, params = _build_cost_filters(
+        start_date, end_date, cost_type, department_id, project_id=project_id
+    )
     sql = text(
         f"SELECT cost_type,"
         f" COALESCE(SUM(internal_cost), 0) AS internal_cost,"
@@ -119,12 +129,19 @@ async def get_cost_by_type(
     )
     result = await session.execute(sql, params)
     return [
-        {"name": r[0], "value": float(r[1]), "internal_cost": float(r[1]), "external_cost": float(r[2])}
+        {
+            "name": r[0],
+            "value": float(r[1]),
+            "internal_cost": float(r[1]),
+            "external_cost": float(r[2]),
+        }
         for r in result.fetchall()
     ]
 
 
-async def get_cost_by_dept(session: AsyncSession, start_date: date, end_date: date) -> list[dict]:
+async def get_cost_by_dept(
+    session: AsyncSession, start_date: date, end_date: date
+) -> list[dict]:
     sql = text(
         "SELECT d.name, COALESCE(SUM(c.internal_cost), 0) AS internal_cost,"
         " COALESCE(SUM(c.external_cost), 0) AS external_cost"
@@ -136,12 +153,19 @@ async def get_cost_by_dept(session: AsyncSession, start_date: date, end_date: da
     )
     result = await session.execute(sql, {"start": start_date, "end": end_date})
     return [
-        {"name": r[0], "value": float(r[1]), "internal_cost": float(r[1]), "external_cost": float(r[2])}
+        {
+            "name": r[0],
+            "value": float(r[1]),
+            "internal_cost": float(r[1]),
+            "external_cost": float(r[2]),
+        }
         for r in result.fetchall()
     ]
 
 
-async def get_dept_per_capita_cost(session: AsyncSession, start_date: date, end_date: date) -> list[dict]:
+async def get_dept_per_capita_cost(
+    session: AsyncSession, start_date: date, end_date: date
+) -> list[dict]:
     sql = text(
         "SELECT d.name, COALESCE(SUM(c.internal_cost), 0) AS cost, COUNT(DISTINCT c.user_id) AS users"
         " FROM aihelms.cost_summary_daily c"
@@ -152,7 +176,10 @@ async def get_dept_per_capita_cost(session: AsyncSession, start_date: date, end_
     )
     result = await session.execute(sql, {"start": start_date, "end": end_date})
     return [
-        {"name": r[0], "value": round(float(r[1]) / int(r[2]), 2) if int(r[2]) > 0 else 0}
+        {
+            "name": r[0],
+            "value": round(float(r[1]) / int(r[2]), 2) if int(r[2]) > 0 else 0,
+        }
         for r in result.fetchall()
     ]
 
@@ -222,7 +249,12 @@ async def get_cost_by_dimension(
     )
     result = await session.execute(sql, params)
     return [
-        {"name": r[0], "value": float(r[1]), "internal_cost": float(r[1]), "external_cost": float(r[2])}
+        {
+            "name": r[0],
+            "value": float(r[1]),
+            "internal_cost": float(r[1]),
+            "external_cost": float(r[2]),
+        }
         for r in result.fetchall()
     ]
 
@@ -251,7 +283,10 @@ async def get_per_capita_cost_by_dimension(
     )
     result = await session.execute(sql, params)
     return [
-        {"name": r[0], "value": round(float(r[1]) / int(r[2]), 2) if int(r[2]) > 0 else 0}
+        {
+            "name": r[0],
+            "value": round(float(r[1]) / int(r[2]), 2) if int(r[2]) > 0 else 0,
+        }
         for r in result.fetchall()
     ]
 
@@ -304,15 +339,21 @@ async def get_cost_detail_by_dimension(
             "cache_creation_tokens": int(r[10]),
             "users": int(r[11]),
             "per_capita": round(float(r[4]) / int(r[11]), 2) if int(r[11]) > 0 else 0,
-            "active_per_capita": round(float(r[4]) / int(r[11]), 2) if int(r[11]) > 0 else 0,
+            "active_per_capita": (
+                round(float(r[4]) / int(r[11]), 2) if int(r[11]) > 0 else 0
+            ),
         }
         for r in result.fetchall()
     ]
 
 
 async def get_cost_detail_scope_users(
-    session: AsyncSession, start_date: date, end_date: date,
-    dimension: str, scope_id: int, cost_type: str | None = None,
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    dimension: str,
+    scope_id: int,
+    cost_type: str | None = None,
 ) -> list[dict]:
     filters, params = _build_cost_filters(start_date, end_date, cost_type, None, "c")
     params["scope_id"] = scope_id
@@ -379,11 +420,16 @@ async def get_cost_detail_scope_users(
 
 
 async def get_cost_detail_by_department(
-    session: AsyncSession, start_date: date, end_date: date,
-    cost_type: str | None = None, department_id: int | None = None,
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    cost_type: str | None = None,
+    department_id: int | None = None,
     project_id: int | None = None,
 ) -> list[dict]:
-    filters, params = _build_cost_filters(start_date, end_date, cost_type, department_id, "c", project_id)
+    filters, params = _build_cost_filters(
+        start_date, end_date, cost_type, department_id, "c", project_id
+    )
     sql = text(
         f"SELECT d.name, COALESCE(SUM(c.internal_cost), 0) AS internal_cost,"
         f" COALESCE(SUM(c.external_cost), 0) AS external_cost,"
@@ -403,18 +449,25 @@ async def get_cost_detail_by_department(
             "requests": int(r[3]),
             "users": int(r[4]),
             "per_capita": round(float(r[1]) / int(r[4]), 2) if int(r[4]) > 0 else 0,
-            "active_per_capita": round(float(r[1]) / int(r[4]), 2) if int(r[4]) > 0 else 0,
+            "active_per_capita": (
+                round(float(r[1]) / int(r[4]), 2) if int(r[4]) > 0 else 0
+            ),
         }
         for r in result.fetchall()
     ]
 
 
 async def get_cost_detail_by_model(
-    session: AsyncSession, start_date: date, end_date: date,
-    cost_type: str | None = None, department_id: int | None = None,
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    cost_type: str | None = None,
+    department_id: int | None = None,
     project_id: int | None = None,
 ) -> list[dict]:
-    filters, params = _build_cost_filters(start_date, end_date, cost_type, department_id, "c", project_id)
+    filters, params = _build_cost_filters(
+        start_date, end_date, cost_type, department_id, "c", project_id
+    )
     sql = text(
         f"SELECT"
         f" COALESCE('model:' || m.id::text, 'unmatched:' || COALESCE(c.model, 'unknown')) AS platform_model_key,"
@@ -483,8 +536,11 @@ async def get_cost_detail_by_model(
 
 
 async def get_cost_detail_by_mcp(
-    session: AsyncSession, start_date: date, end_date: date,
-    cost_type: str | None = None, department_id: int | None = None,
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    cost_type: str | None = None,
+    department_id: int | None = None,
     project_id: int | None = None,
 ) -> list[dict]:
     if cost_type and cost_type != "mcp":
@@ -542,12 +598,18 @@ async def get_cost_detail_by_mcp(
         for r in result.fetchall()
     ]
 
+
 async def get_cost_detail_by_date(
-    session: AsyncSession, start_date: date, end_date: date,
-    cost_type: str | None = None, department_id: int | None = None,
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    cost_type: str | None = None,
+    department_id: int | None = None,
     project_id: int | None = None,
 ) -> list[dict]:
-    filters, params = _build_cost_filters(start_date, end_date, cost_type, department_id, project_id=project_id)
+    filters, params = _build_cost_filters(
+        start_date, end_date, cost_type, department_id, project_id=project_id
+    )
     sql = text(
         f"SELECT summary_date::date AS d,"
         f" COALESCE(SUM(CASE WHEN cost_type = 'llm' THEN internal_cost ELSE 0 END), 0) AS llm_cost,"
@@ -573,13 +635,18 @@ async def get_cost_detail_by_date(
     ]
 
 
-
 async def get_cost_attribution_detail(
-    session: AsyncSession, start_date: date, end_date: date,
-    dimension: str = "department", cost_type: str | None = None, department_id: int | None = None,
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    dimension: str = "department",
+    cost_type: str | None = None,
+    department_id: int | None = None,
     project_id: int | None = None,
 ) -> list[dict]:
-    filters, params = _build_cost_filters(start_date, end_date, cost_type, department_id, "c", project_id)
+    filters, params = _build_cost_filters(
+        start_date, end_date, cost_type, department_id, "c", project_id
+    )
     membership_filter = _dimension_membership_join_filter(
         dimension, params, department_id, project_id
     )
@@ -606,12 +673,18 @@ async def get_cost_attribution_detail(
     cache_creation = "COALESCE(c.cache_creation_tokens, 0)"
     internal_input = _llm_cost_component_expr("internal_input_cost", billable_input)
     internal_output = _llm_cost_component_expr("internal_output_cost", output_tokens)
-    internal_cache_read = _llm_cost_component_expr("internal_cache_read_cost", cache_read)
-    internal_cache_creation = _llm_cost_component_expr("internal_cache_creation_cost", cache_creation)
+    internal_cache_read = _llm_cost_component_expr(
+        "internal_cache_read_cost", cache_read
+    )
+    internal_cache_creation = _llm_cost_component_expr(
+        "internal_cache_creation_cost", cache_creation
+    )
     external_input = _llm_cost_component_expr("input_cost", billable_input)
     external_output = _llm_cost_component_expr("output_cost", output_tokens)
     external_cache_read = _llm_cost_component_expr("cache_read_cost", cache_read)
-    external_cache_creation = _llm_cost_component_expr("cache_creation_cost", cache_creation)
+    external_cache_creation = _llm_cost_component_expr(
+        "cache_creation_cost", cache_creation
+    )
     sql = text(
         f"SELECT c.summary_date::date, c.cost_type, COALESCE(c.model, ms.name, ''),"
         f" COALESCE(NULLIF(u.display_name, ''), u.username, ''), COALESCE(k.name, ''), COALESCE({scope_expr}, ''),"
@@ -653,17 +726,32 @@ async def get_cost_attribution_detail(
     result = await session.execute(sql, params)
     return [
         {
-            "date": str(r[0]), "resource_type": r[1], "cost_object": r[2] or r[1],
-            "user_name": r[3] or "--", "key_name": r[4] or "--", "scope_name": r[5] or "--",
-            "requests": int(r[6] or 0), "input_tokens": int(r[7] or 0), "output_tokens": int(r[8] or 0),
-            "cache_read_tokens": int(r[9] or 0), "cache_creation_tokens": int(r[10] or 0),
-            "internal_input_cost": float(r[11] or 0), "internal_output_cost": float(r[12] or 0),
-            "internal_cache_read_cost": float(r[13] or 0), "internal_cache_creation_cost": float(r[14] or 0),
-            "external_input_cost": float(r[15] or 0), "external_output_cost": float(r[16] or 0),
-            "external_cache_read_cost": float(r[17] or 0), "external_cache_creation_cost": float(r[18] or 0),
-            "internal_cost": float(r[19] or 0), "external_cost": float(r[20] or 0),
+            "date": str(r[0]),
+            "resource_type": r[1],
+            "cost_object": r[2] or r[1],
+            "user_name": r[3] or "--",
+            "key_name": r[4] or "--",
+            "scope_name": r[5] or "--",
+            "requests": int(r[6] or 0),
+            "input_tokens": int(r[7] or 0),
+            "output_tokens": int(r[8] or 0),
+            "cache_read_tokens": int(r[9] or 0),
+            "cache_creation_tokens": int(r[10] or 0),
+            "internal_input_cost": float(r[11] or 0),
+            "internal_output_cost": float(r[12] or 0),
+            "internal_cache_read_cost": float(r[13] or 0),
+            "internal_cache_creation_cost": float(r[14] or 0),
+            "external_input_cost": float(r[15] or 0),
+            "external_output_cost": float(r[16] or 0),
+            "external_cache_read_cost": float(r[17] or 0),
+            "external_cache_creation_cost": float(r[18] or 0),
+            "internal_cost": float(r[19] or 0),
+            "external_cost": float(r[20] or 0),
             "cost_diff": round(float(r[19] or 0) - float(r[20] or 0), 4),
-            "user_id": r[21], "ai_key_id": r[22], "model": r[23] or "", "server_id": r[24],
+            "user_id": r[21],
+            "ai_key_id": r[22],
+            "model": r[23] or "",
+            "server_id": r[24],
         }
         for r in result.fetchall()
     ]

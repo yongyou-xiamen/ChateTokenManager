@@ -92,17 +92,27 @@ async def list_categories(session: AsyncSession) -> list[AgentCategory]:
     return list(result.scalars().all())
 
 
-async def find_category_by_id(session: AsyncSession, category_id: int) -> AgentCategory | None:
-    result = await session.execute(select(AgentCategory).where(AgentCategory.id == category_id))
+async def find_category_by_id(
+    session: AsyncSession, category_id: int
+) -> AgentCategory | None:
+    result = await session.execute(
+        select(AgentCategory).where(AgentCategory.id == category_id)
+    )
     return result.scalar_one_or_none()
 
 
-async def find_category_by_name(session: AsyncSession, name: str) -> AgentCategory | None:
-    result = await session.execute(select(AgentCategory).where(AgentCategory.name == name))
+async def find_category_by_name(
+    session: AsyncSession, name: str
+) -> AgentCategory | None:
+    result = await session.execute(
+        select(AgentCategory).where(AgentCategory.name == name)
+    )
     return result.scalar_one_or_none()
 
 
-async def create_category(session: AsyncSession, category: AgentCategory) -> AgentCategory:
+async def create_category(
+    session: AsyncSession, category: AgentCategory
+) -> AgentCategory:
     session.add(category)
     await session.flush()
     await session.refresh(category)
@@ -126,17 +136,27 @@ async def list_platforms(session: AsyncSession) -> list[AgentPlatform]:
     return list(result.scalars().all())
 
 
-async def find_platform_by_id(session: AsyncSession, platform_id: int) -> AgentPlatform | None:
-    result = await session.execute(select(AgentPlatform).where(AgentPlatform.id == platform_id))
+async def find_platform_by_id(
+    session: AsyncSession, platform_id: int
+) -> AgentPlatform | None:
+    result = await session.execute(
+        select(AgentPlatform).where(AgentPlatform.id == platform_id)
+    )
     return result.scalar_one_or_none()
 
 
-async def find_platform_by_name(session: AsyncSession, name: str) -> AgentPlatform | None:
-    result = await session.execute(select(AgentPlatform).where(AgentPlatform.name == name))
+async def find_platform_by_name(
+    session: AsyncSession, name: str
+) -> AgentPlatform | None:
+    result = await session.execute(
+        select(AgentPlatform).where(AgentPlatform.name == name)
+    )
     return result.scalar_one_or_none()
 
 
-async def create_platform(session: AsyncSession, platform: AgentPlatform) -> AgentPlatform:
+async def create_platform(
+    session: AsyncSession, platform: AgentPlatform
+) -> AgentPlatform:
     session.add(platform)
     await session.flush()
     await session.refresh(platform)
@@ -178,8 +198,10 @@ async def find_usage_logs(
     start_time: datetime | None = None,
     end_time: datetime | None = None,
 ) -> list[AgentUsageLog]:
-    stmt = select(AgentUsageLog).where(AgentUsageLog.agent_id == agent_id).order_by(
-        AgentUsageLog.created_at.desc()
+    stmt = (
+        select(AgentUsageLog)
+        .where(AgentUsageLog.agent_id == agent_id)
+        .order_by(AgentUsageLog.created_at.desc())
     )
     if user_id is not None:
         stmt = stmt.where(AgentUsageLog.user_id == user_id)
@@ -200,7 +222,9 @@ async def count_usage_logs(
     start_time: datetime | None = None,
     end_time: datetime | None = None,
 ) -> int:
-    stmt = select(func.count(AgentUsageLog.id)).where(AgentUsageLog.agent_id == agent_id)
+    stmt = select(func.count(AgentUsageLog.id)).where(
+        AgentUsageLog.agent_id == agent_id
+    )
     if user_id is not None:
         stmt = stmt.where(AgentUsageLog.user_id == user_id)
     if start_time:

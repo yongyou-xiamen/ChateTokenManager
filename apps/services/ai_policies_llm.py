@@ -413,8 +413,6 @@ async def _run_intent_analysis(
     return intent_analysis, _part_state(intent_analysis, result)
 
 
-
-
 def is_supported_review_model(model: Any) -> bool:
     if not model or not getattr(model, "is_active", False):
         return False
@@ -620,10 +618,7 @@ def llm_finding_reviews(parsed: dict, findings: list[dict]) -> list[dict]:
         if not isinstance(item, dict):
             continue
         group_id = str(
-            item.get("group_id")
-            or item.get("groupId")
-            or item.get("id")
-            or ""
+            item.get("group_id") or item.get("groupId") or item.get("id") or ""
         )
         if group_id not in known_ids:
             continue
@@ -712,9 +707,7 @@ def _response_content(response: dict) -> str:
         if content:
             return content
     output_text = (
-        _content_text(response.get("output_text"))
-        if isinstance(response, dict)
-        else ""
+        _content_text(response.get("output_text")) if isinstance(response, dict) else ""
     )
     if output_text:
         return output_text
@@ -735,9 +728,7 @@ def _finish_reason(response: dict) -> str:
     choices = response.get("choices") if isinstance(response, dict) else None
     if isinstance(choices, list) and choices and isinstance(choices[0], dict):
         return str(
-            choices[0].get("finish_reason")
-            or choices[0].get("finishReason")
-            or ""
+            choices[0].get("finish_reason") or choices[0].get("finishReason") or ""
         )
     return str(response.get("finish_reason") or response.get("status") or "")
 
@@ -914,9 +905,7 @@ async def run_llm_review(
     litellm_user_id = user.litellm_user_id or f"aihelms_user_{user.id}"
     metadata = _review_metadata(audit, user, key)
 
-    reviewable_findings = [
-        item for item in findings if not item.get("redline")
-    ][:10]
+    reviewable_findings = [item for item in findings if not item.get("redline")][:10]
     finding_briefs = [
         _finding_brief(item, index, category_labels)
         for index, item in enumerate(reviewable_findings, 1)
@@ -1029,11 +1018,15 @@ async def run_llm_review(
             "intent_analysis": intent_state,
             "finding_reviews": finding_state,
         },
-        "message": ""
-        if status == "completed"
-        else "；".join(messages)
-        or "LLM 语义研判未完成（结果未解析），本报告以静态审查结果为准",
-        "raw_text": _clean_llm_text(review_result["content"])[:1200]
-        if status != "completed"
-        else "",
+        "message": (
+            ""
+            if status == "completed"
+            else "；".join(messages)
+            or "LLM 语义研判未完成（结果未解析），本报告以静态审查结果为准"
+        ),
+        "raw_text": (
+            _clean_llm_text(review_result["content"])[:1200]
+            if status != "completed"
+            else ""
+        ),
     }

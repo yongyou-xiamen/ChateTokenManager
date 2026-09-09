@@ -92,7 +92,9 @@ async def retry_export_task(
     current_user: dict = Depends(require_permission("usage_log:read")),
 ):
     try:
-        data = await export_task_service.retry_export_task(session, task_id, current_user)
+        data = await export_task_service.retry_export_task(
+            session, task_id, current_user
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"code": 200, "message": "导出任务已重新提交", "data": data}

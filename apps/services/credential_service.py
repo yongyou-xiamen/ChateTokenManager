@@ -18,8 +18,12 @@ async def list_credentials(
     page_size: int = 50,
     provider_id: int | None = None,
 ) -> dict:
-    total = await credential_repo.count_all(session, provider_id=provider_id, is_active=True)
-    items = await credential_repo.find_all(session, page, page_size, provider_id=provider_id, is_active=True)
+    total = await credential_repo.count_all(
+        session, provider_id=provider_id, is_active=True
+    )
+    items = await credential_repo.find_all(
+        session, page, page_size, provider_id=provider_id, is_active=True
+    )
     return {
         "items": [_serialize(c) for c in items],
         "total": total,
@@ -42,7 +46,9 @@ async def create_credential(
     provider_id: int,
     credential_info: dict | None = None,
 ) -> dict:
-    existing = await credential_repo.find_by_name(session, credential_name, provider_id=provider_id)
+    existing = await credential_repo.find_by_name(
+        session, credential_name, provider_id=provider_id
+    )
     if existing:
         raise ConflictError(f"该供应商下凭证名 '{credential_name}' 已存在")
 
@@ -123,6 +129,7 @@ async def update_credential(
     # 凭证内容或启用状态变化时，同步关联 deployments 在 LiteLLM 侧的路由参数。
     if credential_payload_changed or active_changed:
         from services import model_service
+
         result = await model_service.sync_credential_routing(session, credential)
         if result.get("deployment_errors"):
             logger.error(
@@ -158,13 +165,16 @@ def _serialize(credential: Credential) -> dict:
         "credential_name": credential.credential_name,
         "provider_id": credential.provider_id,
         "provider_name": credential.provider.name if credential.provider else None,
-        "provider_type": credential.provider.provider_type if credential.provider else None,
+        "provider_type": (
+            credential.provider.provider_type if credential.provider else None
+        ),
         "credential_values": credential.credential_values,
         "credential_info": credential.credential_info,
         "litellm_synced": credential.litellm_synced,
         "is_active": credential.is_active,
-        "deployment_count": len(credential.deployments) if credential.deployments else 0,
+        "deployment_count": (
+            len(credential.deployments) if credential.deployments else 0
+        ),
         "created_at": fmt_local_time(credential.created_at),
         "updated_at": fmt_local_time(credential.updated_at),
     }
-

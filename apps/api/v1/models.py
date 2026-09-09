@@ -29,7 +29,9 @@ class UpdateModelRequest(BaseModel):
 
 
 class CreateDeploymentRequest(BaseModel):
-    litellm_params: dict = Field(..., description="完整 litellm_params（必须包含 model 字段）")
+    litellm_params: dict = Field(
+        ..., description="完整 litellm_params（必须包含 model 字段）"
+    )
     credential_id: int | None = None
     deploy_name: str = ""
     billing_type: str = Field("token", pattern=r"^(token|per_call|monthly_quota)$")
@@ -148,7 +150,8 @@ async def update_model(
 ):
     try:
         model = await model_service.update_model(
-            session, model_id,
+            session,
+            model_id,
             name=req.name,
             model_id_str=req.model_id,
             category=req.category,
@@ -202,7 +205,8 @@ async def update_model_publish(
 ):
     try:
         result = await model_service.update_model_publish(
-            session, model_id,
+            session,
+            model_id,
             is_published=req.is_published,
             visibility_type=req.visibility_type,
             department_ids=req.department_ids,
@@ -224,10 +228,13 @@ async def create_deployment(
     _: dict = Depends(require_permission("user:update")),
 ):
     if "model" not in req.litellm_params:
-        raise HTTPException(status_code=400, detail="litellm_params 必须包含 model 字段")
+        raise HTTPException(
+            status_code=400, detail="litellm_params 必须包含 model 字段"
+        )
     try:
         deployment = await model_service.create_deployment(
-            session, model_id,
+            session,
+            model_id,
             litellm_params=req.litellm_params,
             credential_id=req.credential_id,
             deploy_name=req.deploy_name,
@@ -254,7 +261,8 @@ async def update_deployment(
 ):
     try:
         deployment = await model_service.update_deployment(
-            session, deployment_id,
+            session,
+            deployment_id,
             litellm_params=req.litellm_params,
             credential_id=req.credential_id,
             deploy_name=req.deploy_name,
@@ -323,7 +331,8 @@ async def update_access_group(
 ):
     try:
         group = await model_service.update_access_group(
-            session, group_id,
+            session,
+            group_id,
             group_name=req.group_name,
             description=req.description,
             model_ids=req.model_ids,

@@ -26,7 +26,9 @@ async def list_users(
     session: AsyncSession = Depends(get_db),
     _: dict = Depends(require_permission("user:read")),
 ):
-    result = await user_service.list_users(session, page, page_size, keyword, is_admin, is_active)
+    result = await user_service.list_users(
+        session, page, page_size, keyword, is_admin, is_active
+    )
     return {"code": 200, "message": "ok", "data": result}
 
 
@@ -75,7 +77,8 @@ async def update_user(
 ):
     try:
         user = await user_service.update_user(
-            session, user_id,
+            session,
+            user_id,
             email=req.email,
             phone=req.phone,
             display_name=req.display_name,

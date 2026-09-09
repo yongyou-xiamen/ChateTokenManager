@@ -4,9 +4,7 @@ from services.litellm_credential_payload import prepare_litellm_credential_value
 def test_vllm_anthropic_adds_bearer_header_without_mutating_source():
     source = {"api_key": "secret", "api_base": "http://vllm.local"}
 
-    result = prepare_litellm_credential_values(
-        source, {"format": "anthropic"}, "vllm"
-    )
+    result = prepare_litellm_credential_values(source, {"format": "anthropic"}, "vllm")
 
     assert result["extra_headers"] == {"authorization": "Bearer secret"}
     assert "extra_headers" not in source

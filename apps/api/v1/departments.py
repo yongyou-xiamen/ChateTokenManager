@@ -60,7 +60,12 @@ async def update_department(
 ):
     try:
         dept = await department_service.update_department(
-            session, dept_id, name=req.name, description=req.description, sort_order=req.sort_order, is_active=req.is_active
+            session,
+            dept_id,
+            name=req.name,
+            description=req.description,
+            sort_order=req.sort_order,
+            is_active=req.is_active,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="部门不存在")
@@ -133,7 +138,9 @@ async def update_department_managers(
     _: dict = Depends(require_permission("department:update")),
 ):
     try:
-        await department_service.update_department_managers(session, dept_id, req.manager_user_ids)
+        await department_service.update_department_managers(
+            session, dept_id, req.manager_user_ids
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="部门不存在")
     except ConflictError as e:

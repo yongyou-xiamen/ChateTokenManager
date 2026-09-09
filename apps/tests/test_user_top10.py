@@ -129,19 +129,44 @@ async def test_user_top10_uses_nullif_display_name():
 async def test_top_users_service_adds_rank(monkeypatch):
     session = object()
     repo_rows = [
-        {"user_id": 1, "user_name": "A", "department": "D1", "internal_cost": 9.0,
-         "input_tokens": 1, "output_tokens": 1, "cache_read_tokens": 0,
-         "cache_creation_tokens": 0, "total_tokens": 2, "requests": 3},
-        {"user_id": 2, "user_name": "B", "department": "D2", "internal_cost": 4.0,
-         "input_tokens": 1, "output_tokens": 0, "cache_read_tokens": 0,
-         "cache_creation_tokens": 0, "total_tokens": 1, "requests": 1},
+        {
+            "user_id": 1,
+            "user_name": "A",
+            "department": "D1",
+            "internal_cost": 9.0,
+            "input_tokens": 1,
+            "output_tokens": 1,
+            "cache_read_tokens": 0,
+            "cache_creation_tokens": 0,
+            "total_tokens": 2,
+            "requests": 3,
+        },
+        {
+            "user_id": 2,
+            "user_name": "B",
+            "department": "D2",
+            "internal_cost": 4.0,
+            "input_tokens": 1,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_creation_tokens": 0,
+            "total_tokens": 1,
+            "requests": 1,
+        },
     ]
     get_user_top10 = AsyncMock(return_value=repo_rows)
-    monkeypatch.setattr(efficiency_cost_service.efficiency_repo, "get_user_top10", get_user_top10)
+    monkeypatch.setattr(
+        efficiency_cost_service.efficiency_repo, "get_user_top10", get_user_top10
+    )
 
     result = await efficiency_cost_service.get_top_users(
-        session, date(2026, 7, 1), date(2026, 7, 17),
-        metric="tokens", cost_type="llm", department_id=[26], project_id=None,
+        session,
+        date(2026, 7, 1),
+        date(2026, 7, 17),
+        metric="tokens",
+        cost_type="llm",
+        department_id=[26],
+        project_id=None,
     )
 
     # cost_type=llm 转成 ct="llm"；metric 放最后一个位置参数（按方案 repo 签名）
@@ -156,11 +181,18 @@ async def test_top_users_service_adds_rank(monkeypatch):
 async def test_top_users_service_all_cost_type_becomes_none(monkeypatch):
     session = object()
     get_user_top10 = AsyncMock(return_value=[])
-    monkeypatch.setattr(efficiency_cost_service.efficiency_repo, "get_user_top10", get_user_top10)
+    monkeypatch.setattr(
+        efficiency_cost_service.efficiency_repo, "get_user_top10", get_user_top10
+    )
 
     await efficiency_cost_service.get_top_users(
-        session, date(2026, 7, 1), date(2026, 7, 17),
-        metric="cost", cost_type="all", department_id=None, project_id=None,
+        session,
+        date(2026, 7, 1),
+        date(2026, 7, 17),
+        metric="cost",
+        cost_type="all",
+        department_id=None,
+        project_id=None,
     )
 
     # cost_type="all" → ct=None
@@ -182,13 +214,13 @@ async def test_api_top_users_forwards_args(monkeypatch):
     )
 
     resp = await efficiency_api.get_top_users(
-        None,                    # period
-        date(2026, 7, 1),        # start_date
-        date(2026, 7, 17),       # end_date
-        "tokens",                # metric
-        "llm",                   # resource_type
-        "department",            # dimension
-        "12,34",                 # scope_ids
+        None,  # period
+        date(2026, 7, 1),  # start_date
+        date(2026, 7, 17),  # end_date
+        "tokens",  # metric
+        "llm",  # resource_type
+        "department",  # dimension
+        "12,34",  # scope_ids
         session,
         {"id": 1},
     )
@@ -208,8 +240,15 @@ async def test_api_top_users_project_scope_forwards_project_ids(monkeypatch):
     )
 
     await efficiency_api.get_top_users(
-        None, date(2026, 7, 1), date(2026, 7, 17),
-        "cost", "", "project", "7,9", session, {"id": 1},
+        None,
+        date(2026, 7, 1),
+        date(2026, 7, 17),
+        "cost",
+        "",
+        "project",
+        "7,9",
+        session,
+        {"id": 1},
     )
 
     service_call.assert_awaited_once_with(

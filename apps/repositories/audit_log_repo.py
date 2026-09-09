@@ -79,8 +79,7 @@ def _apply_filters(stmt, start_time, end_time, user_id, method, status, action):
         )
     elif status == "failed":
         stmt = stmt.where(
-            (AdminAuditLog.status_code < 200)
-            | (AdminAuditLog.status_code >= 300)
+            (AdminAuditLog.status_code < 200) | (AdminAuditLog.status_code >= 300)
         )
     if action:
         stmt = stmt.where(AdminAuditLog.action == action)

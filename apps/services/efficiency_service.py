@@ -104,7 +104,11 @@ async def request_refresh(scope: str = "all") -> dict:
         existing_task_id = await _get_refresh_task_id()
         existing_status = _task_update_status(existing_task_id)
         if existing_status == "running":
-            return {"update_status": "running", "task_id": existing_task_id, "scope": scope}
+            return {
+                "update_status": "running",
+                "task_id": existing_task_id,
+                "scope": scope,
+            }
 
         from tasks.efficiency_tasks import aggregate_cost_summary
 
@@ -113,7 +117,11 @@ async def request_refresh(scope: str = "all") -> dict:
         return {"update_status": "queued", "task_id": task.id, "scope": scope}
     except Exception:  # pragma: no cover - depends on worker runtime
         logger.exception("efficiency refresh request failed")
-        return {"update_status": "unavailable", "reason": "刷新任务创建失败", "scope": scope}
+        return {
+            "update_status": "unavailable",
+            "reason": "刷新任务创建失败",
+            "scope": scope,
+        }
 
 
 def get_refresh_status(task_id: str) -> dict:
@@ -183,7 +191,9 @@ async def get_overview(
         round(len(prev_active_ids) / total_users * 100, 1) if total_users > 0 else 0
     )
     prev_active_per_capita = (
-        round(prev_total_cost / len(prev_active_ids), 2) if len(prev_active_ids) > 0 else 0
+        round(prev_total_cost / len(prev_active_ids), 2)
+        if len(prev_active_ids) > 0
+        else 0
     )
 
     trend = await efficiency_repo.get_daily_cost_and_users(
@@ -202,12 +212,18 @@ async def get_overview(
         total_members = row["total_users"]
         active_members = row["active_users"]
         scope_cost = row["total_cost"]
-        coverage = round(active_members / total_members * 100, 1) if total_members > 0 else 0
-        row_active_per_capita = round(scope_cost / active_members, 2) if active_members > 0 else 0
+        coverage = (
+            round(active_members / total_members * 100, 1) if total_members > 0 else 0
+        )
+        row_active_per_capita = (
+            round(scope_cost / active_members, 2) if active_members > 0 else 0
+        )
         previous = previous_map.get(row["id"], {})
         prev_active = int(previous.get("active_users", 0) or 0)
         prev_scope_cost = float(previous.get("total_cost", 0) or 0)
-        prev_active_per_capita_row = round(prev_scope_cost / prev_active, 2) if prev_active > 0 else 0
+        prev_active_per_capita_row = (
+            round(prev_scope_cost / prev_active, 2) if prev_active > 0 else 0
+        )
 
         ranking_items.append(
             {
@@ -263,7 +279,9 @@ async def get_overview(
             "cache_creation_tokens": token_stats["cache_creation"],
             "coverage_change": _calc_change(coverage_rate, prev_coverage),
             "cost_change": _calc_change(total_cost, prev_total_cost),
-            "per_capita_change": _calc_change(active_per_capita, prev_active_per_capita),
+            "per_capita_change": _calc_change(
+                active_per_capita, prev_active_per_capita
+            ),
         },
         "trend": {
             "dates": [t["date"] for t in trend],

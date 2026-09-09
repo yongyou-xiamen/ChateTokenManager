@@ -24,8 +24,12 @@ async def list_agents(
     platform: str | None = None,
     is_published: bool | None = None,
 ) -> dict:
-    total = await agent_repo.count_all(session, category, platform, is_published, is_active=True)
-    items = await agent_repo.find_all(session, page, page_size, category, platform, is_published, is_active=True)
+    total = await agent_repo.count_all(
+        session, category, platform, is_published, is_active=True
+    )
+    items = await agent_repo.find_all(
+        session, page, page_size, category, platform, is_published, is_active=True
+    )
     return {
         "items": [_serialize(a) for a in items],
         "total": total,
@@ -85,7 +89,10 @@ async def create_agent(
     # 发布且不需要审批时，自动同步到所有主 Key
     if is_published and not requires_approval:
         from services import ai_key_service
-        await ai_key_service.sync_public_resource_to_all_keys(session, "agents", agent.id)
+
+        await ai_key_service.sync_public_resource_to_all_keys(
+            session, "agents", agent.id
+        )
 
     await session.commit()
     await session.refresh(agent)
@@ -107,7 +114,10 @@ async def update_agent(session: AsyncSession, agent_id: int, **kwargs) -> dict:
     # 发布且不需要审批时，自动同步到所有主 Key
     if agent.is_published and not agent.requires_approval:
         from services import ai_key_service
-        await ai_key_service.sync_public_resource_to_all_keys(session, "agents", agent.id)
+
+        await ai_key_service.sync_public_resource_to_all_keys(
+            session, "agents", agent.id
+        )
 
     await session.commit()
     await session.refresh(agent)
@@ -142,7 +152,11 @@ async def record_usage(
         agent.user_count = (agent.user_count or 0) + 1
 
     await session.commit()
-    return {"call_count": agent.call_count, "user_count": agent.user_count, "is_first": is_first}
+    return {
+        "call_count": agent.call_count,
+        "user_count": agent.user_count,
+        "is_first": is_first,
+    }
 
 
 async def list_usage_logs(
@@ -156,16 +170,20 @@ async def list_usage_logs(
     if not agent:
         raise NotFoundError("agent", agent_id)
     total = await agent_repo.count_usage_logs(session, agent_id, user_id)
-    items = await agent_repo.find_usage_logs(session, agent_id, page, page_size, user_id)
+    items = await agent_repo.find_usage_logs(
+        session, agent_id, page, page_size, user_id
+    )
     serialized = []
     for log in items:
-        serialized.append({
-            "id": log.id,
-            "agent_id": log.agent_id,
-            "user_id": log.user_id,
-            "session_id": log.session_id,
-            "created_at": fmt_local_time(log.created_at),
-        })
+        serialized.append(
+            {
+                "id": log.id,
+                "agent_id": log.agent_id,
+                "user_id": log.user_id,
+                "session_id": log.session_id,
+                "created_at": fmt_local_time(log.created_at),
+            }
+        )
     return {"items": serialized, "total": total, "page": page, "page_size": page_size}
 
 
@@ -175,7 +193,12 @@ async def list_usage_logs(
 async def list_categories(session: AsyncSession) -> list[dict]:
     cats = await agent_repo.list_categories(session)
     return [
-        {"id": c.id, "name": c.name, "description": c.description, "sort_order": c.sort_order}
+        {
+            "id": c.id,
+            "name": c.name,
+            "description": c.description,
+            "sort_order": c.sort_order,
+        }
         for c in cats
     ]
 
@@ -189,7 +212,12 @@ async def create_category(
     cat = AgentCategory(name=name, description=description, sort_order=sort_order)
     cat = await agent_repo.create_category(session, cat)
     await session.commit()
-    return {"id": cat.id, "name": cat.name, "description": cat.description, "sort_order": cat.sort_order}
+    return {
+        "id": cat.id,
+        "name": cat.name,
+        "description": cat.description,
+        "sort_order": cat.sort_order,
+    }
 
 
 async def delete_category(session: AsyncSession, category_id: int) -> None:
@@ -206,21 +234,39 @@ async def delete_category(session: AsyncSession, category_id: int) -> None:
 async def list_platforms(session: AsyncSession) -> list[dict]:
     plats = await agent_repo.list_platforms(session)
     return [
-        {"id": p.id, "name": p.name, "label": p.label, "description": p.description, "sort_order": p.sort_order}
+        {
+            "id": p.id,
+            "name": p.name,
+            "label": p.label,
+            "description": p.description,
+            "sort_order": p.sort_order,
+        }
         for p in plats
     ]
 
 
 async def create_platform(
-    session: AsyncSession, name: str, label: str = "", description: str = "", sort_order: int = 0
+    session: AsyncSession,
+    name: str,
+    label: str = "",
+    description: str = "",
+    sort_order: int = 0,
 ) -> dict:
     existing = await agent_repo.find_platform_by_name(session, name)
     if existing:
         raise ConflictError(f"平台 '{name}' 已存在")
-    plat = AgentPlatform(name=name, label=label or name, description=description, sort_order=sort_order)
+    plat = AgentPlatform(
+        name=name, label=label or name, description=description, sort_order=sort_order
+    )
     plat = await agent_repo.create_platform(session, plat)
     await session.commit()
-    return {"id": plat.id, "name": plat.name, "label": plat.label, "description": plat.description, "sort_order": plat.sort_order}
+    return {
+        "id": plat.id,
+        "name": plat.name,
+        "label": plat.label,
+        "description": plat.description,
+        "sort_order": plat.sort_order,
+    }
 
 
 async def delete_platform(session: AsyncSession, platform_id: int) -> None:
@@ -241,9 +287,7 @@ async def resolve_key(session: AsyncSession, agent_id: int, user_id: int) -> dic
         # owner 模式：返回智能体绑定的场景 Key
         if not agent.ai_key_id:
             raise NotFoundError("agent_key", agent_id)
-        result = await session.execute(
-            select(AiKey).where(AiKey.id == agent.ai_key_id)
-        )
+        result = await session.execute(select(AiKey).where(AiKey.id == agent.ai_key_id))
         key = result.scalar_one_or_none()
         if not key:
             raise NotFoundError("ai_key", agent.ai_key_id)

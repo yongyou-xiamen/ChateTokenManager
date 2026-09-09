@@ -39,6 +39,7 @@ async def _generate(task_id: int) -> None:
     except Exception:
         logger.exception("export task worker failed: task_id=%s", task_id)
 
+
 @celery_app.task(name="export_task.cleanup", acks_late=True, time_limit=180)
 def cleanup_export_tasks() -> None:
     _run_async(_cleanup())

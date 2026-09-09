@@ -16,12 +16,16 @@ async def find_by_id(session: AsyncSession, credential_id: int) -> Credential | 
     result = await session.execute(
         select(Credential)
         .where(Credential.id == credential_id)
-        .options(selectinload(Credential.provider), selectinload(Credential.deployments))
+        .options(
+            selectinload(Credential.provider), selectinload(Credential.deployments)
+        )
     )
     return result.scalar_one_or_none()
 
 
-async def find_by_name(session: AsyncSession, credential_name: str, provider_id: int | None = None) -> Credential | None:
+async def find_by_name(
+    session: AsyncSession, credential_name: str, provider_id: int | None = None
+) -> Credential | None:
     stmt = select(Credential).where(Credential.credential_name == credential_name)
     if provider_id is not None:
         stmt = stmt.where(Credential.provider_id == provider_id)
@@ -38,7 +42,9 @@ async def find_all(
 ) -> list[Credential]:
     stmt = (
         select(Credential)
-        .options(selectinload(Credential.provider), selectinload(Credential.deployments))
+        .options(
+            selectinload(Credential.provider), selectinload(Credential.deployments)
+        )
         .order_by(Credential.id)
     )
     if provider_id is not None:
@@ -74,6 +80,8 @@ async def find_all_active(session: AsyncSession) -> list[Credential]:
 
 async def find_by_provider(session: AsyncSession, provider_id: int) -> list[Credential]:
     result = await session.execute(
-        select(Credential).where(Credential.provider_id == provider_id).order_by(Credential.id)
+        select(Credential)
+        .where(Credential.provider_id == provider_id)
+        .order_by(Credential.id)
     )
     return list(result.scalars().all())

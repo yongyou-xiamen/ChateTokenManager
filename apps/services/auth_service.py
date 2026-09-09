@@ -7,7 +7,7 @@ from core.database import async_session
 from core.security import create_access_token, get_password_hash, verify_password
 from core.time_utils import fmt_local_time
 from exceptions import NotFoundError, UnauthorizedError
-from models.db import Permission, Role, RolePermission, User, UserRole
+from models.db import Permission, Role, RolePermission, Tenant, User, UserRole
 from repositories import user_repo
 
 logger = logging.getLogger(__name__)
@@ -26,22 +26,29 @@ async def authenticate(session: AsyncSession, account: str, password: str) -> Us
 
 async def login(session: AsyncSession, account: str, password: str) -> tuple[str, User]:
     user = await authenticate(session, account, password)
-    permissions = await get_user_permissions(session, user.id)
+    permissions = await get_user_permissions(session, user.id, user.tenant_id)
     token_data = {
         "sub": str(user.id),
         "username": user.username,
         "is_admin": user.is_admin,
+        "is_super_admin": user.is_super_admin,
+        "is_tenant_admin": user.is_tenant_admin,
+        "tenant_id": user.tenant_id,
         "permissions": permissions,
     }
     return create_access_token(token_data), user
 
 
-async def get_user_permissions(session: AsyncSession, user_id: int) -> list[str]:
+async def get_user_permissions(
+    session: AsyncSession, user_id: int, tenant_id: int | None = None
+) -> list[str]:
     result = await session.execute(
         select(Permission.code)
         .join(RolePermission, RolePermission.permission_id == Permission.id)
         .join(UserRole, UserRole.role_id == RolePermission.role_id)
+        .join(Role, Role.id == UserRole.role_id)
         .where(UserRole.user_id == user_id)
+        .where((Role.tenant_id.is_(None)) | (Role.tenant_id == tenant_id))
         .distinct()
     )
     return list(result.scalars().all())
@@ -52,10 +59,11 @@ async def get_current_user_info(session: AsyncSession, user_id: int) -> dict:
     user = result.scalar_one_or_none()
     if not user:
         raise NotFoundError("user", user_id)
-    permissions = await get_user_permissions(session, user_id)
+    permissions = await get_user_permissions(session, user_id, user.tenant_id)
     departments = [
         {"id": ud.department.id, "name": ud.department.name}
-        for ud in user.departments if ud.department
+        for ud in user.departments
+        if ud.department
     ]
     return {
         "id": user.id,
@@ -67,14 +75,26 @@ async def get_current_user_info(session: AsyncSession, user_id: int) -> dict:
         "position": user.position,
         "is_active": user.is_active,
         "is_admin": user.is_admin,
+        "is_super_admin": user.is_super_admin,
+        "is_tenant_admin": user.is_tenant_admin,
+        "tenant_id": user.tenant_id,
         "created_at": fmt_local_time(user.created_at),
         "permissions": permissions,
-        "roles": [{"id": ur.role.id, "name": ur.role.name, "display_name": ur.role.display_name} for ur in user.roles],
+        "roles": [
+            {
+                "id": ur.role.id,
+                "name": ur.role.name,
+                "display_name": ur.role.display_name,
+            }
+            for ur in user.roles
+        ],
         "departments": departments,
     }
 
 
-async def change_password(session: AsyncSession, user_id: int, old_password: str, new_password: str) -> None:
+async def change_password(
+    session: AsyncSession, user_id: int, old_password: str, new_password: str
+) -> None:
     result = await session.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -83,6 +103,24 @@ async def change_password(session: AsyncSession, user_id: int, old_password: str
         raise UnauthorizedError("原密码错误")
     user.hashed_password = get_password_hash(new_password)
     await session.commit()
+
+
+async def ensure_default_tenant() -> None:
+    """确保默认租户(tenant_id=1)存在，供超管和现有数据归属。"""
+    async with async_session() as session:
+        existing = await session.get(Tenant, 1)
+        if existing:
+            return
+        tenant = Tenant(
+            id=1,
+            name="Default",
+            slug="default",
+            status="active",
+            settings={},
+        )
+        session.add(tenant)
+        await session.commit()
+        logger.info("created default tenant (id=1)")
 
 
 async def ensure_super_admin(password: str) -> None:
@@ -104,9 +142,15 @@ async def ensure_super_admin(password: str) -> None:
         existing_admin = result.scalar_one_or_none()
 
         if existing_admin:
+            if not existing_admin.tenant_id:
+                existing_admin.tenant_id = 1
+            if not existing_admin.is_tenant_admin:
+                existing_admin.is_tenant_admin = True
             session.add(UserRole(user_id=existing_admin.id, role_id=admin_role.id))
             await session.commit()
-            logger.info("assigned super_admin role to existing admin user %d", existing_admin.id)
+            logger.info(
+                "assigned super_admin role to existing admin user %d", existing_admin.id
+            )
             return
 
         hashed = get_password_hash(password)
@@ -117,6 +161,8 @@ async def ensure_super_admin(password: str) -> None:
             is_active=True,
             is_admin=True,
             is_super_admin=True,
+            tenant_id=1,
+            is_tenant_admin=True,
         )
         session.add(user)
         await session.flush()

@@ -11,7 +11,9 @@ async def create(session: AsyncSession, scenario: BusinessScenario) -> BusinessS
     return scenario
 
 
-async def find_by_id(session: AsyncSession, scenario_id: int) -> BusinessScenario | None:
+async def find_by_id(
+    session: AsyncSession, scenario_id: int
+) -> BusinessScenario | None:
     result = await session.execute(
         select(BusinessScenario).where(BusinessScenario.id == scenario_id)
     )
@@ -32,12 +34,15 @@ async def find_all(
     keyword: str | None = None,
     include_inactive: bool = False,
 ) -> list[BusinessScenario]:
-    stmt = select(BusinessScenario).order_by(BusinessScenario.sort_order, BusinessScenario.id)
+    stmt = select(BusinessScenario).order_by(
+        BusinessScenario.sort_order, BusinessScenario.id
+    )
     if not include_inactive:
         stmt = stmt.where(BusinessScenario.is_active == True)
     if keyword:
         stmt = stmt.where(
-            BusinessScenario.name.ilike(f"%{keyword}%") | BusinessScenario.code.ilike(f"%{keyword}%")
+            BusinessScenario.name.ilike(f"%{keyword}%")
+            | BusinessScenario.code.ilike(f"%{keyword}%")
         )
     offset = (page - 1) * page_size
     stmt = stmt.limit(page_size).offset(offset)
@@ -55,7 +60,8 @@ async def count_all(
         stmt = stmt.where(BusinessScenario.is_active == True)
     if keyword:
         stmt = stmt.where(
-            BusinessScenario.name.ilike(f"%{keyword}%") | BusinessScenario.code.ilike(f"%{keyword}%")
+            BusinessScenario.name.ilike(f"%{keyword}%")
+            | BusinessScenario.code.ilike(f"%{keyword}%")
         )
     result = await session.execute(stmt)
     return result.scalar_one()

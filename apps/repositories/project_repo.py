@@ -12,7 +12,9 @@ async def count_projects(session: AsyncSession, keyword: str = "") -> int:
     return result.scalar_one()
 
 
-async def find_projects(session: AsyncSession, page: int, page_size: int, keyword: str = "") -> list[Project]:
+async def find_projects(
+    session: AsyncSession, page: int, page_size: int, keyword: str = ""
+) -> list[Project]:
     offset = (page - 1) * page_size
     stmt = select(Project).where(Project.is_active == True).order_by(Project.id)
     if keyword:
@@ -41,7 +43,9 @@ async def count_members(session: AsyncSession, project_id: int) -> int:
     return result.scalar_one()
 
 
-async def find_members(session: AsyncSession, project_id: int) -> list[tuple[User, UserProject]]:
+async def find_members(
+    session: AsyncSession, project_id: int
+) -> list[tuple[User, UserProject]]:
     result = await session.execute(
         select(User, UserProject)
         .join(UserProject, UserProject.user_id == User.id)
@@ -51,7 +55,9 @@ async def find_members(session: AsyncSession, project_id: int) -> list[tuple[Use
     return list(result.tuples().all())
 
 
-async def find_membership(session: AsyncSession, user_id: int, project_id: int) -> UserProject | None:
+async def find_membership(
+    session: AsyncSession, user_id: int, project_id: int
+) -> UserProject | None:
     result = await session.execute(
         select(UserProject).where(
             UserProject.user_id == user_id, UserProject.project_id == project_id

@@ -90,7 +90,6 @@ def _billable_prompt_tokens(
     return max(prompt_tokens - cache_read - cache_creation, 0)
 
 
-
 def _to_utc_naive(value: datetime) -> datetime:
     if value.tzinfo:
         return value.astimezone(timezone.utc).replace(tzinfo=None)
@@ -166,6 +165,7 @@ async def _spend_log_model_id_select(
     if await _spend_logs_has_column(session, "model_id"):
         return f"{prefix}model_id AS spend_log_model_id"
     return "NULL AS spend_log_model_id"
+
 
 async def _spend_logs_has_column(session: AsyncSession, column_name: str) -> bool:
     result = await session.execute(
@@ -283,12 +283,12 @@ async def _reconcile() -> None:
             result = await session.execute(
                 text(
                     'SELECT s.request_id, s.api_key, s."user", s.model, '
-                    's.custom_llm_provider, s.call_type, s.spend, s.total_tokens, '
+                    "s.custom_llm_provider, s.call_type, s.spend, s.total_tokens, "
                     's.prompt_tokens, s.completion_tokens, s."startTime", '
                     's."endTime", s."completionStartTime", s.session_id, '
-                    's.status, s.metadata, s.mcp_namespaced_tool_name, '
-                    's.messages, s.response, s.proxy_server_request, '
-                    f'{spend_log_model_id_select} '
+                    "s.status, s.metadata, s.mcp_namespaced_tool_name, "
+                    "s.messages, s.response, s.proxy_server_request, "
+                    f"{spend_log_model_id_select} "
                     'FROM public."LiteLLM_SpendLogs" s '
                     'WHERE s."startTime" >= :start_time '
                     "  AND (s.mcp_namespaced_tool_name IS NULL "
@@ -464,36 +464,41 @@ async def _upsert_spend_log_rows(session: AsyncSession, rows) -> int:
         elif isinstance(error_info, str):
             error_message = error_info
 
-        statement = insert(LlmCallLog).values(
-            request_id=request_id,
-            user_id=user_id,
-            ai_key_id=ai_key_id,
-            deployment_id=deployment_id,
-            model=model_name,
-            provider=provider,
-            call_type=call_type,
-            status=status,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
-            cache_read_tokens=cache_read,
-            cache_creation_tokens=cache_creation,
-            external_cost=external_cost,
-            internal_cost=internal_cost,
-            duration_ms=duration_ms,
-            ttft_ms=ttft_ms,
-            started_at=start,
-            ended_at=end,
-            session_id=session_id,
-            error_message=error_message,
-            messages=_messages_from_payload(messages_raw, proxy_request_raw),
-            response=_json_payload_or_none(response_raw),
-            metadata_=metadata,
-        ).on_conflict_do_nothing(index_elements=["request_id"])
+        statement = (
+            insert(LlmCallLog)
+            .values(
+                request_id=request_id,
+                user_id=user_id,
+                ai_key_id=ai_key_id,
+                deployment_id=deployment_id,
+                model=model_name,
+                provider=provider,
+                call_type=call_type,
+                status=status,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=total_tokens,
+                cache_read_tokens=cache_read,
+                cache_creation_tokens=cache_creation,
+                external_cost=external_cost,
+                internal_cost=internal_cost,
+                duration_ms=duration_ms,
+                ttft_ms=ttft_ms,
+                started_at=start,
+                ended_at=end,
+                session_id=session_id,
+                error_message=error_message,
+                messages=_messages_from_payload(messages_raw, proxy_request_raw),
+                response=_json_payload_or_none(response_raw),
+                metadata_=metadata,
+            )
+            .on_conflict_do_nothing(index_elements=["request_id"])
+        )
         result = await session.execute(statement)
         inserted += result.rowcount or 0
 
     return inserted
+
 
 def _calc_internal_cost(
     deployment: ModelDeployment,
