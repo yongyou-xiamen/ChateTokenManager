@@ -175,6 +175,7 @@ async def create_key(
         is_active=False,
         created_by=created_by,
     )
+    ai_key.tenant_id = tenant_id or 1
     ai_key = await ai_key_repo.create(session, ai_key)
     _assign_key_rate_limits(
         ai_key,
@@ -666,6 +667,7 @@ async def create_personal_main_key(
         is_active=True,
         created_by=user_id,
     )
+    ai_key.tenant_id = tenant_id or 1
     ai_key = await ai_key_repo.create(session, ai_key)
 
     # Get user's litellm_user_id
