@@ -879,7 +879,7 @@ onMounted(loadAudit)
           <section class="rounded-xl border border-slate-200 bg-white p-5 text-xs leading-relaxed text-slate-500 shadow-sm">
             <h2 class="mb-2 text-lg font-semibold text-slate-900">4. 声明</h2>
             风险分类参考 OWASP Agentic Skills Top 10。OWASP 内容遵循 CC BY-SA 4.0，OWASP 不对本产品或审查结果作认证或背书。
-            <div class="mt-2">参考：OWASP Agentic Skills Top 10；AIHelms 审查规则与报告模板。</div>
+            <div class="mt-2">参考：OWASP Agentic Skills Top 10；ChateToken 审查规则与报告模板。</div>
           </section>
         </main>
 

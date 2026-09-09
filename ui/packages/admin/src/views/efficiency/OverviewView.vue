@@ -384,7 +384,7 @@ onMounted(() => {
           :value="formatMoney(data.kpi.total_cost)"
           :change="data.kpi.cost_change"
           change-kind="up-bad"
-          tooltip="平台投入 = 所选时间内平台汇总的内部成本合计，只取 AIHelms 平台数据。"
+          tooltip="平台投入 = 所选时间内平台汇总的内部成本合计，只取 ChateToken 平台数据。"
         />
         <KpiCard
           label="活跃人均成本"

@@ -305,7 +305,7 @@ onMounted(loadData)
             <span class="rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">成本</span>
           </div>
           <div class="mt-4 text-2xl font-semibold text-slate-950">{{ formatMoney(data.status.internalCost) }}</div>
-          <div class="mt-1 flex items-center gap-1 text-xs text-slate-500">平台成本 <TooltipIcon text="所选时间内 AIHelms 平台日志计算出的内部计费成本。" :focusable="false" width-class="w-72" /></div>
+          <div class="mt-1 flex items-center gap-1 text-xs text-slate-500">平台成本 <TooltipIcon text="所选时间内 ChateToken 平台日志计算出的内部计费成本。" :focusable="false" width-class="w-72" /></div>
           <div class="mt-3 text-xs text-slate-400">外部 {{ formatMoney(data.status.externalCost) }} / 差额 {{ formatMoney(data.status.costDiff) }}</div>
         </button>
 
