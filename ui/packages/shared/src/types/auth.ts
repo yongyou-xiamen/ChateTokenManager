@@ -14,6 +14,9 @@ export interface CurrentUser {
   email: string
   is_active: boolean
   is_admin: boolean
+  is_super_admin?: boolean
+  is_tenant_admin?: boolean
+  tenant_id?: number
   position?: string
   display_name?: string
   avatar?: string

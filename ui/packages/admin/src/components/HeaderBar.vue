@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BookOpen, Menu } from 'lucide-vue-next'
+import { BookOpen, Menu, Building2 } from 'lucide-vue-next'
 import { useAuth, useBranding } from '@aihelms/shared'
 
 const { currentUser, logout } = useAuth()
@@ -26,6 +26,13 @@ function handleLogout(): void {
       <div class="hidden min-w-0 truncate text-sm font-medium text-slate-700 sm:block">
         {{ branding?.platform_name || 'AIHelms' }} 管理后台
       </div>
+      <span
+        v-if="currentUser?.is_super_admin"
+        class="hidden items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 md:inline-flex"
+      >
+        <Building2 class="h-3 w-3" />
+        平台超管
+      </span>
     </div>
     <div class="flex items-center gap-2 sm:gap-4">
       <a

@@ -171,6 +171,12 @@ const router = createRouter({
           meta: { permission: 'user:read' },
         },
         {
+          path: 'system/tenants',
+          name: 'TenantsManage',
+          component: () => import('../views/system/TenantsView.vue'),
+          meta: { requireSuperAdmin: true },
+        },
+        {
           path: 'ai-health',
           name: 'AIHealth',
           component: () => import('../views/efficiency/HealthView.vue'),
@@ -232,9 +238,18 @@ router.beforeEach(async (to, _from, next) => {
     if (!currentUser.value) {
       await fetchCurrentUser()
     }
-    if (currentUser.value && !currentUser.value.is_admin) {
+    if (
+      currentUser.value &&
+      !currentUser.value.is_super_admin &&
+      !currentUser.value.is_tenant_admin &&
+      !currentUser.value.is_admin
+    ) {
       localStorage.removeItem('aihelms_token')
       next({ name: 'Login' })
+      return
+    }
+    if (to.meta.requireSuperAdmin && !currentUser.value?.is_super_admin) {
+      next({ name: 'Dashboard' })
       return
     }
   }

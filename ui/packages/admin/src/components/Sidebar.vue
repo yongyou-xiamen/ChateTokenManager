@@ -35,13 +35,14 @@ import {
   ShieldCheck,
   Settings,
   Palette,
+  Building2,
   X,
 } from 'lucide-vue-next'
 
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 const route = useRoute()
-const { hasPermission } = usePermission()
+const { hasPermission, isSuperAdmin } = usePermission()
 const { currentUser } = useAuth()
 const { branding, logoUrl } = useBranding()
 
@@ -52,6 +53,7 @@ interface MenuItem {
   permission?: string
   children?: MenuItem[]
   disabled?: boolean
+  requireSuperAdmin?: boolean
 }
 
 const menuGroups = ref<{ title: string; icon?: Component; items: MenuItem[] }[]>([
@@ -121,6 +123,7 @@ const menuGroups = ref<{ title: string; icon?: Component; items: MenuItem[] }[]>
     icon: Settings,
     items: [
       { label: '品牌', icon: Palette, path: '/system/branding', permission: 'user:read' },
+      { label: '租户管理', icon: Building2, path: '/system/tenants', requireSuperAdmin: true },
     ],
   },
   {
@@ -168,6 +171,7 @@ function isActive(path: string | undefined): boolean {
 }
 
 function isVisible(item: MenuItem): boolean {
+  if (item.requireSuperAdmin && !isSuperAdmin()) return false
   if (!item.permission) return true
   return hasPermission(item.permission)
 }

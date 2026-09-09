@@ -20,8 +20,11 @@ async function handleLogin(): Promise<void> {
   isLoading.value = true
   try {
     await login(username.value, password.value)
-    if (!currentUser.value?.is_admin) {
-      // 清 token 但不跳转，保留错误信息
+    if (
+      !currentUser.value?.is_admin &&
+      !currentUser.value?.is_super_admin &&
+      !currentUser.value?.is_tenant_admin
+    ) {
       localStorage.removeItem('aihelms_token')
       errorMessage.value = '该账号无权限登录管理后台'
       return

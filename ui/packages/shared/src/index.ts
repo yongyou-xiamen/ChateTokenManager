@@ -11,9 +11,19 @@ export type { ModelInfo, Deployment, CreateModelParams, UpdateModelParams, Creat
 export type { ApiResponse } from './api/request'
 export type { ExportOptionItem, ExportTask, ExportTaskListResult, ExportTaskQuery, ExportTaskParams, CreateExportTaskParams, CleanupExportTaskResult } from './types/exportTask'
 export type { BrandingInfo } from './types/branding'
+export type { Tenant, CreateTenantParams, UpdateTenantParams } from './types/tenant'
 
 export { request } from './api/request'
 export { getBranding, updatePlatformName, uploadLogo, uploadSquareLogo, uploadFavicon } from './api/branding'
+export {
+  listTenants,
+  getTenant,
+  createTenant,
+  updateTenant,
+  updateTenantStatus,
+  getCurrentTenant,
+  updateCurrentTenantSettings,
+} from './api/tenant'
 export { createI18nInstance, getCurrentLocale, setLocale, detectInitialLocale, DEFAULT_LOCALE, SUPPORTED_LOCALES } from './i18n'
 export type { AppLocale } from './i18n'
 export { getExportTasks, createExportTask, cancelExportTask, retryExportTask, cleanupExportTasks, downloadExportTask } from './api/exportTask'

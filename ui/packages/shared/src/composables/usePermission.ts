@@ -6,8 +6,16 @@ export function usePermission() {
 
   const permissions = computed(() => currentUser.value?.permissions ?? [])
 
+  function isSuperAdmin(): boolean {
+    return !!currentUser.value?.is_super_admin
+  }
+
+  function isTenantAdmin(): boolean {
+    return !!currentUser.value?.is_tenant_admin || isSuperAdmin()
+  }
+
   function hasPermission(code: string): boolean {
-    if (currentUser.value?.is_admin) {
+    if (isSuperAdmin() || isTenantAdmin()) {
       return true
     }
     return permissions.value.includes(code)
@@ -19,6 +27,8 @@ export function usePermission() {
 
   return {
     permissions,
+    isSuperAdmin,
+    isTenantAdmin,
     hasPermission,
     hasAnyPermission,
   }
