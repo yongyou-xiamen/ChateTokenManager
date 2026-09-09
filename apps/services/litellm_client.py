@@ -93,7 +93,13 @@ async def create_user(user_id: str, user_email: str) -> dict:
         "user_email": user_email,
         "user_role": "internal_user",
     }
-    return await _request("POST", "/user/new", json_data=data)
+    try:
+        return await _request("POST", "/user/new", json_data=data)
+    except LiteLLMError as e:
+        if "409" in str(e):
+            logger.info("litellm user %s already exists, skipping", user_id)
+            return {"user_id": user_id, "user_email": user_email}
+        raise
 
 
 async def delete_user(user_id: str) -> None:
@@ -160,8 +166,8 @@ async def create_key(
         data["user_id"] = user_id
     if team_id:
         data["team_id"] = team_id
-    if models:
-        data["models"] = models
+    # LiteLLM v1.93+ requires models field to be present
+    data["models"] = models if models is not None else []
     if max_budget is not None:
         data["max_budget"] = max_budget
     if metadata:

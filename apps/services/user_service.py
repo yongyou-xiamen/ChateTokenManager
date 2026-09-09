@@ -87,13 +87,20 @@ async def create_user(
     user = await user_repo.create_user(session, user)
 
     litellm_user_id = f"t{user.tenant_id}_user_{user.id}"
-    await litellm_client.create_user(litellm_user_id, email)
-    user.litellm_user_id = litellm_user_id
+    try:
+        await litellm_client.create_user(litellm_user_id, email)
+        user.litellm_user_id = litellm_user_id
 
-    # Auto-create personal main key (disabled by default)
-    await ai_key_service.create_personal_main_key(
-        session, user.id, username, tenant_id=user.tenant_id
-    )
+        # Auto-create personal main key (disabled by default)
+        await ai_key_service.create_personal_main_key(
+            session, user.id, username, tenant_id=user.tenant_id
+        )
+    except Exception:
+        await session.rollback()
+        logger.error(
+            "failed to sync user %s to litellm, rolling back", username, exc_info=True
+        )
+        raise
 
     await session.commit()
     return _serialize_user(user)
