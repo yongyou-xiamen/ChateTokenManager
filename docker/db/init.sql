@@ -8,7 +8,7 @@ CREATE SCHEMA IF NOT EXISTS aihelms;
 
 -- 租户表(多租户基础设施)
 CREATE TABLE IF NOT EXISTS aihelms.tenants (
-    id BIGINT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
     status TEXT NOT NULL DEFAULT 'active',
@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS aihelms.tenants (
 INSERT INTO aihelms.tenants (id, name, slug, status)
 VALUES (1, 'Default', 'default', 'active')
 ON CONFLICT (id) DO NOTHING;
+
+-- 重置序列, 避免后续插入 id 冲突
+SELECT setval(pg_get_serial_sequence('aihelms.tenants', 'id'), COALESCE(MAX(id), 1)) FROM aihelms.tenants;
 
 -- 用户表
 CREATE TABLE IF NOT EXISTS aihelms.users (

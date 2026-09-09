@@ -36,8 +36,10 @@ async def create_tenant(
         raise ConflictError(f"租户 slug 已存在: {slug}")
     tenant = Tenant(name=name, slug=slug, status="active", settings=settings or {})
     tenant = await tenant_repo.create_tenant(session, tenant)
+    await session.flush()
+    result = _to_dict(tenant, 0)
     await session.commit()
-    return _to_dict(tenant, 0)
+    return result
 
 
 async def update_tenant(
@@ -50,10 +52,12 @@ async def update_tenant(
         existing = await tenant_repo.find_by_slug(session, str(fields["slug"]))
         if existing:
             raise ConflictError(f"租户 slug 已存在: {fields['slug']}")
-    tenant = await tenant_repo.update_tenant(session, tenant, **fields)
-    await session.commit()
     user_count = await tenant_repo.count_users_by_tenant(session, tenant_id)
-    return _to_dict(tenant, user_count)
+    tenant = await tenant_repo.update_tenant(session, tenant, **fields)
+    await session.flush()
+    result = _to_dict(tenant, user_count)
+    await session.commit()
+    return result
 
 
 async def update_tenant_status(

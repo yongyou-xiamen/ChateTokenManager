@@ -10,7 +10,7 @@
 
 -- 1. tenants 表
 CREATE TABLE IF NOT EXISTS aihelms.tenants (
-    id BIGINT PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
     status TEXT NOT NULL DEFAULT 'active',
@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS aihelms.tenants (
 INSERT INTO aihelms.tenants (id, name, slug, status)
 VALUES (1, 'Default', 'default', 'active')
 ON CONFLICT (id) DO NOTHING;
+
+-- 重置序列, 避免后续插入 id 冲突
+SELECT setval(pg_get_serial_sequence('aihelms.tenants', 'id'), COALESCE((SELECT MAX(id) FROM aihelms.tenants), 1));
 
 -- 3. users 加 tenant_id + is_tenant_admin
 ALTER TABLE aihelms.users ADD COLUMN IF NOT EXISTS tenant_id BIGINT NOT NULL DEFAULT 1;
