@@ -62,7 +62,7 @@ onMounted(async () => {
       <div class="mb-8 space-y-3 text-center">
         <img
           :src="logoUrl || '/static/img/logo.png'"
-          :alt="branding?.platform_name || 'AIHelms'"
+          :alt="branding?.platform_name || 'ChateToken'"
           class="mx-auto h-8 max-w-full object-contain"
         />
         <h1 class="text-2xl font-semibold tracking-tight text-slate-900">欢迎回来</h1>
@@ -111,7 +111,7 @@ onMounted(async () => {
 
     <!-- 版权信息 -->
     <p class="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-slate-400">
-      &copy; {{ new Date().getFullYear() }} AIHelms. All rights reserved.
+      &copy; {{ new Date().getFullYear() }} ChateToken. All rights reserved.
     </p>
   </div>
 </template>

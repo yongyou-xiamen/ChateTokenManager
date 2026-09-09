@@ -33,7 +33,7 @@ export function useBranding() {
   }
 
   function applyToDocument(): void {
-    document.title = branding.value?.platform_name || 'AIHelms'
+    document.title = branding.value?.platform_name || 'ChateToken'
     const existing = document.querySelector<HTMLLinkElement>("link[rel='icon']")
     const link = existing ?? document.createElement('link')
     link.rel = 'icon'

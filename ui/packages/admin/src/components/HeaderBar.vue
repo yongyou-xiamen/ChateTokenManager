@@ -24,7 +24,7 @@ function handleLogout(): void {
         <Menu class="h-5 w-5" />
       </button>
       <div class="hidden min-w-0 truncate text-sm font-medium text-slate-700 sm:block">
-        {{ branding?.platform_name || 'AIHelms' }} 管理后台
+        {{ branding?.platform_name || 'ChateToken' }} 管理后台
       </div>
     </div>
     <div class="flex items-center gap-2 sm:gap-4">

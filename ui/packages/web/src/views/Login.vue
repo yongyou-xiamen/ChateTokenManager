@@ -76,7 +76,7 @@ async function handleLogin(): Promise<void> {
     </div>
 
     <p class="absolute bottom-6 left-1/2 -translate-x-1/2 text-xs text-slate-400">
-      &copy; {{ new Date().getFullYear() }} AIHelms. {{ t('login.copyright') }}
+      &copy; {{ new Date().getFullYear() }} ChateToken. {{ t('login.copyright') }}
     </p>
   </div>
 </template>

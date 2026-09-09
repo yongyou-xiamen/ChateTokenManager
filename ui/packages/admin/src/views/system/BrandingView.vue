@@ -181,7 +181,7 @@ onMounted(async () => {
             <img
               v-if="squareLogoUrl"
               :src="squareLogoUrl"
-              :alt="`${branding?.platform_name || 'AIHelms'} 方形 Logo`"
+              :alt="`${branding?.platform_name || 'ChateToken'} 方形 Logo`"
               class="h-12 w-12 object-contain"
             />
             <Image v-else class="h-6 w-6 text-slate-300" />

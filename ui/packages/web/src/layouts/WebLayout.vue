@@ -130,13 +130,13 @@ async function handleChangePassword(): Promise<void> {
           <img
             v-if="squareLogoUrl"
             :src="squareLogoUrl"
-            :alt="branding?.platform_name || 'AIHelms'"
+            :alt="branding?.platform_name || 'ChateToken'"
             class="h-7 w-7 rounded-md object-contain"
           />
           <div v-else class="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-purple-600 to-blue-600 text-xs font-bold text-white shadow-md shadow-purple-500/20">
             AI
           </div>
-          <span class="text-lg font-bold text-slate-900">{{ branding?.platform_name || 'AIHelms' }}</span>
+          <span class="text-lg font-bold text-slate-900">{{ branding?.platform_name || 'ChateToken' }}</span>
         </RouterLink>
       </div>
 
