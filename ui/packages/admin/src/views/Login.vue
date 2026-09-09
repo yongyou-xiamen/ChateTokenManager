@@ -64,7 +64,7 @@ onMounted(async () => {
       <!-- Logo + 欢迎语 -->
       <div class="mb-8 space-y-3 text-center">
         <img
-          :src="logoUrl || '/static/img/logo.png'"
+          :src="logoUrl || '/static/img/logo.svg'"
           :alt="branding?.platform_name || 'ChateToken'"
           class="mx-auto h-8 max-w-full object-contain"
         />

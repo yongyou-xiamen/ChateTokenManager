@@ -184,7 +184,7 @@ function isVisible(item: MenuItem): boolean {
   >
     <div class="flex h-14 shrink-0 items-center justify-center border-b border-slate-200/60">
       <img
-        :src="logoUrl || '/static/img/logo.png'"
+        :src="logoUrl || '/static/img/logo.svg'"
         :alt="branding?.platform_name || 'ChateToken'"
         class="h-7 max-w-[11rem] object-contain"
       />
