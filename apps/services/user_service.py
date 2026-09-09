@@ -84,6 +84,7 @@ async def create_user(
         user.tenant_id = tenant_id
     if is_tenant_admin:
         user.is_tenant_admin = True
+        user.is_admin = True
     user = await user_repo.create_user(session, user)
 
     litellm_user_id = f"t{user.tenant_id}_user_{user.id}"
