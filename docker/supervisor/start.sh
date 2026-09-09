@@ -5,6 +5,7 @@ set -e
 echo "Copying frontend dist to shared volume..."
 cp -r /app/ui/packages/web/dist/* /frontend/web/
 cp -r /app/ui/packages/admin/dist/* /frontend/admin/
+mkdir -p /frontend/docs
 cp /app/docs/index.html /frontend/docs/index.html
 echo "Frontend dist copied successfully."
 
