@@ -166,9 +166,10 @@ async def create_key(
         data["user_id"] = user_id
     if team_id:
         data["team_id"] = team_id
-    # LiteLLM v1.93+ requires models field to be a non-empty list of strings
+    # LiteLLM v1.93+ requires models field to be present and non-empty
+    # 使用实际 models 列表; 为空时用占位符限制(而非 all-team-models 通配符)
     clean_models = [m for m in (models or []) if m]
-    data["models"] = clean_models if clean_models else ["all-team-models"]
+    data["models"] = clean_models if clean_models else ["no-access"]
     if max_budget is not None:
         data["max_budget"] = max_budget
     if metadata:
