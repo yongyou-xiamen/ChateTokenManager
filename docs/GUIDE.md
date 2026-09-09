@@ -1403,11 +1403,6 @@ AI 身份支持总 RPM、总 TPM、最大并发,以及按模型 RPM/TPM。
 ### 为什么调用成功后日志页面没有记录?
 调用记录通过后台定时任务从 LiteLLM 同步,默认每 5 分钟一次,加上 LiteLLM 写入延迟,实际看到日志可能需要 5-10 分钟。实时问题先在模型部署页测试,稍后再刷新日志管理页面。
 
-> 如果长时间(超过 1 小时)仍无记录,检查:
-> 1. celery worker 是否正常运行(`docker compose logs aihelms | grep "llm_log.sync"`)。
-> 2. `sync_state` 表的 `llm_logs` 游标是否卡住。
-> 3. `llm_call_logs.model` 字段存的是 `openai/<model>`(带 provider 前缀),后台按模型筛选可能对不上,清除筛选条件看全部记录。
-
 ### 为什么 token 用量有记录但成本为 0?
 成本计算依赖模型部署中配置的单价(input_cost/output_cost)。如果部署未配价,即使 token 正常记录,external_cost 和 internal_cost 也会是 0。解决方法:
 1. 进入「模型纳管 > 模型管理」。
