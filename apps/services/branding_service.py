@@ -21,8 +21,9 @@ PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 ICO_SIGNATURE = b"\x00\x00\x01\x00"
 
 
-def _branding_dir() -> Path:
-    path = (Path(settings.uploads_storage_dir) / "branding").resolve()
+def _branding_dir(tenant_id: int | None = None) -> Path:
+    subdir = str(tenant_id or 1)
+    path = (Path(settings.uploads_storage_dir) / "branding" / subdir).resolve()
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -116,7 +117,7 @@ async def _save_asset(
 ) -> None:
     _validate_image(content, ext, favicon=favicon, square_logo=square_logo)
     stem = "square_logo" if square_logo else "favicon" if favicon else "logo"
-    directory = _branding_dir()
+    directory = _branding_dir(tenant_id)
     destination = directory / f"{stem}.{ext}"
     temporary = directory / f".{stem}.{ext}.tmp"
     temporary.write_bytes(content)
@@ -158,12 +159,13 @@ def _asset_exists(path_value: str | None) -> bool:
 
 
 def _read_asset(
-    path_value: str | None, media_types: dict[str, str]
+    path_value: str | None, media_types: dict[str, str], tenant_id: int | None = None
 ) -> tuple[bytes, str] | None:
     if not path_value:
         return None
     path = Path(path_value).resolve()
-    if not path.is_relative_to(_branding_dir()) or not path.is_file():
+    branding_root = _branding_dir(tenant_id)
+    if not path.is_relative_to(branding_root) or not path.is_file():
         logger.warning("ignored invalid branding asset path: %s", path)
         return None
     media_type = media_types.get(path.suffix.lstrip(".").lower())
@@ -176,18 +178,18 @@ async def read_logo(
     session: AsyncSession, tenant_id: int | None = None
 ) -> tuple[bytes, str] | None:
     row = await branding_repo.get(session, tenant_id=tenant_id)
-    return _read_asset(row.logo_path, LOGO_EXTS)
+    return _read_asset(row.logo_path, LOGO_EXTS, tenant_id=tenant_id)
 
 
 async def read_square_logo(
     session: AsyncSession, tenant_id: int | None = None
 ) -> tuple[bytes, str] | None:
     row = await branding_repo.get(session, tenant_id=tenant_id)
-    return _read_asset(row.square_logo_path, LOGO_EXTS)
+    return _read_asset(row.square_logo_path, LOGO_EXTS, tenant_id=tenant_id)
 
 
 async def read_favicon(
     session: AsyncSession, tenant_id: int | None = None
 ) -> tuple[bytes, str] | None:
     row = await branding_repo.get(session, tenant_id=tenant_id)
-    return _read_asset(row.favicon_path, FAVICON_EXTS)
+    return _read_asset(row.favicon_path, FAVICON_EXTS, tenant_id=tenant_id)

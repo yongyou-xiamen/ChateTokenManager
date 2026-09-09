@@ -1,15 +1,33 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.deps import get_db, require_permission
+from core.deps import get_current_user_optional, get_db, require_permission
 from services import branding_service
 
 router = APIRouter(prefix="/branding", tags=["系统"])
 
 
+def _tenant_id_from_request(request: Request) -> int | None:
+    """从 request.state 提取 tenant_id（由 TenantContextMiddleware 注入）。"""
+    return getattr(request.state, "tenant_id", None)
+
+
 @router.get("")
-async def get_branding(session: AsyncSession = Depends(get_db)):
-    data = await branding_service.get_branding(session)
+async def get_branding(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+):
+    tenant_id = _tenant_id_from_request(request)
+    data = await branding_service.get_branding(session, tenant_id=tenant_id)
     return {"code": 200, "message": "ok", "data": data}
 
 
@@ -75,24 +93,36 @@ def _asset_response(content: bytes, media_type: str) -> Response:
 
 
 @router.get("/logo")
-async def get_logo(session: AsyncSession = Depends(get_db)):
-    result = await branding_service.read_logo(session)
+async def get_logo(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+):
+    tenant_id = _tenant_id_from_request(request)
+    result = await branding_service.read_logo(session, tenant_id=tenant_id)
     if result is None:
         raise HTTPException(status_code=404, detail="未设置 Logo")
     return _asset_response(*result)
 
 
 @router.get("/favicon")
-async def get_favicon(session: AsyncSession = Depends(get_db)):
-    result = await branding_service.read_favicon(session)
+async def get_favicon(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+):
+    tenant_id = _tenant_id_from_request(request)
+    result = await branding_service.read_favicon(session, tenant_id=tenant_id)
     if result is None:
         raise HTTPException(status_code=404, detail="未设置 Favicon")
     return _asset_response(*result)
 
 
 @router.get("/square-logo")
-async def get_square_logo(session: AsyncSession = Depends(get_db)):
-    result = await branding_service.read_square_logo(session)
+async def get_square_logo(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+):
+    tenant_id = _tenant_id_from_request(request)
+    result = await branding_service.read_square_logo(session, tenant_id=tenant_id)
     if result is None:
         raise HTTPException(status_code=404, detail="未设置方形 Logo")
     return _asset_response(*result)
