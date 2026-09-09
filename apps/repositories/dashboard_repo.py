@@ -7,21 +7,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def get_range_status(
-    session: AsyncSession, start_date: date, end_date: date
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    tenant_id: int | None = None,
 ) -> dict:
     """Return dashboard data range status from platform tables."""
+    tenant_filter = " AND tenant_id = :tenant_id" if tenant_id is not None else ""
     sql = text(
-        """
+        f"""
         WITH platform_logs AS (
             SELECT user_id, 'llm' AS cost_type, internal_cost, external_cost
             FROM aihelms.llm_call_logs
             WHERE started_at::date >= :start
-              AND started_at::date <= :end
+              AND started_at::date <= :end{tenant_filter}
             UNION ALL
             SELECT NULLIF(user_id, 0) AS user_id, 'mcp' AS cost_type, internal_cost, external_cost
             FROM aihelms.mcp_call_logs
             WHERE called_at::date >= :start
-              AND called_at::date <= :end
+              AND called_at::date <= :end{tenant_filter}
         )
         SELECT
             COUNT(DISTINCT user_id) FILTER (WHERE user_id IS NOT NULL) AS active_users,
@@ -33,7 +37,10 @@ async def get_range_status(
         FROM platform_logs
     """
     )
-    row = (await session.execute(sql, {"start": start_date, "end": end_date})).one()
+    params: dict = {"start": start_date, "end": end_date}
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
+    row = (await session.execute(sql, params)).one()
     return {
         "activeUsers": int(row.active_users or 0),
         "totalRequests": int(row.requests or 0),
@@ -45,30 +52,37 @@ async def get_range_status(
 
 
 async def get_request_trend(
-    session: AsyncSession, start_date: date, end_date: date
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     days = (end_date - start_date).days + 1
+    tenant_filter = " AND tenant_id = :tenant_id" if tenant_id is not None else ""
     if days <= 1:
         llm_sql = text(
-            """
+            f"""
             SELECT EXTRACT(HOUR FROM started_at)::int AS h, COUNT(*) AS cnt
             FROM aihelms.llm_call_logs
-            WHERE started_at::date = :day
+            WHERE started_at::date = :day{tenant_filter}
             GROUP BY 1
         """
         )
         mcp_sql = text(
-            """
+            f"""
             SELECT EXTRACT(HOUR FROM called_at)::int AS h, COUNT(*) AS cnt
             FROM aihelms.mcp_call_logs
-            WHERE called_at::date = :day
+            WHERE called_at::date = :day{tenant_filter}
             GROUP BY 1
         """
         )
         hourly = {h: 0 for h in range(24)}
+        params: dict = {"day": start_date}
+        if tenant_id is not None:
+            params["tenant_id"] = tenant_id
         for result in [
-            await session.execute(llm_sql, {"day": start_date}),
-            await session.execute(mcp_sql, {"day": start_date}),
+            await session.execute(llm_sql, params),
+            await session.execute(mcp_sql, params),
         ]:
             for row in result.fetchall():
                 hourly[int(row[0])] += int(row[1])
@@ -77,24 +91,27 @@ async def get_request_trend(
         ]
 
     sql = text(
-        """
+        f"""
         WITH platform_logs AS (
             SELECT started_at::date AS d
             FROM aihelms.llm_call_logs
             WHERE started_at::date >= :start
-              AND started_at::date <= :end
+              AND started_at::date <= :end{tenant_filter}
             UNION ALL
             SELECT called_at::date AS d
             FROM aihelms.mcp_call_logs
             WHERE called_at::date >= :start
-              AND called_at::date <= :end
+              AND called_at::date <= :end{tenant_filter}
         )
         SELECT d, COUNT(*) AS requests
         FROM platform_logs
         GROUP BY 1 ORDER BY 1
     """
     )
-    result = await session.execute(sql, {"start": start_date, "end": end_date})
+    params = {"start": start_date, "end": end_date}
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
+    result = await session.execute(sql, params)
     daily = {start_date + timedelta(days=i): 0 for i in range(days)}
     for row in result.fetchall():
         daily[row[0]] = int(row[1] or 0)
@@ -104,21 +121,27 @@ async def get_request_trend(
     ]
 
 
-async def get_model_health_summary(session: AsyncSession) -> dict:
+async def get_model_health_summary(
+    session: AsyncSession, tenant_id: int | None = None
+) -> dict:
+    tenant_filter = " AND m.tenant_id = :tenant_id" if tenant_id is not None else ""
     sql = text(
-        """
+        f"""
         SELECT COUNT(*) AS total,
                COUNT(*) FILTER (WHERE active_deployments > 0) AS healthy
         FROM (
             SELECT m.id, COUNT(d.id) FILTER (WHERE d.is_active = true) AS active_deployments
             FROM aihelms.models m
             LEFT JOIN aihelms.model_deployments d ON d.model_id = m.id
-            WHERE m.is_active = true
+            WHERE m.is_active = true{tenant_filter}
             GROUP BY m.id
         ) model_health
     """
     )
-    row = (await session.execute(sql)).one()
+    params: dict = {}
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
+    row = (await session.execute(sql, params)).one()
     return {"total": int(row.total or 0), "healthy": int(row.healthy or 0)}
 
 
@@ -136,15 +159,23 @@ async def get_last_updated_at(session: AsyncSession) -> datetime | None:
 
 
 async def get_token_stats(
-    session: AsyncSession, start_date: date, end_date: date
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    tenant_id: int | None = None,
 ) -> dict:
+    tenant_filter = " AND tenant_id = :tenant_id" if tenant_id is not None else ""
     sql = text(
         "SELECT COALESCE(SUM(input_tokens),0), COALESCE(SUM(output_tokens),0),"
         " COALESCE(SUM(cache_read_tokens),0), COALESCE(SUM(cache_creation_tokens),0)"
         " FROM aihelms.cost_summary_daily"
         " WHERE summary_date >= :start AND summary_date <= :end"
+        f"{tenant_filter}"
     )
-    row = (await session.execute(sql, {"start": start_date, "end": end_date})).one()
+    params: dict = {"start": start_date, "end": end_date}
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
+    row = (await session.execute(sql, params)).one()
     input_tokens, output_tokens = int(row[0]), int(row[1])
     cache_read_tokens, cache_creation_tokens = int(row[2]), int(row[3])
     return {
@@ -159,8 +190,12 @@ async def get_token_stats(
 
 
 async def get_cost_leaderboard(
-    session: AsyncSession, start_date: date, end_date: date
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    tenant_id: int | None = None,
 ) -> list[dict]:
+    tenant_filter = " AND c.tenant_id = :tenant_id" if tenant_id is not None else ""
     sql = text(
         "WITH RECURSIVE all_paths AS ("
         " SELECT id, name, parent_id, name::text AS path"
@@ -183,10 +218,14 @@ async def get_cost_leaderboard(
         " LEFT JOIN user_dept udp ON udp.user_id = c.user_id"
         " WHERE c.summary_date >= :start AND c.summary_date <= :end"
         " AND c.user_id IS NOT NULL"
+        f"{tenant_filter}"
         " GROUP BY c.user_id, u.display_name, u.username, udp.path"
         " ORDER BY SUM(c.internal_cost) DESC LIMIT 10"
     )
-    result = await session.execute(sql, {"start": start_date, "end": end_date})
+    params: dict = {"start": start_date, "end": end_date}
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
+    result = await session.execute(sql, params)
     return [
         {
             "rank": index + 1,

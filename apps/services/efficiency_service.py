@@ -161,31 +161,32 @@ async def get_overview(
     dimension: str = "department",
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     dimension = "project" if dimension == "project" else "department"
     dimension_label = "项目" if dimension == "project" else "部门"
     total_users = await efficiency_repo.get_total_user_count(
-        session, department_ids, project_ids
+        session, department_ids, project_ids, tenant_id=tenant_id
     )
     active_ids = await efficiency_repo.get_active_user_ids(
-        session, start_date, end_date, department_ids, project_ids
+        session, start_date, end_date, department_ids, project_ids, tenant_id=tenant_id
     )
     active_count = len(active_ids)
     total_cost = await efficiency_repo.get_total_cost(
-        session, start_date, end_date, department_ids, project_ids
+        session, start_date, end_date, department_ids, project_ids, tenant_id=tenant_id
     )
     token_stats = await efficiency_repo.get_period_token_stats(
-        session, start_date, end_date, department_ids, project_ids
+        session, start_date, end_date, department_ids, project_ids, tenant_id=tenant_id
     )
     coverage_rate = round(active_count / total_users * 100, 1) if total_users > 0 else 0
     active_per_capita = round(total_cost / active_count, 2) if active_count > 0 else 0
 
     prev_start, prev_end = _prev_period(start_date, end_date)
     prev_active_ids = await efficiency_repo.get_active_user_ids(
-        session, prev_start, prev_end, department_ids, project_ids
+        session, prev_start, prev_end, department_ids, project_ids, tenant_id=tenant_id
     )
     prev_total_cost = await efficiency_repo.get_total_cost(
-        session, prev_start, prev_end, department_ids, project_ids
+        session, prev_start, prev_end, department_ids, project_ids, tenant_id=tenant_id
     )
     prev_coverage = (
         round(len(prev_active_ids) / total_users * 100, 1) if total_users > 0 else 0
@@ -197,13 +198,31 @@ async def get_overview(
     )
 
     trend = await efficiency_repo.get_daily_cost_and_users(
-        session, start_date, end_date, granularity, department_ids, project_ids
+        session,
+        start_date,
+        end_date,
+        granularity,
+        department_ids,
+        project_ids,
+        tenant_id=tenant_id,
     )
     current_rows = await efficiency_repo.get_scope_overview(
-        session, start_date, end_date, dimension, department_ids, project_ids
+        session,
+        start_date,
+        end_date,
+        dimension,
+        department_ids,
+        project_ids,
+        tenant_id=tenant_id,
     )
     previous_rows = await efficiency_repo.get_scope_overview(
-        session, prev_start, prev_end, dimension, department_ids, project_ids
+        session,
+        prev_start,
+        prev_end,
+        dimension,
+        department_ids,
+        project_ids,
+        tenant_id=tenant_id,
     )
     previous_map = {row["id"]: row for row in previous_rows}
 
@@ -300,19 +319,31 @@ async def get_trend(
     end_date: date,
     granularity: str = "day",
     user_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     return await efficiency_repo.get_summary_trend(
-        session, start_date, end_date, granularity, user_id
+        session, start_date, end_date, granularity, user_id, tenant_id=tenant_id
     )
 
 
 async def get_user_overview(
-    session: AsyncSession, start_date: date, end_date: date, user_id: int
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    user_id: int,
+    tenant_id: int | None = None,
 ) -> dict:
     """个人用量概览（web 端 scope=self）。"""
     from sqlalchemy import select, func
     from models.db import CostSummaryDaily
 
+    conditions = [
+        CostSummaryDaily.user_id == user_id,
+        CostSummaryDaily.summary_date >= start_date,
+        CostSummaryDaily.summary_date <= end_date,
+    ]
+    if tenant_id is not None:
+        conditions.append(CostSummaryDaily.tenant_id == tenant_id)
     result = await session.execute(
         select(
             func.coalesce(func.sum(CostSummaryDaily.total_requests), 0),
@@ -321,11 +352,7 @@ async def get_user_overview(
             func.coalesce(func.sum(CostSummaryDaily.output_tokens), 0),
             func.coalesce(func.sum(CostSummaryDaily.cache_read_tokens), 0),
             func.coalesce(func.sum(CostSummaryDaily.cache_creation_tokens), 0),
-        ).where(
-            CostSummaryDaily.user_id == user_id,
-            CostSummaryDaily.summary_date >= start_date,
-            CostSummaryDaily.summary_date <= end_date,
-        )
+        ).where(*conditions)
     )
     row = result.one()
     total_requests = int(row[0])
@@ -361,12 +388,13 @@ async def get_adoption(
     metric: str = "dau",
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     total_users = await efficiency_repo.get_total_user_count(
-        session, department_ids, project_ids
+        session, department_ids, project_ids, tenant_id=tenant_id
     )
     active_ids = await efficiency_repo.get_active_user_ids(
-        session, start_date, end_date, department_ids, project_ids
+        session, start_date, end_date, department_ids, project_ids, tenant_id=tenant_id
     )
     active_count = len(active_ids)
     coverage_rate = round(active_count / total_users * 100, 1) if total_users > 0 else 0
@@ -374,12 +402,12 @@ async def get_adoption(
 
     prev_start, prev_end = _prev_period(start_date, end_date)
     prev_active_ids = await efficiency_repo.get_active_user_ids(
-        session, prev_start, prev_end, department_ids, project_ids
+        session, prev_start, prev_end, department_ids, project_ids, tenant_id=tenant_id
     )
     new_active = len(active_ids - prev_active_ids)
 
     user_calls = await efficiency_repo.get_user_call_counts(
-        session, start_date, end_date, department_ids, project_ids
+        session, start_date, end_date, department_ids, project_ids, tenant_id=tenant_id
     )
     daily_avg_frequency = 0.0
     heavy_user_count = 0
@@ -399,20 +427,31 @@ async def get_adoption(
     heavy = sum(1 for u in user_calls if u["calls"] >= heavy_t)
 
     active_trend_raw = await efficiency_repo.get_daily_active_users(
-        session, start_date, end_date, department_ids, project_ids
+        session,
+        start_date,
+        end_date,
+        department_ids,
+        project_ids,
+        tenant_id=tenant_id,
     )
 
     heavy_trend_raw = await efficiency_repo.get_daily_heavy_user_ratio(
-        session, start_date, end_date, 10, department_ids, project_ids
+        session,
+        start_date,
+        end_date,
+        10,
+        department_ids,
+        project_ids,
+        tenant_id=tenant_id,
     )
 
     if dimension == "project":
         raw_table = await efficiency_repo.get_project_adoption_table(
-            session, start_date, end_date, project_ids
+            session, start_date, end_date, project_ids, tenant_id=tenant_id
         )
     else:
         raw_table = await efficiency_repo.get_dept_adoption_table(
-            session, start_date, end_date, department_ids
+            session, start_date, end_date, department_ids, tenant_id=tenant_id
         )
 
     department_table = [

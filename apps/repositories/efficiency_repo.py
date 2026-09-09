@@ -60,6 +60,7 @@ async def get_summary_trend(
     end_date: date,
     granularity: str = "day",
     user_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     if granularity == "week":
         trunc = "date_trunc('week', summary_date)::date"
@@ -73,6 +74,9 @@ async def get_summary_trend(
     if user_id is not None:
         filters.append("user_id = :user_id")
         params["user_id"] = user_id
+    if tenant_id is not None:
+        filters.append("tenant_id = :tenant_id")
+        params["tenant_id"] = tenant_id
 
     sql = text(
         f"SELECT {trunc} AS d, cost_type,"
@@ -108,18 +112,23 @@ async def get_period_token_stats(
     end_date: date,
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     params: dict = {"start": start_date, "end": end_date}
     scope_filter = build_scope_filter(
         "c.user_id", department_ids, project_ids, params, "token_stats"
     )
+    tenant_filter = ""
+    if tenant_id is not None:
+        tenant_filter = " AND c.tenant_id = :tenant_id"
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT COALESCE(SUM(c.input_tokens),0), COALESCE(SUM(c.output_tokens),0),"
         " COALESCE(SUM(c.cache_read_tokens),0),"
         " COALESCE(SUM(c.cache_creation_tokens),0)"
         " FROM aihelms.cost_summary_daily c"
         " WHERE c.summary_date >= :start AND c.summary_date <= :end"
-        f"{scope_filter}"
+        f"{tenant_filter}{scope_filter}"
     )
     row = (await session.execute(sql, params)).one()
     input_tokens, output_tokens = int(row[0]), int(row[1])
@@ -136,9 +145,14 @@ async def get_period_token_stats(
 
 
 async def get_dept_ranking(
-    session: AsyncSession, start_date: date, end_date: date
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    tenant_id: int | None = None,
 ) -> list[dict]:
-    return await get_scope_overview(session, start_date, end_date, "department")
+    return await get_scope_overview(
+        session, start_date, end_date, "department", tenant_id=tenant_id
+    )
 
 
 async def get_scope_overview(
@@ -148,8 +162,17 @@ async def get_scope_overview(
     dimension: str = "department",
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     params: dict = {"start": start_date, "end": end_date}
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
+    tenant_filter_project = (
+        " AND p.tenant_id = :tenant_id" if tenant_id is not None else ""
+    )
+    tenant_filter_dept = (
+        " AND d.tenant_id = :tenant_id" if tenant_id is not None else ""
+    )
     if dimension == "project":
         id_filter = build_id_filter("p.id", project_ids, params, "overview_project")
         sql = text(
@@ -164,7 +187,7 @@ async def get_scope_overview(
             " LEFT JOIN aihelms.users u ON u.id = up.user_id"
             " LEFT JOIN aihelms.cost_summary_daily c ON c.user_id = up.user_id"
             " AND c.summary_date >= :start AND c.summary_date <= :end"
-            f" WHERE p.is_active = true{id_filter}"
+            f" WHERE p.is_active = true{tenant_filter_project}{id_filter}"
             " GROUP BY p.id, p.name ORDER BY total_cost DESC"
         )
     else:
@@ -191,7 +214,7 @@ async def get_scope_overview(
             " LEFT JOIN aihelms.users u ON u.id = ud.user_id"
             " LEFT JOIN aihelms.cost_summary_daily c ON c.user_id = ud.user_id"
             " AND c.summary_date >= :start AND c.summary_date <= :end"
-            f" WHERE d.is_active = true{id_filter}"
+            f" WHERE d.is_active = true{tenant_filter_dept}{id_filter}"
             " GROUP BY d.id, d.name, dt.path ORDER BY total_cost DESC"
         )
     result = await session.execute(sql, params)
@@ -218,17 +241,21 @@ async def get_daily_active_users(
     end_date: date,
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     params: dict = {"start": start_date, "end": end_date}
     scope_filter = build_scope_filter(
         "c.user_id", department_ids, project_ids, params, "daily_active"
     )
+    tenant_filter = " AND c.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT c.summary_date::date AS d, COUNT(DISTINCT c.user_id) AS dau"
         " FROM aihelms.cost_summary_daily c"
         " JOIN aihelms.users u ON u.id = c.user_id AND u.is_active = true"
         " WHERE c.summary_date >= :start AND c.summary_date <= :end AND c.user_id IS NOT NULL"
-        f"{scope_filter}"
+        f"{tenant_filter}{scope_filter}"
         " GROUP BY 1 ORDER BY 1"
     )
     result = await session.execute(sql, params)
@@ -246,16 +273,20 @@ async def get_user_call_counts(
     end_date: date,
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     params: dict = {"start": start_date, "end": end_date}
     scope_filter = build_scope_filter(
         "c.user_id", department_ids, project_ids, params, "user_calls"
     )
+    tenant_filter = " AND c.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT c.user_id, SUM(c.total_requests) AS calls FROM aihelms.cost_summary_daily c"
         " JOIN aihelms.users u ON u.id = c.user_id AND u.is_active = true"
         " WHERE c.summary_date >= :start AND c.summary_date <= :end AND c.user_id IS NOT NULL"
-        f"{scope_filter} GROUP BY c.user_id"
+        f"{tenant_filter}{scope_filter} GROUP BY c.user_id"
     )
     result = await session.execute(sql, params)
     return [{"user_id": int(r[0]), "calls": int(r[1])} for r in result.fetchall()]
@@ -268,11 +299,15 @@ async def get_daily_heavy_user_ratio(
     heavy_threshold: int = 10,
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     params: dict = {"start": start_date, "end": end_date, "threshold": heavy_threshold}
     scope_filter = build_scope_filter(
         "c.user_id", department_ids, project_ids, params, "heavy_users"
     )
+    tenant_filter = " AND c.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT d, COUNT(*) FILTER (WHERE calls >= :threshold)::float"
         " / NULLIF(COUNT(*), 0) * 100 AS ratio"
@@ -281,7 +316,7 @@ async def get_daily_heavy_user_ratio(
         "   FROM aihelms.cost_summary_daily c"
         "   JOIN aihelms.users u ON u.id = c.user_id AND u.is_active = true"
         "   WHERE c.summary_date >= :start AND c.summary_date <= :end AND c.user_id IS NOT NULL"
-        f"{scope_filter}"
+        f"{tenant_filter}{scope_filter}"
         "   GROUP BY 1, 2"
         " ) t GROUP BY d ORDER BY d"
     )
@@ -299,10 +334,14 @@ async def get_dept_adoption_table(
     start_date: date,
     end_date: date,
     department_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     days = max((end_date - start_date).days + 1, 1)
     params: dict = {"start": start_date, "end": end_date}
     id_filter = build_id_filter("d.id", department_ids, params, "adoption_department")
+    tenant_filter = " AND d.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT d.id, d.name,"
         " COUNT(DISTINCT ud.user_id) FILTER (WHERE u.is_active = true) AS total,"
@@ -313,7 +352,7 @@ async def get_dept_adoption_table(
         " LEFT JOIN aihelms.users u ON u.id = ud.user_id"
         " LEFT JOIN aihelms.cost_summary_daily c ON c.user_id = ud.user_id"
         " AND c.summary_date >= :start AND c.summary_date <= :end"
-        f" WHERE d.is_active = true{id_filter} GROUP BY d.id, d.name ORDER BY active DESC"
+        f" WHERE d.is_active = true{tenant_filter}{id_filter} GROUP BY d.id, d.name ORDER BY active DESC"
     )
     result = await session.execute(sql, params)
     rows = []
@@ -338,10 +377,14 @@ async def get_project_adoption_table(
     start_date: date,
     end_date: date,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     days = max((end_date - start_date).days + 1, 1)
     params: dict = {"start": start_date, "end": end_date}
     id_filter = build_id_filter("p.id", project_ids, params, "adoption_project")
+    tenant_filter = " AND p.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT p.id, p.name,"
         " COUNT(DISTINCT up.user_id) FILTER (WHERE u.is_active = true) AS total,"
@@ -352,7 +395,7 @@ async def get_project_adoption_table(
         " LEFT JOIN aihelms.users u ON u.id = up.user_id"
         " LEFT JOIN aihelms.cost_summary_daily c ON c.user_id = up.user_id"
         " AND c.summary_date >= :start AND c.summary_date <= :end"
-        f" WHERE p.is_active = true{id_filter} GROUP BY p.id, p.name ORDER BY active DESC"
+        f" WHERE p.is_active = true{tenant_filter}{id_filter} GROUP BY p.id, p.name ORDER BY active DESC"
     )
     result = await session.execute(sql, params)
     rows = []
@@ -378,11 +421,13 @@ async def get_adoption_scope_users(
     end_date: date,
     dimension: str,
     scope_id: int,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     if dimension == "project":
         join_sql = "JOIN aihelms.user_projects up ON up.user_id = u.id AND up.project_id = :scope_id"
     else:
         join_sql = "JOIN aihelms.user_departments ud ON ud.user_id = u.id AND ud.department_id = :scope_id"
+    tenant_filter = " AND u.tenant_id = :tenant_id" if tenant_id is not None else ""
     sql = text(
         f"SELECT u.id, u.username, u.display_name, u.position,"
         f" COALESCE(d.name, '') AS department,"
@@ -395,13 +440,14 @@ async def get_adoption_scope_users(
         f" LEFT JOIN aihelms.departments d ON d.id = ud_main.department_id"
         f" LEFT JOIN aihelms.cost_summary_daily c ON c.user_id = u.id"
         f" AND c.summary_date >= :start AND c.summary_date <= :end"
-        f" WHERE u.is_active = true"
+        f" WHERE u.is_active = true{tenant_filter}"
         f" GROUP BY u.id, u.username, u.display_name, u.position, d.name"
         f" ORDER BY total_calls DESC, u.id DESC"
     )
-    result = await session.execute(
-        sql, {"start": start_date, "end": end_date, "scope_id": scope_id}
-    )
+    params: dict = {"start": start_date, "end": end_date, "scope_id": scope_id}
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
+    result = await session.execute(sql, params)
     return [
         {
             "id": r[0],
@@ -427,6 +473,7 @@ async def get_agent_hotness(
     dimension: str = "department",
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     params: dict = {
         "start": start_date,
@@ -439,6 +486,9 @@ async def get_agent_hotness(
         scope_join = "LEFT JOIN aihelms.user_projects uscope ON uscope.user_id = l.user_id LEFT JOIN aihelms.projects scope ON scope.id = uscope.project_id"
     else:
         scope_join = "LEFT JOIN aihelms.user_departments uscope ON uscope.user_id = l.user_id LEFT JOIN aihelms.departments scope ON scope.id = uscope.department_id"
+    tenant_filter = " AND a.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         f"SELECT a.id, a.name, a.platform,"
         f" COALESCE(STRING_AGG(DISTINCT scope.name, ' / ') FILTER (WHERE scope.name IS NOT NULL), '') AS scope_names,"
@@ -448,7 +498,7 @@ async def get_agent_hotness(
         f" AND l.created_at >= :start AND l.created_at < :end_next"
         f" {log_filter}"
         f" {scope_join}"
-        f" WHERE a.is_active = true"
+        f" WHERE a.is_active = true{tenant_filter}"
         f" GROUP BY a.id, a.name, a.platform, a.created_at"
         f" ORDER BY monthly_calls DESC"
     )
@@ -476,6 +526,7 @@ async def get_mcp_hotness(
     dimension: str = "department",
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     params: dict = {
         "start": start_date,
@@ -488,6 +539,9 @@ async def get_mcp_hotness(
         scope_join = "LEFT JOIN aihelms.user_projects uscope ON uscope.user_id = l.user_id LEFT JOIN aihelms.projects scope ON scope.id = uscope.project_id"
     else:
         scope_join = "LEFT JOIN aihelms.user_departments uscope ON uscope.user_id = l.user_id LEFT JOIN aihelms.departments scope ON scope.id = uscope.department_id"
+    tenant_filter = " AND s.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         f"SELECT s.id, s.name, COUNT(DISTINCT l.user_id) AS user_count,"
         f" COUNT(l.id) AS monthly_calls, COALESCE(SUM(l.internal_cost), 0) AS cost,"
@@ -497,7 +551,7 @@ async def get_mcp_hotness(
         f" AND l.called_at >= :start AND l.called_at < :end_next"
         f" {log_filter}"
         f" {scope_join}"
-        f" WHERE s.is_active = true GROUP BY s.id, s.name ORDER BY monthly_calls DESC"
+        f" WHERE s.is_active = true{tenant_filter} GROUP BY s.id, s.name ORDER BY monthly_calls DESC"
     )
     result = await session.execute(sql, params)
     return [
@@ -520,6 +574,7 @@ async def get_skill_hotness(
     dimension: str = "department",
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     params: dict = {
         "start": start_date,
@@ -532,6 +587,9 @@ async def get_skill_hotness(
         scope_join = "LEFT JOIN aihelms.user_projects uscope ON uscope.user_id = l.user_id LEFT JOIN aihelms.projects scope ON scope.id = uscope.project_id"
     else:
         scope_join = "LEFT JOIN aihelms.user_departments uscope ON uscope.user_id = l.user_id LEFT JOIN aihelms.departments scope ON scope.id = uscope.department_id"
+    tenant_filter = " AND s.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         f"SELECT s.id, s.name, COUNT(DISTINCT l.user_id) AS operator_count, COUNT(l.id) AS monthly_downloads,"
         f" COALESCE(STRING_AGG(DISTINCT scope.name, ' / ') FILTER (WHERE scope.name IS NOT NULL), '') AS scope_names"
@@ -540,7 +598,7 @@ async def get_skill_hotness(
         f" AND l.created_at >= :start AND l.created_at < :end_next"
         f" {log_filter}"
         f" {scope_join}"
-        f" WHERE s.is_active = true GROUP BY s.id, s.name"
+        f" WHERE s.is_active = true{tenant_filter} GROUP BY s.id, s.name"
         f" ORDER BY monthly_downloads DESC"
     )
     result = await session.execute(sql, params)
@@ -563,6 +621,7 @@ async def get_unused_users(
     dimension: str = "department",
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     if dimension == "project":
         scope_join = "JOIN aihelms.user_projects uscope ON uscope.user_id = u.id JOIN aihelms.projects scope ON scope.id = uscope.project_id"
@@ -575,12 +634,15 @@ async def get_unused_users(
         params,
         "unused_scope",
     )
+    tenant_filter = " AND u.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         f"SELECT u.id, u.display_name, COALESCE(STRING_AGG(DISTINCT scope.name, ' / '), '') AS scope_names, u.position,"
         f" true AS has_key,"
         f" (SELECT MAX(c.summary_date) FROM aihelms.cost_summary_daily c WHERE c.user_id = u.id) AS last_active"
         f" FROM aihelms.users u {scope_join}"
-        f" WHERE u.is_active = true"
+        f" WHERE u.is_active = true{tenant_filter}"
         f" {scope_filter}"
         f" AND EXISTS (SELECT 1 FROM aihelms.ai_keys k WHERE k.owner_type = 'user' AND k.owner_id = u.id AND k.is_active = true)"
         f" AND u.id NOT IN (SELECT DISTINCT user_id FROM aihelms.cost_summary_daily"

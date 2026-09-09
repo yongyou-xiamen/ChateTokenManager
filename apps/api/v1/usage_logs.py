@@ -26,8 +26,9 @@ async def list_llm_logs(
     provider: str | None = Query(None),
     status: str | None = Query(None),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("usage_log:read")),
+    current_user: dict = Depends(require_permission("usage_log:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     result = await usage_log_service.list_llm_logs(
         session,
         page=page,
@@ -40,6 +41,7 @@ async def list_llm_logs(
         models=[m.strip() for m in models.split(",") if m.strip()] if models else None,
         provider=provider,
         status=status,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": result}
 
@@ -47,9 +49,10 @@ async def list_llm_logs(
 @router.get("/llm/filters")
 async def get_llm_log_filters(
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("usage_log:read")),
+    current_user: dict = Depends(require_permission("usage_log:read")),
 ):
-    result = await usage_log_service.llm_filters(session)
+    tenant_id = current_user.get("tenant_id")
+    result = await usage_log_service.llm_filters(session, tenant_id=tenant_id)
     return {"code": 200, "message": "ok", "data": result}
 
 
@@ -57,10 +60,11 @@ async def get_llm_log_filters(
 async def get_llm_log(
     log_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("usage_log:read")),
+    current_user: dict = Depends(require_permission("usage_log:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        log = await usage_log_service.get_llm_log(session, log_id)
+        log = await usage_log_service.get_llm_log(session, log_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="LLM 日志不存在")
     return {"code": 200, "message": "ok", "data": log}
@@ -81,8 +85,9 @@ async def list_mcp_logs(
     tool_name: str | None = Query(None),
     status: str | None = Query(None),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("usage_log:read")),
+    current_user: dict = Depends(require_permission("usage_log:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     result = await usage_log_service.list_mcp_logs(
         session,
         page=page,
@@ -94,6 +99,7 @@ async def list_mcp_logs(
         server_id=server_id,
         tool_name=tool_name,
         status=status,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": result}
 
@@ -101,9 +107,10 @@ async def list_mcp_logs(
 @router.get("/mcp/filters")
 async def get_mcp_log_filters(
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("usage_log:read")),
+    current_user: dict = Depends(require_permission("usage_log:read")),
 ):
-    result = await usage_log_service.mcp_filters(session)
+    tenant_id = current_user.get("tenant_id")
+    result = await usage_log_service.mcp_filters(session, tenant_id=tenant_id)
     return {"code": 200, "message": "ok", "data": result}
 
 
@@ -111,10 +118,11 @@ async def get_mcp_log_filters(
 async def get_mcp_log(
     log_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("usage_log:read")),
+    current_user: dict = Depends(require_permission("usage_log:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        log = await usage_log_service.get_mcp_log(session, log_id)
+        log = await usage_log_service.get_mcp_log(session, log_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="MCP 日志不存在")
     return {"code": 200, "message": "ok", "data": log}
@@ -133,8 +141,9 @@ async def list_skill_logs(
     skill_id: int | None = Query(None),
     action: str | None = Query(None),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("usage_log:read")),
+    current_user: dict = Depends(require_permission("usage_log:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     result = await usage_log_service.list_skill_logs(
         session,
         page=page,
@@ -144,6 +153,7 @@ async def list_skill_logs(
         user_id=user_id,
         skill_id=skill_id,
         action=action,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": result}
 
@@ -151,9 +161,10 @@ async def list_skill_logs(
 @router.get("/skill/filters")
 async def get_skill_log_filters(
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("usage_log:read")),
+    current_user: dict = Depends(require_permission("usage_log:read")),
 ):
-    result = await usage_log_service.skill_filters(session)
+    tenant_id = current_user.get("tenant_id")
+    result = await usage_log_service.skill_filters(session, tenant_id=tenant_id)
     return {"code": 200, "message": "ok", "data": result}
 
 
@@ -170,8 +181,9 @@ async def list_agent_logs(
     agent_id: int | None = Query(None),
     platform: str | None = Query(None),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("usage_log:read")),
+    current_user: dict = Depends(require_permission("usage_log:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     result = await usage_log_service.list_agent_logs(
         session,
         page=page,
@@ -181,6 +193,7 @@ async def list_agent_logs(
         user_id=user_id,
         agent_id=agent_id,
         platform=platform,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": result}
 
@@ -188,7 +201,8 @@ async def list_agent_logs(
 @router.get("/agent/filters")
 async def get_agent_log_filters(
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("usage_log:read")),
+    current_user: dict = Depends(require_permission("usage_log:read")),
 ):
-    result = await usage_log_service.agent_filters(session)
+    tenant_id = current_user.get("tenant_id")
+    result = await usage_log_service.agent_filters(session, tenant_id=tenant_id)
     return {"code": 200, "message": "ok", "data": result}

@@ -27,16 +27,29 @@ async def get_cost(
     department_id: int | None = None,
     dimension: str = "department",
     project_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     days = (end_date - start_date).days + 1
     prev_start, prev_end = _prev_period(start_date, end_date)
     cost_filters = None if cost_type == "all" else cost_type
 
     trend_raw = await efficiency_repo.get_cost_trend(
-        session, start_date, end_date, cost_filters, department_id, project_id
+        session,
+        start_date,
+        end_date,
+        cost_filters,
+        department_id,
+        project_id,
+        tenant_id=tenant_id,
     )
     prev_trend_raw = await efficiency_repo.get_cost_trend(
-        session, prev_start, prev_end, cost_filters, department_id, project_id
+        session,
+        prev_start,
+        prev_end,
+        cost_filters,
+        department_id,
+        project_id,
+        tenant_id=tenant_id,
     )
     total_cost = sum(r["internal_cost"] for r in trend_raw)
     external_cost = sum(r["external_cost"] for r in trend_raw)
@@ -72,7 +85,13 @@ async def get_cost(
             date_map[d]["mcp_external_cost"] = r["external_cost"]
 
     by_type = await efficiency_repo.get_cost_by_type(
-        session, start_date, end_date, department_id, cost_filters, project_id
+        session,
+        start_date,
+        end_date,
+        department_id,
+        cost_filters,
+        project_id,
+        tenant_id=tenant_id,
     )
     by_scope = await efficiency_repo.get_cost_by_dimension(
         session,
@@ -82,6 +101,7 @@ async def get_cost(
         cost_filters,
         department_id,
         project_id,
+        tenant_id=tenant_id,
     )
     raw_pc = await efficiency_repo.get_per_capita_cost_by_dimension(
         session,
@@ -91,6 +111,7 @@ async def get_cost(
         cost_filters,
         department_id,
         project_id,
+        tenant_id=tenant_id,
     )
 
     return {
@@ -118,11 +139,18 @@ async def get_cost_detail(
     department_id: int | None = None,
     dimension: str = "department",
     project_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     ct = None if cost_type == "all" else cost_type
     if tab == "model":
         raw = await efficiency_repo.get_cost_detail_by_model(
-            session, start_date, end_date, ct, department_id, project_id
+            session,
+            start_date,
+            end_date,
+            ct,
+            department_id,
+            project_id,
+            tenant_id=tenant_id,
         )
         grouped: dict[str, dict] = {}
         for item in raw:
@@ -198,7 +226,13 @@ async def get_cost_detail(
         return {"model": items}
     if tab == "mcp":
         raw = await efficiency_repo.get_cost_detail_by_mcp(
-            session, start_date, end_date, ct, department_id, project_id
+            session,
+            start_date,
+            end_date,
+            ct,
+            department_id,
+            project_id,
+            tenant_id=tenant_id,
         )
         grouped: dict[str, dict] = {}
         for item in raw:
@@ -264,7 +298,13 @@ async def get_cost_detail(
         return {"mcp": items}
     if tab == "date":
         raw = await efficiency_repo.get_cost_detail_by_date(
-            session, start_date, end_date, ct, department_id, project_id
+            session,
+            start_date,
+            end_date,
+            ct,
+            department_id,
+            project_id,
+            tenant_id=tenant_id,
         )
         items = [
             {
@@ -283,12 +323,26 @@ async def get_cost_detail(
     if tab == "attribution":
         return {
             "attribution": await efficiency_repo.get_cost_attribution_detail(
-                session, start_date, end_date, dimension, ct, department_id, project_id
+                session,
+                start_date,
+                end_date,
+                dimension,
+                ct,
+                department_id,
+                project_id,
+                tenant_id=tenant_id,
             )
         }
 
     raw = await efficiency_repo.get_cost_detail_by_dimension(
-        session, start_date, end_date, dimension, ct, department_id, project_id
+        session,
+        start_date,
+        end_date,
+        dimension,
+        ct,
+        department_id,
+        project_id,
+        tenant_id=tenant_id,
     )
     prev_raw = await efficiency_repo.get_cost_detail_by_dimension(
         session,
@@ -297,6 +351,7 @@ async def get_cost_detail(
         ct,
         department_id,
         project_id,
+        tenant_id=tenant_id,
     )
     prev_by_name = {item["name"]: item["internal_cost"] for item in prev_raw}
     items = [
@@ -332,10 +387,11 @@ async def get_cost_detail_scope_users(
     dimension: str,
     scope_id: int,
     cost_type: str = "all",
+    tenant_id: int | None = None,
 ) -> list[dict]:
     ct = None if cost_type == "all" else cost_type
     return await efficiency_repo.get_cost_detail_scope_users(
-        session, start_date, end_date, dimension, scope_id, ct
+        session, start_date, end_date, dimension, scope_id, ct, tenant_id=tenant_id
     )
 
 
@@ -347,6 +403,7 @@ async def get_top_users(
     cost_type: str = "all",
     department_id=None,
     project_id=None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     selected_cost_type = None if cost_type == "all" else cost_type
     rows = await efficiency_repo.get_user_top10(
@@ -357,5 +414,6 @@ async def get_top_users(
         department_id,
         project_id,
         metric,
+        tenant_id=tenant_id,
     )
     return [{"rank": index + 1, **row} for index, row in enumerate(rows)]

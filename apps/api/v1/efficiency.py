@@ -49,16 +49,24 @@ async def get_overview(
         start, end = start_date, end_date
     else:
         start, end = _parse_period(period)
+    tenant_id = current_user.get("tenant_id")
     if scope == "self":
         data = await efficiency_service.get_user_overview(
-            session, start, end, current_user["id"]
+            session, start, end, current_user["id"], tenant_id=tenant_id
         )
     else:
         selected_scopes = _parse_scope_ids(scope_ids, "", "")
         department_ids = selected_scopes if dimension == "department" else None
         project_ids = selected_scopes if dimension == "project" else None
         data = await efficiency_service.get_overview(
-            session, start, end, granularity, dimension, department_ids, project_ids
+            session,
+            start,
+            end,
+            granularity,
+            dimension,
+            department_ids,
+            project_ids,
+            tenant_id=tenant_id,
         )
     if isinstance(data, dict):
         data["freshness"] = await efficiency_service.get_freshness(session)
@@ -81,8 +89,11 @@ async def get_trend(
     else:
         start, end = _parse_period(period)
     bucket = granularity or group_by
+    tenant_id = current_user.get("tenant_id")
     user_id = current_user["id"] if scope == "self" else None
-    data = await efficiency_service.get_trend(session, start, end, bucket, user_id)
+    data = await efficiency_service.get_trend(
+        session, start, end, bucket, user_id, tenant_id=tenant_id
+    )
     return {"code": 200, "message": "ok", "data": data}
 
 
@@ -104,8 +115,16 @@ async def get_adoption(
     selected_scopes = _parse_scope_ids(scope_ids, "", "")
     department_ids = selected_scopes if dimension == "department" else None
     project_ids = selected_scopes if dimension == "project" else None
+    tenant_id = current_user.get("tenant_id")
     data = await efficiency_service.get_adoption(
-        session, start, end, dimension, metric, department_ids, project_ids
+        session,
+        start,
+        end,
+        dimension,
+        metric,
+        department_ids,
+        project_ids,
+        tenant_id=tenant_id,
     )
     if isinstance(data, dict):
         data["freshness"] = await efficiency_service.get_freshness(session)
@@ -126,8 +145,9 @@ async def get_adoption_scope_users(
         start, end = start_date, end_date
     else:
         start, end = _parse_period(period)
+    tenant_id = current_user.get("tenant_id")
     data = await efficiency_service.get_adoption_scope_users(
-        session, start, end, dimension, scope_id
+        session, start, end, dimension, scope_id, tenant_id=tenant_id
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -149,8 +169,15 @@ async def get_adoption_agents(
     selected_scopes = _parse_scope_ids(scope_ids, "", "")
     department_ids = selected_scopes if dimension == "department" else None
     project_ids = selected_scopes if dimension == "project" else None
+    tenant_id = current_user.get("tenant_id")
     data = await efficiency_service.get_adoption_agents(
-        session, start, end, dimension, department_ids, project_ids
+        session,
+        start,
+        end,
+        dimension,
+        department_ids,
+        project_ids,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -173,8 +200,16 @@ async def get_adoption_resources(
     selected_scopes = _parse_scope_ids(scope_ids, "", "")
     department_ids = selected_scopes if dimension == "department" else None
     project_ids = selected_scopes if dimension == "project" else None
+    tenant_id = current_user.get("tenant_id")
     data = await efficiency_service.get_adoption_resources(
-        session, start, end, type, dimension, department_ids, project_ids
+        session,
+        start,
+        end,
+        type,
+        dimension,
+        department_ids,
+        project_ids,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -196,8 +231,15 @@ async def get_unused_users(
     selected_scopes = _parse_scope_ids(scope_ids, "", "")
     department_ids = selected_scopes if dimension == "department" else None
     project_ids = selected_scopes if dimension == "project" else None
+    tenant_id = current_user.get("tenant_id")
     data = await efficiency_service.get_unused_users(
-        session, start, end, dimension, department_ids, project_ids
+        session,
+        start,
+        end,
+        dimension,
+        department_ids,
+        project_ids,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -223,8 +265,16 @@ async def get_cost(
     selected_scopes = _parse_scope_ids(scope_ids, scope_id, department)
     dept_id = selected_scopes if dimension == "department" else None
     project_id = selected_scopes if dimension == "project" else None
+    tenant_id = current_user.get("tenant_id")
     data = await efficiency_service.get_cost(
-        session, start, end, cost_type, dept_id, dimension, project_id
+        session,
+        start,
+        end,
+        cost_type,
+        dept_id,
+        dimension,
+        project_id,
+        tenant_id=tenant_id,
     )
     if isinstance(data, dict):
         data["freshness"] = await efficiency_service.get_freshness(session)
@@ -253,8 +303,17 @@ async def get_cost_detail(
     selected_scopes = _parse_scope_ids(scope_ids, scope_id, department)
     dept_id = selected_scopes if dimension == "department" else None
     project_id = selected_scopes if dimension == "project" else None
+    tenant_id = current_user.get("tenant_id")
     data = await efficiency_service.get_cost_detail(
-        session, start, end, tab, cost_type, dept_id, dimension, project_id
+        session,
+        start,
+        end,
+        tab,
+        cost_type,
+        dept_id,
+        dimension,
+        project_id,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -275,8 +334,9 @@ async def get_cost_detail_scope_users(
     else:
         start, end = _parse_period(period)
     cost_type = resource_type if resource_type else "all"
+    tenant_id = current_user.get("tenant_id")
     data = await efficiency_service.get_cost_detail_scope_users(
-        session, start, end, dimension, scope_id, cost_type
+        session, start, end, dimension, scope_id, cost_type, tenant_id=tenant_id
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -301,8 +361,16 @@ async def get_top_users(
     selected = _parse_scope_ids(scope_ids, "", "")
     department_ids = selected if dimension == "department" else None
     project_ids = selected if dimension == "project" else None
+    tenant_id = current_user.get("tenant_id")
     data = await efficiency_service.get_top_users(
-        session, start, end, metric, cost_type, department_ids, project_ids
+        session,
+        start,
+        end,
+        metric,
+        cost_type,
+        department_ids,
+        project_ids,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -318,8 +386,9 @@ async def get_budget(
     selected_scopes = _parse_scope_ids(scope_ids, "", "")
     department_ids = selected_scopes if dimension == "department" else None
     project_ids = selected_scopes if dimension == "project" else None
+    tenant_id = current_user.get("tenant_id")
     data = await efficiency_service.get_budget(
-        session, month, department_ids, project_ids
+        session, month, department_ids, project_ids, tenant_id=tenant_id
     )
     data["freshness"] = await efficiency_service.get_freshness(session)
     return {"code": 200, "message": "ok", "data": data}
@@ -336,8 +405,9 @@ async def get_budget_alerts(
     selected_scopes = _parse_scope_ids(scope_ids, "", "")
     department_ids = selected_scopes if dimension == "department" else None
     project_ids = selected_scopes if dimension == "project" else None
+    tenant_id = current_user.get("tenant_id")
     data = await efficiency_service.get_budget_alerts(
-        session, month, department_ids, project_ids
+        session, month, department_ids, project_ids, tenant_id=tenant_id
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -370,7 +440,8 @@ async def get_ai_health(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    data = await efficiency_service.get_ai_health(session)
+    tenant_id = current_user.get("tenant_id")
+    data = await efficiency_service.get_ai_health(session, tenant_id=tenant_id)
     data["freshness"] = await efficiency_service.get_freshness(session)
     return {"code": 200, "message": "ok", "data": data}
 

@@ -30,6 +30,7 @@ async def list_llm_logs(
     models: list[str] | None = None,
     provider: str | None = None,
     status: str | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     total = await usage_log_repo.count_llm_logs(
         session,
@@ -41,6 +42,7 @@ async def list_llm_logs(
         models,
         provider,
         status,
+        tenant_id=tenant_id,
     )
     logs = await usage_log_repo.find_llm_logs(
         session,
@@ -54,11 +56,16 @@ async def list_llm_logs(
         models,
         provider,
         status,
+        tenant_id=tenant_id,
     )
-    users = await usage_log_repo.load_users(session, [log.user_id for log in logs])
-    keys = await usage_log_repo.load_ai_keys(session, [log.ai_key_id for log in logs])
+    users = await usage_log_repo.load_users(
+        session, [log.user_id for log in logs], tenant_id=tenant_id
+    )
+    keys = await usage_log_repo.load_ai_keys(
+        session, [log.ai_key_id for log in logs], tenant_id=tenant_id
+    )
     deployments = await usage_log_repo.load_deployments(
-        session, [log.deployment_id for log in logs]
+        session, [log.deployment_id for log in logs], tenant_id=tenant_id
     )
     return {
         "items": [
@@ -76,13 +83,19 @@ async def list_llm_logs(
     }
 
 
-async def get_llm_log(session: AsyncSession, log_id: int) -> dict:
-    log = await usage_log_repo.find_llm_log_by_id(session, log_id)
+async def get_llm_log(
+    session: AsyncSession, log_id: int, tenant_id: int | None = None
+) -> dict:
+    log = await usage_log_repo.find_llm_log_by_id(session, log_id, tenant_id=tenant_id)
     if not log:
         raise NotFoundError("llm_log", log_id)
-    users = await usage_log_repo.load_users(session, [log.user_id])
-    keys = await usage_log_repo.load_ai_keys(session, [log.ai_key_id])
-    deployments = await usage_log_repo.load_deployments(session, [log.deployment_id])
+    users = await usage_log_repo.load_users(session, [log.user_id], tenant_id=tenant_id)
+    keys = await usage_log_repo.load_ai_keys(
+        session, [log.ai_key_id], tenant_id=tenant_id
+    )
+    deployments = await usage_log_repo.load_deployments(
+        session, [log.deployment_id], tenant_id=tenant_id
+    )
     deployment = deployments.get(log.deployment_id) if log.deployment_id else None
     item = _serialize_llm(log, users, keys, deployment)
     item["deployment"] = deployment
@@ -92,10 +105,14 @@ async def get_llm_log(session: AsyncSession, log_id: int) -> dict:
     return item
 
 
-async def llm_filters(session: AsyncSession) -> dict:
-    raw = await usage_log_repo.llm_log_filters(session)
-    users = await usage_log_repo.load_users(session, raw["user_ids"])
-    keys = await usage_log_repo.load_ai_keys(session, raw["ai_key_ids"])
+async def llm_filters(session: AsyncSession, tenant_id: int | None = None) -> dict:
+    raw = await usage_log_repo.llm_log_filters(session, tenant_id=tenant_id)
+    users = await usage_log_repo.load_users(
+        session, raw["user_ids"], tenant_id=tenant_id
+    )
+    keys = await usage_log_repo.load_ai_keys(
+        session, raw["ai_key_ids"], tenant_id=tenant_id
+    )
     return {
         "users": [users[u] for u in raw["user_ids"] if u in users],
         "ai_keys": [keys[k] for k in raw["ai_key_ids"] if k in keys],
@@ -226,9 +243,18 @@ async def list_mcp_logs(
     server_id: int | None = None,
     tool_name: str | None = None,
     status: str | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     total = await usage_log_repo.count_mcp_logs(
-        session, start_time, end_time, user_id, ai_key_id, server_id, tool_name, status
+        session,
+        start_time,
+        end_time,
+        user_id,
+        ai_key_id,
+        server_id,
+        tool_name,
+        status,
+        tenant_id=tenant_id,
     )
     logs = await usage_log_repo.find_mcp_logs(
         session,
@@ -241,11 +267,16 @@ async def list_mcp_logs(
         server_id,
         tool_name,
         status,
+        tenant_id=tenant_id,
     )
-    users = await usage_log_repo.load_users(session, [log.user_id for log in logs])
-    keys = await usage_log_repo.load_ai_keys(session, [log.ai_key_id for log in logs])
+    users = await usage_log_repo.load_users(
+        session, [log.user_id for log in logs], tenant_id=tenant_id
+    )
+    keys = await usage_log_repo.load_ai_keys(
+        session, [log.ai_key_id for log in logs], tenant_id=tenant_id
+    )
     servers = await usage_log_repo.load_mcp_servers(
-        session, [log.server_id for log in logs]
+        session, [log.server_id for log in logs], tenant_id=tenant_id
     )
     return {
         "items": [_serialize_mcp(log, users, keys, servers) for log in logs],
@@ -255,24 +286,36 @@ async def list_mcp_logs(
     }
 
 
-async def get_mcp_log(session: AsyncSession, log_id: int) -> dict:
-    log = await usage_log_repo.find_mcp_log_by_id(session, log_id)
+async def get_mcp_log(
+    session: AsyncSession, log_id: int, tenant_id: int | None = None
+) -> dict:
+    log = await usage_log_repo.find_mcp_log_by_id(session, log_id, tenant_id=tenant_id)
     if not log:
         raise NotFoundError("mcp_log", log_id)
-    users = await usage_log_repo.load_users(session, [log.user_id])
-    keys = await usage_log_repo.load_ai_keys(session, [log.ai_key_id])
-    servers = await usage_log_repo.load_mcp_servers(session, [log.server_id])
+    users = await usage_log_repo.load_users(session, [log.user_id], tenant_id=tenant_id)
+    keys = await usage_log_repo.load_ai_keys(
+        session, [log.ai_key_id], tenant_id=tenant_id
+    )
+    servers = await usage_log_repo.load_mcp_servers(
+        session, [log.server_id], tenant_id=tenant_id
+    )
     item = _serialize_mcp(log, users, keys, servers)
     item["request_args"] = log.request_args
     item["response_full"] = log.response_full
     return item
 
 
-async def mcp_filters(session: AsyncSession) -> dict:
-    raw = await usage_log_repo.mcp_log_filters(session)
-    users = await usage_log_repo.load_users(session, raw["user_ids"])
-    servers = await usage_log_repo.load_mcp_servers(session, raw["server_ids"])
-    keys = await usage_log_repo.load_ai_keys(session, raw["ai_key_ids"])
+async def mcp_filters(session: AsyncSession, tenant_id: int | None = None) -> dict:
+    raw = await usage_log_repo.mcp_log_filters(session, tenant_id=tenant_id)
+    users = await usage_log_repo.load_users(
+        session, raw["user_ids"], tenant_id=tenant_id
+    )
+    servers = await usage_log_repo.load_mcp_servers(
+        session, raw["server_ids"], tenant_id=tenant_id
+    )
+    keys = await usage_log_repo.load_ai_keys(
+        session, raw["ai_key_ids"], tenant_id=tenant_id
+    )
     return {
         "users": [users[u] for u in raw["user_ids"] if u in users],
         "servers": [servers[s] for s in raw["server_ids"] if s in servers],
@@ -318,15 +361,28 @@ async def list_skill_logs(
     user_id: int | None = None,
     skill_id: int | None = None,
     action: str | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     total = await usage_log_repo.count_skill_logs(
-        session, start_time, end_time, user_id, skill_id, action
+        session, start_time, end_time, user_id, skill_id, action, tenant_id=tenant_id
     )
     logs = await usage_log_repo.find_skill_logs(
-        session, page, page_size, start_time, end_time, user_id, skill_id, action
+        session,
+        page,
+        page_size,
+        start_time,
+        end_time,
+        user_id,
+        skill_id,
+        action,
+        tenant_id=tenant_id,
     )
-    users = await usage_log_repo.load_users(session, [log.user_id for log in logs])
-    skills = await usage_log_repo.load_skills(session, [log.skill_id for log in logs])
+    users = await usage_log_repo.load_users(
+        session, [log.user_id for log in logs], tenant_id=tenant_id
+    )
+    skills = await usage_log_repo.load_skills(
+        session, [log.skill_id for log in logs], tenant_id=tenant_id
+    )
     _resolve_skill_icon_urls(skills)
     return {
         "items": [_serialize_skill(log, users, skills) for log in logs],
@@ -336,10 +392,14 @@ async def list_skill_logs(
     }
 
 
-async def skill_filters(session: AsyncSession) -> dict:
-    raw = await usage_log_repo.skill_log_filters(session)
-    users = await usage_log_repo.load_users(session, raw["user_ids"])
-    skills = await usage_log_repo.load_skills(session, raw["skill_ids"])
+async def skill_filters(session: AsyncSession, tenant_id: int | None = None) -> dict:
+    raw = await usage_log_repo.skill_log_filters(session, tenant_id=tenant_id)
+    users = await usage_log_repo.load_users(
+        session, raw["user_ids"], tenant_id=tenant_id
+    )
+    skills = await usage_log_repo.load_skills(
+        session, raw["skill_ids"], tenant_id=tenant_id
+    )
     _resolve_skill_icon_urls(skills)
     return {
         "users": [users[u] for u in raw["user_ids"] if u in users],
@@ -375,14 +435,31 @@ async def list_agent_logs(
     user_id: int | None = None,
     agent_id: int | None = None,
     platform: str | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     total = await usage_log_repo.count_agent_logs(
-        session, start_time, end_time, user_id, agent_id, platform
+        session,
+        start_time,
+        end_time,
+        user_id,
+        agent_id,
+        platform,
+        tenant_id=tenant_id,
     )
     pairs = await usage_log_repo.find_agent_logs(
-        session, page, page_size, start_time, end_time, user_id, agent_id, platform
+        session,
+        page,
+        page_size,
+        start_time,
+        end_time,
+        user_id,
+        agent_id,
+        platform,
+        tenant_id=tenant_id,
     )
-    users = await usage_log_repo.load_users(session, [log.user_id for log, _ in pairs])
+    users = await usage_log_repo.load_users(
+        session, [log.user_id for log, _ in pairs], tenant_id=tenant_id
+    )
     return {
         "items": [_serialize_agent(log, agent, users) for log, agent in pairs],
         "total": total,
@@ -391,18 +468,19 @@ async def list_agent_logs(
     }
 
 
-async def agent_filters(session: AsyncSession) -> dict:
-    raw = await usage_log_repo.agent_log_filters(session)
-    users = await usage_log_repo.load_users(session, raw["user_ids"])
+async def agent_filters(session: AsyncSession, tenant_id: int | None = None) -> dict:
+    raw = await usage_log_repo.agent_log_filters(session, tenant_id=tenant_id)
+    users = await usage_log_repo.load_users(
+        session, raw["user_ids"], tenant_id=tenant_id
+    )
     # 加载 agent
     from sqlalchemy import select
 
+    agent_stmt = select(Agent).where(Agent.id.in_(raw["agent_ids"]))
+    if tenant_id is not None:
+        agent_stmt = agent_stmt.where(Agent.tenant_id == tenant_id)
     agents = (
-        (await session.execute(select(Agent).where(Agent.id.in_(raw["agent_ids"]))))
-        .scalars()
-        .all()
-        if raw["agent_ids"]
-        else []
+        (await session.execute(agent_stmt)).scalars().all() if raw["agent_ids"] else []
     )
     return {
         "users": [users[u] for u in raw["user_ids"] if u in users],

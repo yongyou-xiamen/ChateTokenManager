@@ -13,9 +13,10 @@ async def get_adoption_scope_users(
     end_date: date,
     dimension: str,
     scope_id: int,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     return await efficiency_repo.get_adoption_scope_users(
-        session, start_date, end_date, dimension, scope_id
+        session, start_date, end_date, dimension, scope_id, tenant_id=tenant_id
     )
 
 
@@ -26,9 +27,16 @@ async def get_adoption_agents(
     dimension: str = "department",
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     raw = await efficiency_repo.get_agent_hotness(
-        session, start_date, end_date, dimension, department_ids, project_ids
+        session,
+        start_date,
+        end_date,
+        dimension,
+        department_ids,
+        project_ids,
+        tenant_id=tenant_id,
     )
     return [
         {
@@ -53,10 +61,17 @@ async def get_adoption_resources(
     dimension: str = "department",
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     if resource_type == "skill":
         raw = await efficiency_repo.get_skill_hotness(
-            session, start_date, end_date, dimension, department_ids, project_ids
+            session,
+            start_date,
+            end_date,
+            dimension,
+            department_ids,
+            project_ids,
+            tenant_id=tenant_id,
         )
         return [
             {
@@ -70,7 +85,13 @@ async def get_adoption_resources(
             for item in raw
         ]
     raw = await efficiency_repo.get_mcp_hotness(
-        session, start_date, end_date, dimension, department_ids, project_ids
+        session,
+        start_date,
+        end_date,
+        dimension,
+        department_ids,
+        project_ids,
+        tenant_id=tenant_id,
     )
     return [
         {
@@ -92,9 +113,16 @@ async def get_unused_users(
     dimension: str = "department",
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     raw = await efficiency_repo.get_unused_users(
-        session, start_date, end_date, dimension, department_ids, project_ids
+        session,
+        start_date,
+        end_date,
+        dimension,
+        department_ids,
+        project_ids,
+        tenant_id=tenant_id,
     )
     return [
         {

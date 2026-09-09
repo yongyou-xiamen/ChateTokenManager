@@ -41,17 +41,19 @@ async def get_dashboard(
 ) -> dict:
     """聚合 Dashboard 所有板块数据。"""
     prev_start, prev_end = _prev_period(start_date, end_date)
-    status = await _get_status(session, start_date, end_date, prev_start, prev_end)
-    trend = await _get_request_trend(session, start_date, end_date)
+    status = await _get_status(
+        session, start_date, end_date, prev_start, prev_end, tenant_id=tenant_id
+    )
+    trend = await _get_request_trend(session, start_date, end_date, tenant_id=tenant_id)
     resources = await _get_resources(session, tenant_id=tenant_id)
     recent_activities = await _get_recent_activities(session, tenant_id=tenant_id)
     pending_approvals, pending_total = await _get_latest_pending_approvals(
         session, tenant_id=tenant_id
     )
-    service_status = await _get_service_status(session)
+    service_status = await _get_service_status(session, tenant_id=tenant_id)
     last_updated_at = await _get_last_updated_at(session)
     cost_leaderboard = await dashboard_repo.get_cost_leaderboard(
-        session, start_date, end_date
+        session, start_date, end_date, tenant_id=tenant_id
     )
 
     status["pendingCount"] = pending_total
@@ -103,10 +105,13 @@ async def _get_status(
     end_date: date,
     prev_start: date,
     prev_end: date,
+    tenant_id: int | None = None,
 ) -> dict:
-    current = await _range_status(session, start_date, end_date)
-    previous = await _range_status(session, prev_start, prev_end)
-    token_stats = await dashboard_repo.get_token_stats(session, start_date, end_date)
+    current = await _range_status(session, start_date, end_date, tenant_id=tenant_id)
+    previous = await _range_status(session, prev_start, prev_end, tenant_id=tenant_id)
+    token_stats = await dashboard_repo.get_token_stats(
+        session, start_date, end_date, tenant_id=tenant_id
+    )
     cost_change_percent = _calc_change(
         current["internalCost"], previous["internalCost"]
     )
@@ -135,15 +140,25 @@ async def _get_status(
 
 
 async def _range_status(
-    session: AsyncSession, start_date: date, end_date: date
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    tenant_id: int | None = None,
 ) -> dict:
-    return await dashboard_repo.get_range_status(session, start_date, end_date)
+    return await dashboard_repo.get_range_status(
+        session, start_date, end_date, tenant_id=tenant_id
+    )
 
 
 async def _get_request_trend(
-    session: AsyncSession, start_date: date, end_date: date
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    tenant_id: int | None = None,
 ) -> list[dict]:
-    return await dashboard_repo.get_request_trend(session, start_date, end_date)
+    return await dashboard_repo.get_request_trend(
+        session, start_date, end_date, tenant_id=tenant_id
+    )
 
 
 async def _get_latest_pending_approvals(
@@ -190,7 +205,9 @@ async def _get_latest_pending_approvals(
     return rows, total
 
 
-async def _get_service_status(session: AsyncSession) -> list[dict]:
+async def _get_service_status(
+    session: AsyncSession, tenant_id: int | None = None
+) -> list[dict]:
     mcp_total = await _count(session, McpServer, McpServer.is_published.is_(True))
     mcp_healthy = await _count(
         session,
@@ -198,7 +215,7 @@ async def _get_service_status(session: AsyncSession) -> list[dict]:
         McpServer.is_published.is_(True),
         McpServer.status.in_(["healthy", "success", "online", "ok"]),
     )
-    model_health = await _get_model_health_summary(session)
+    model_health = await _get_model_health_summary(session, tenant_id=tenant_id)
     model_total = model_health["total"]
     model_healthy = model_health["healthy"]
     latest = await _get_last_updated_at(session)
@@ -242,8 +259,10 @@ async def _get_service_status(session: AsyncSession) -> list[dict]:
     ]
 
 
-async def _get_model_health_summary(session: AsyncSession) -> dict:
-    return await dashboard_repo.get_model_health_summary(session)
+async def _get_model_health_summary(
+    session: AsyncSession, tenant_id: int | None = None
+) -> dict:
+    return await dashboard_repo.get_model_health_summary(session, tenant_id=tenant_id)
 
 
 async def _get_docker_status() -> dict:

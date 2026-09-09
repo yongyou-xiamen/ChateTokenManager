@@ -26,7 +26,7 @@ def _iso_or_none(value) -> str | None:
     return value.isoformat() if value else None
 
 
-async def get_ai_health(session: AsyncSession) -> dict:
+async def get_ai_health(session: AsyncSession, tenant_id: int | None = None) -> dict:
     mcp_rows = [
         {
             "id": r[0],

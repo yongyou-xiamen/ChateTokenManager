@@ -100,6 +100,7 @@ def _apply_llm_filters(
     models,
     provider,
     status,
+    tenant_id: int | None = None,
 ):
     if start_time is not None:
         stmt = stmt.where(LlmCallLog.started_at >= start_time)
@@ -119,6 +120,8 @@ def _apply_llm_filters(
         stmt = stmt.where(LlmCallLog.status == "success")
     elif status == "failure":
         stmt = stmt.where(LlmCallLog.status != "success")
+    if tenant_id is not None:
+        stmt = stmt.where(LlmCallLog.tenant_id == tenant_id)
     return stmt
 
 
@@ -134,10 +137,20 @@ async def find_llm_logs(
     models: list[str] | None = None,
     provider: str | None = None,
     status: str | None = None,
+    tenant_id: int | None = None,
 ) -> list[LlmCallLog]:
     stmt = select(LlmCallLog).order_by(LlmCallLog.started_at.desc())
     stmt = _apply_llm_filters(
-        stmt, start_time, end_time, user_id, ai_key_id, model, models, provider, status
+        stmt,
+        start_time,
+        end_time,
+        user_id,
+        ai_key_id,
+        model,
+        models,
+        provider,
+        status,
+        tenant_id,
     )
     offset = (page - 1) * page_size
     stmt = stmt.limit(page_size).offset(offset)
@@ -155,27 +168,43 @@ async def count_llm_logs(
     models: list[str] | None = None,
     provider: str | None = None,
     status: str | None = None,
+    tenant_id: int | None = None,
 ) -> int:
     stmt = select(func.count(LlmCallLog.id))
     stmt = _apply_llm_filters(
-        stmt, start_time, end_time, user_id, ai_key_id, model, models, provider, status
+        stmt,
+        start_time,
+        end_time,
+        user_id,
+        ai_key_id,
+        model,
+        models,
+        provider,
+        status,
+        tenant_id,
     )
     result = await session.execute(stmt)
     return result.scalar_one()
 
 
-async def find_llm_log_by_id(session: AsyncSession, log_id: int) -> LlmCallLog | None:
-    result = await session.execute(select(LlmCallLog).where(LlmCallLog.id == log_id))
+async def find_llm_log_by_id(
+    session: AsyncSession, log_id: int, tenant_id: int | None = None
+) -> LlmCallLog | None:
+    stmt = select(LlmCallLog).where(LlmCallLog.id == log_id)
+    if tenant_id is not None:
+        stmt = stmt.where(LlmCallLog.tenant_id == tenant_id)
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
-async def llm_log_filters(session: AsyncSession) -> dict:
+async def llm_log_filters(session: AsyncSession, tenant_id: int | None = None) -> dict:
+    tenant_filter = [LlmCallLog.tenant_id == tenant_id] if tenant_id is not None else []
     actors = (
         (
             await session.execute(
-                select(distinct(LlmCallLog.user_id)).where(
-                    LlmCallLog.user_id.isnot(None)
-                )
+                select(distinct(LlmCallLog.user_id))
+                .where(LlmCallLog.user_id.isnot(None))
+                .where(*tenant_filter)
             )
         )
         .scalars()
@@ -184,9 +213,9 @@ async def llm_log_filters(session: AsyncSession) -> dict:
     keys = (
         (
             await session.execute(
-                select(distinct(LlmCallLog.ai_key_id)).where(
-                    LlmCallLog.ai_key_id.isnot(None)
-                )
+                select(distinct(LlmCallLog.ai_key_id))
+                .where(LlmCallLog.ai_key_id.isnot(None))
+                .where(*tenant_filter)
             )
         )
         .scalars()
@@ -195,7 +224,9 @@ async def llm_log_filters(session: AsyncSession) -> dict:
     models = (
         (
             await session.execute(
-                select(distinct(LlmCallLog.model)).order_by(LlmCallLog.model)
+                select(distinct(LlmCallLog.model))
+                .where(*tenant_filter)
+                .order_by(LlmCallLog.model)
             )
         )
         .scalars()
@@ -206,6 +237,7 @@ async def llm_log_filters(session: AsyncSession) -> dict:
             await session.execute(
                 select(distinct(LlmCallLog.provider))
                 .where(LlmCallLog.provider.isnot(None))
+                .where(*tenant_filter)
                 .order_by(LlmCallLog.provider)
             )
         )
@@ -218,6 +250,7 @@ async def llm_log_filters(session: AsyncSession) -> dict:
             .where(
                 LlmCallLog.user_id.isnot(None),
                 LlmCallLog.ai_key_id.isnot(None),
+                *tenant_filter,
             )
             .distinct()
         )
@@ -230,7 +263,7 @@ async def llm_log_filters(session: AsyncSession) -> dict:
                 .join(ModelDeployment, LlmCallLog.deployment_id == ModelDeployment.id)
                 .join(Model, Model.id == ModelDeployment.model_id)
                 .outerjoin(Credential, Credential.id == ModelDeployment.credential_id)
-                .where(*routable_conditions)
+                .where(*routable_conditions, *tenant_filter)
             )
         )
         .scalars()
@@ -277,6 +310,7 @@ def _apply_mcp_filters(
     server_id,
     tool_name,
     status,
+    tenant_id: int | None = None,
 ):
     if start_time is not None:
         stmt = stmt.where(McpCallLog.called_at >= start_time)
@@ -292,6 +326,8 @@ def _apply_mcp_filters(
         stmt = stmt.where(McpCallLog.tool_name == tool_name)
     if status:
         stmt = stmt.where(McpCallLog.status == status)
+    if tenant_id is not None:
+        stmt = stmt.where(McpCallLog.tenant_id == tenant_id)
     return stmt
 
 
@@ -306,10 +342,19 @@ async def find_mcp_logs(
     server_id: int | None = None,
     tool_name: str | None = None,
     status: str | None = None,
+    tenant_id: int | None = None,
 ) -> list[McpCallLog]:
     stmt = select(McpCallLog).order_by(McpCallLog.called_at.desc())
     stmt = _apply_mcp_filters(
-        stmt, start_time, end_time, user_id, ai_key_id, server_id, tool_name, status
+        stmt,
+        start_time,
+        end_time,
+        user_id,
+        ai_key_id,
+        server_id,
+        tool_name,
+        status,
+        tenant_id,
     )
     offset = (page - 1) * page_size
     stmt = stmt.limit(page_size).offset(offset)
@@ -326,39 +371,62 @@ async def count_mcp_logs(
     server_id: int | None = None,
     tool_name: str | None = None,
     status: str | None = None,
+    tenant_id: int | None = None,
 ) -> int:
     stmt = select(func.count(McpCallLog.id))
     stmt = _apply_mcp_filters(
-        stmt, start_time, end_time, user_id, ai_key_id, server_id, tool_name, status
+        stmt,
+        start_time,
+        end_time,
+        user_id,
+        ai_key_id,
+        server_id,
+        tool_name,
+        status,
+        tenant_id,
     )
     result = await session.execute(stmt)
     return result.scalar_one()
 
 
-async def find_mcp_log_by_id(session: AsyncSession, log_id: int) -> McpCallLog | None:
-    result = await session.execute(select(McpCallLog).where(McpCallLog.id == log_id))
+async def find_mcp_log_by_id(
+    session: AsyncSession, log_id: int, tenant_id: int | None = None
+) -> McpCallLog | None:
+    stmt = select(McpCallLog).where(McpCallLog.id == log_id)
+    if tenant_id is not None:
+        stmt = stmt.where(McpCallLog.tenant_id == tenant_id)
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
-async def mcp_log_filters(session: AsyncSession) -> dict:
+async def mcp_log_filters(session: AsyncSession, tenant_id: int | None = None) -> dict:
+    tenant_filter = [McpCallLog.tenant_id == tenant_id] if tenant_id is not None else []
     user_ids = (
         (
             await session.execute(
-                select(distinct(McpCallLog.user_id)).where(McpCallLog.user_id > 0)
+                select(distinct(McpCallLog.user_id))
+                .where(McpCallLog.user_id > 0)
+                .where(*tenant_filter)
             )
         )
         .scalars()
         .all()
     )
     server_ids = (
-        (await session.execute(select(distinct(McpCallLog.server_id)))).scalars().all()
+        (
+            await session.execute(
+                select(distinct(McpCallLog.server_id)).where(*tenant_filter)
+            )
+        )
+        .scalars()
+        .all()
     )
     ai_key_ids = (
         (
             await session.execute(
-                select(distinct(McpCallLog.ai_key_id)).where(
-                    McpCallLog.ai_key_id.isnot(None)
-                )
+                select(distinct(McpCallLog.ai_key_id))
+                .where(McpCallLog.ai_key_id.isnot(None))
+                .where(*tenant_filter)
             )
         )
         .scalars()
@@ -367,7 +435,9 @@ async def mcp_log_filters(session: AsyncSession) -> dict:
     tool_names = (
         (
             await session.execute(
-                select(distinct(McpCallLog.tool_name)).order_by(McpCallLog.tool_name)
+                select(distinct(McpCallLog.tool_name))
+                .where(*tenant_filter)
+                .order_by(McpCallLog.tool_name)
             )
         )
         .scalars()
@@ -379,6 +449,7 @@ async def mcp_log_filters(session: AsyncSession) -> dict:
             .where(
                 McpCallLog.user_id.isnot(None),
                 McpCallLog.ai_key_id.isnot(None),
+                *tenant_filter,
             )
             .distinct()
         )
@@ -397,7 +468,9 @@ async def mcp_log_filters(session: AsyncSession) -> dict:
 # ────────────── Skill ──────────────
 
 
-def _apply_skill_filters(stmt, start_time, end_time, user_id, skill_id, action):
+def _apply_skill_filters(
+    stmt, start_time, end_time, user_id, skill_id, action, tenant_id: int | None = None
+):
     if start_time is not None:
         stmt = stmt.where(SkillUsageLog.created_at >= start_time)
     if end_time is not None:
@@ -408,6 +481,8 @@ def _apply_skill_filters(stmt, start_time, end_time, user_id, skill_id, action):
         stmt = stmt.where(SkillUsageLog.skill_id == skill_id)
     if action:
         stmt = stmt.where(SkillUsageLog.action == action)
+    if tenant_id is not None:
+        stmt = stmt.where(SkillUsageLog.tenant_id == tenant_id)
     return stmt
 
 
@@ -420,9 +495,12 @@ async def find_skill_logs(
     user_id: int | None = None,
     skill_id: int | None = None,
     action: str | None = None,
+    tenant_id: int | None = None,
 ) -> list[SkillUsageLog]:
     stmt = select(SkillUsageLog).order_by(SkillUsageLog.created_at.desc())
-    stmt = _apply_skill_filters(stmt, start_time, end_time, user_id, skill_id, action)
+    stmt = _apply_skill_filters(
+        stmt, start_time, end_time, user_id, skill_id, action, tenant_id
+    )
     offset = (page - 1) * page_size
     stmt = stmt.limit(page_size).offset(offset)
     result = await session.execute(stmt)
@@ -436,24 +514,48 @@ async def count_skill_logs(
     user_id: int | None = None,
     skill_id: int | None = None,
     action: str | None = None,
+    tenant_id: int | None = None,
 ) -> int:
     stmt = select(func.count(SkillUsageLog.id))
-    stmt = _apply_skill_filters(stmt, start_time, end_time, user_id, skill_id, action)
+    stmt = _apply_skill_filters(
+        stmt, start_time, end_time, user_id, skill_id, action, tenant_id
+    )
     result = await session.execute(stmt)
     return result.scalar_one()
 
 
-async def skill_log_filters(session: AsyncSession) -> dict:
+async def skill_log_filters(
+    session: AsyncSession, tenant_id: int | None = None
+) -> dict:
+    tenant_filter = (
+        [SkillUsageLog.tenant_id == tenant_id] if tenant_id is not None else []
+    )
     user_ids = (
-        (await session.execute(select(distinct(SkillUsageLog.user_id)))).scalars().all()
+        (
+            await session.execute(
+                select(distinct(SkillUsageLog.user_id)).where(*tenant_filter)
+            )
+        )
+        .scalars()
+        .all()
     )
     skill_ids = (
-        (await session.execute(select(distinct(SkillUsageLog.skill_id))))
+        (
+            await session.execute(
+                select(distinct(SkillUsageLog.skill_id)).where(*tenant_filter)
+            )
+        )
         .scalars()
         .all()
     )
     actions = (
-        (await session.execute(select(distinct(SkillUsageLog.action)))).scalars().all()
+        (
+            await session.execute(
+                select(distinct(SkillUsageLog.action)).where(*tenant_filter)
+            )
+        )
+        .scalars()
+        .all()
     )
     return {
         "user_ids": [u for u in user_ids if u],
@@ -465,7 +567,15 @@ async def skill_log_filters(session: AsyncSession) -> dict:
 # ────────────── Agent ──────────────
 
 
-def _apply_agent_filters(stmt, start_time, end_time, user_id, agent_id, platform):
+def _apply_agent_filters(
+    stmt,
+    start_time,
+    end_time,
+    user_id,
+    agent_id,
+    platform,
+    tenant_id: int | None = None,
+):
     if start_time is not None:
         stmt = stmt.where(AgentUsageLog.created_at >= start_time)
     if end_time is not None:
@@ -476,6 +586,8 @@ def _apply_agent_filters(stmt, start_time, end_time, user_id, agent_id, platform
         stmt = stmt.where(AgentUsageLog.agent_id == agent_id)
     if platform:
         stmt = stmt.where(Agent.platform == platform)
+    if tenant_id is not None:
+        stmt = stmt.where(AgentUsageLog.tenant_id == tenant_id)
     return stmt
 
 
@@ -488,13 +600,16 @@ async def find_agent_logs(
     user_id: int | None = None,
     agent_id: int | None = None,
     platform: str | None = None,
+    tenant_id: int | None = None,
 ) -> list[tuple[AgentUsageLog, Agent | None]]:
     stmt = (
         select(AgentUsageLog, Agent)
         .join(Agent, Agent.id == AgentUsageLog.agent_id, isouter=True)
         .order_by(AgentUsageLog.created_at.desc())
     )
-    stmt = _apply_agent_filters(stmt, start_time, end_time, user_id, agent_id, platform)
+    stmt = _apply_agent_filters(
+        stmt, start_time, end_time, user_id, agent_id, platform, tenant_id
+    )
     offset = (page - 1) * page_size
     stmt = stmt.limit(page_size).offset(offset)
     result = await session.execute(stmt)
@@ -508,28 +623,51 @@ async def count_agent_logs(
     user_id: int | None = None,
     agent_id: int | None = None,
     platform: str | None = None,
+    tenant_id: int | None = None,
 ) -> int:
     stmt = select(func.count(AgentUsageLog.id)).join(
         Agent, Agent.id == AgentUsageLog.agent_id, isouter=True
     )
-    stmt = _apply_agent_filters(stmt, start_time, end_time, user_id, agent_id, platform)
+    stmt = _apply_agent_filters(
+        stmt, start_time, end_time, user_id, agent_id, platform, tenant_id
+    )
     result = await session.execute(stmt)
     return result.scalar_one()
 
 
-async def agent_log_filters(session: AsyncSession) -> dict:
+async def agent_log_filters(
+    session: AsyncSession, tenant_id: int | None = None
+) -> dict:
+    tenant_filter = (
+        [AgentUsageLog.tenant_id == tenant_id] if tenant_id is not None else []
+    )
+    agent_tenant_filter = (
+        [Agent.tenant_id == tenant_id] if tenant_id is not None else []
+    )
     user_ids = (
-        (await session.execute(select(distinct(AgentUsageLog.user_id)))).scalars().all()
+        (
+            await session.execute(
+                select(distinct(AgentUsageLog.user_id)).where(*tenant_filter)
+            )
+        )
+        .scalars()
+        .all()
     )
     agent_ids = (
-        (await session.execute(select(distinct(AgentUsageLog.agent_id))))
+        (
+            await session.execute(
+                select(distinct(AgentUsageLog.agent_id)).where(*tenant_filter)
+            )
+        )
         .scalars()
         .all()
     )
     platforms = (
         (
             await session.execute(
-                select(distinct(Agent.platform)).order_by(Agent.platform)
+                select(distinct(Agent.platform))
+                .where(*agent_tenant_filter)
+                .order_by(Agent.platform)
             )
         )
         .scalars()
@@ -545,7 +683,9 @@ async def agent_log_filters(session: AsyncSession) -> dict:
 # ────────────── 关联资源批量加载（避免 N+1） ──────────────
 
 
-async def load_users(session: AsyncSession, user_ids: list[int]) -> dict[int, dict]:
+async def load_users(
+    session: AsyncSession, user_ids: list[int], tenant_id: int | None = None
+) -> dict[int, dict]:
     """批量加载用户 + 部门信息。
 
     返回 {user_id: {username, display_name, department_name}}。
@@ -553,7 +693,7 @@ async def load_users(session: AsyncSession, user_ids: list[int]) -> dict[int, di
     ids = list({i for i in user_ids if i})
     if not ids:
         return {}
-    result = await session.execute(
+    stmt = (
         select(User, Department)
         .join(UserDepartment, UserDepartment.user_id == User.id, isouter=True)
         .join(
@@ -563,6 +703,9 @@ async def load_users(session: AsyncSession, user_ids: list[int]) -> dict[int, di
         )
         .where(User.id.in_(ids))
     )
+    if tenant_id is not None:
+        stmt = stmt.where(User.tenant_id == tenant_id)
+    result = await session.execute(stmt)
     out: dict[int, dict] = {}
     for user, dept in result.all():
         if user.id not in out:
@@ -575,11 +718,16 @@ async def load_users(session: AsyncSession, user_ids: list[int]) -> dict[int, di
     return out
 
 
-async def load_ai_keys(session: AsyncSession, key_ids: list[int]) -> dict[int, dict]:
+async def load_ai_keys(
+    session: AsyncSession, key_ids: list[int], tenant_id: int | None = None
+) -> dict[int, dict]:
     ids = list({i for i in key_ids if i})
     if not ids:
         return {}
-    result = await session.execute(select(AiKey).where(AiKey.id.in_(ids)))
+    stmt = select(AiKey).where(AiKey.id.in_(ids))
+    if tenant_id is not None:
+        stmt = stmt.where(AiKey.tenant_id == tenant_id)
+    result = await session.execute(stmt)
     return {
         k.id: {"id": k.id, "name": k.name, "key_token": _mask_key(k.litellm_key_id)}
         for k in result.scalars().all()
@@ -594,11 +742,16 @@ def _mask_key(key: str | None) -> str:
     return key[:4] + "****" + key[-4:]
 
 
-async def load_skills(session: AsyncSession, skill_ids: list[int]) -> dict[int, dict]:
+async def load_skills(
+    session: AsyncSession, skill_ids: list[int], tenant_id: int | None = None
+) -> dict[int, dict]:
     ids = list({i for i in skill_ids if i})
     if not ids:
         return {}
-    result = await session.execute(select(Skill).where(Skill.id.in_(ids)))
+    stmt = select(Skill).where(Skill.id.in_(ids))
+    if tenant_id is not None:
+        stmt = stmt.where(Skill.tenant_id == tenant_id)
+    result = await session.execute(stmt)
     return {
         s.id: {
             "id": s.id,
@@ -612,12 +765,17 @@ async def load_skills(session: AsyncSession, skill_ids: list[int]) -> dict[int, 
 
 
 async def load_mcp_servers(
-    session: AsyncSession, server_ids: list[int]
+    session: AsyncSession,
+    server_ids: list[int],
+    tenant_id: int | None = None,
 ) -> dict[int, dict]:
     ids = list({i for i in server_ids if i})
     if not ids:
         return {}
-    result = await session.execute(select(McpServer).where(McpServer.id.in_(ids)))
+    stmt = select(McpServer).where(McpServer.id.in_(ids))
+    if tenant_id is not None:
+        stmt = stmt.where(McpServer.tenant_id == tenant_id)
+    result = await session.execute(stmt)
     return {
         s.id: {"id": s.id, "name": s.name, "server_name": s.server_name}
         for s in result.scalars().all()
@@ -625,14 +783,17 @@ async def load_mcp_servers(
 
 
 async def load_deployments(
-    session: AsyncSession, deployment_ids: list[int]
+    session: AsyncSession,
+    deployment_ids: list[int],
+    tenant_id: int | None = None,
 ) -> dict[int, dict]:
     ids = list({i for i in deployment_ids if i})
     if not ids:
         return {}
-    result = await session.execute(
-        select(ModelDeployment).where(ModelDeployment.id.in_(ids))
-    )
+    stmt = select(ModelDeployment).where(ModelDeployment.id.in_(ids))
+    if tenant_id is not None:
+        stmt = stmt.where(ModelDeployment.tenant_id == tenant_id)
+    result = await session.execute(stmt)
     return {
         d.id: {
             "id": d.id,

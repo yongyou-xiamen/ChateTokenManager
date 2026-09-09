@@ -9,14 +9,17 @@ from models.db import AiKey
 from repositories.efficiency_scope_filter import bind_scope_ids, build_id_filter
 
 
-async def get_all_keys_with_budget(session: AsyncSession) -> list[AiKey]:
-    result = await session.execute(
-        select(AiKey).where(
-            AiKey.is_active.is_(True),
-            AiKey.budget_limit.isnot(None),
-            AiKey.budget_limit > 0,
-        )
+async def get_all_keys_with_budget(
+    session: AsyncSession, tenant_id: int | None = None
+) -> list[AiKey]:
+    stmt = select(AiKey).where(
+        AiKey.is_active.is_(True),
+        AiKey.budget_limit.isnot(None),
+        AiKey.budget_limit > 0,
     )
+    if tenant_id is not None:
+        stmt = stmt.where(AiKey.tenant_id == tenant_id)
+    result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
@@ -24,6 +27,7 @@ async def get_scope_budget_key_ids(
     session: AsyncSession,
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> set[int] | None:
     if not department_ids and not project_ids:
         return None
@@ -45,10 +49,13 @@ async def get_scope_budget_key_ids(
             "SELECT 1 FROM aihelms.user_projects up WHERE up.user_id = k.owner_id"
             f" AND up.project_id IN ({project_values}))))"
         )
+    tenant_filter = " AND k.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT DISTINCT k.id FROM aihelms.ai_keys k"
         " WHERE k.is_active = true AND k.budget_limit IS NOT NULL AND k.budget_limit > 0"
-        f" AND ({' OR '.join(conditions)})"
+        f" AND ({' OR '.join(conditions)}){tenant_filter}"
     )
     result = await session.execute(sql, params)
     return {int(row[0]) for row in result.fetchall()}
@@ -59,37 +66,43 @@ async def get_budget_used_for_keys(
     start_date: date,
     end_date: date,
     key_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> float:
     if key_ids == []:
         return 0.0
     params: dict = {"start": start_date, "end": end_date}
     id_filter = build_id_filter("k.id", key_ids, params, "used_key")
+    tenant_filter = " AND k.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT COALESCE(SUM(c.internal_cost), 0)"
         " FROM aihelms.cost_summary_daily c"
         " JOIN aihelms.ai_keys k ON k.id = c.ai_key_id"
         " WHERE c.summary_date >= :start AND c.summary_date <= :end"
         " AND k.is_active = true AND k.budget_limit IS NOT NULL AND k.budget_limit > 0"
-        f"{id_filter}"
+        f"{tenant_filter}{id_filter}"
     )
     return float((await session.execute(sql, params)).scalar() or 0)
 
 
 async def get_budget_used_for_key(
-    session: AsyncSession, key_id: int, start_date: date, end_date: date
+    session: AsyncSession,
+    key_id: int,
+    start_date: date,
+    end_date: date,
+    tenant_id: int | None = None,
 ) -> float:
+    params: dict = {"key_id": key_id, "start": start_date, "end": end_date}
+    tenant_filter = " AND tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT COALESCE(SUM(internal_cost), 0) FROM aihelms.cost_summary_daily"
         " WHERE ai_key_id = :key_id AND summary_date >= :start AND summary_date <= :end"
+        f"{tenant_filter}"
     )
-    return float(
-        (
-            await session.execute(
-                sql, {"key_id": key_id, "start": start_date, "end": end_date}
-            )
-        ).scalar()
-        or 0
-    )
+    return float((await session.execute(sql, params)).scalar() or 0)
 
 
 async def get_budget_usage_by_key(
@@ -97,16 +110,20 @@ async def get_budget_usage_by_key(
     key_ids: list[int],
     start_date: date,
     end_date: date,
+    tenant_id: int | None = None,
 ) -> dict[int, float]:
     if not key_ids:
         return {}
     params: dict = {"start": start_date, "end": end_date}
     id_filter = build_id_filter("c.ai_key_id", key_ids, params, "alert_key")
+    tenant_filter = " AND c.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT c.ai_key_id, COALESCE(SUM(c.internal_cost), 0)"
         " FROM aihelms.cost_summary_daily c"
         " WHERE c.summary_date >= :start AND c.summary_date <= :end"
-        f"{id_filter} GROUP BY c.ai_key_id"
+        f"{tenant_filter}{id_filter} GROUP BY c.ai_key_id"
     )
     result = await session.execute(sql, params)
     return {int(row[0]): float(row[1]) for row in result.fetchall()}
@@ -118,6 +135,7 @@ async def get_dept_budget_usage(
     end_date: date,
     department_ids: list[int] | None = None,
     project_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     params: dict = {"start": start_date, "end": end_date}
     id_filter = build_id_filter("d.id", department_ids, params, "budget_dept_row")
@@ -130,7 +148,10 @@ async def get_dept_budget_usage(
             " WHERE ud_scope.department_id = d.id"
             f" AND up_scope.project_id IN ({project_values}))"
         )
-    row_filter = f"{id_filter}{related_filter}"
+    tenant_filter = " AND d.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
+    row_filter = f"{id_filter}{related_filter}{tenant_filter}"
     sql = text(
         "WITH user_key_budget AS ("
         " SELECT d.id, COALESCE(SUM(k.budget_limit), 0) AS budget, COUNT(DISTINCT k.id) AS key_count"
@@ -195,6 +216,7 @@ async def get_project_budget_usage(
     end_date: date,
     project_ids: list[int] | None = None,
     department_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     params: dict = {"start": start_date, "end": end_date}
     id_filter = build_id_filter("p.id", project_ids, params, "budget_project_row")
@@ -209,7 +231,10 @@ async def get_project_budget_usage(
             " WHERE up_scope.project_id = p.id"
             f" AND ud_scope.department_id IN ({department_values}))"
         )
-    row_filter = f"{id_filter}{related_filter}"
+    tenant_filter = " AND p.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
+    row_filter = f"{id_filter}{related_filter}{tenant_filter}"
     sql = text(
         "WITH user_key_budget AS ("
         " SELECT p.id, COALESCE(SUM(k.budget_limit), 0) AS budget, COUNT(DISTINCT k.id) AS key_count"
@@ -273,11 +298,15 @@ async def get_key_top10_budget(
     start_date: date,
     end_date: date,
     key_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     if key_ids == []:
         return []
     params: dict = {"start": start_date, "end": end_date}
     id_filter = build_id_filter("k.id", key_ids, params, "top_key")
+    tenant_filter = " AND k.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT k.id, k.name, k.owner_type, COALESCE(u.display_name, d.name, p.name, '') AS owner,"
         " k.key_type, k.budget_limit, COALESCE(SUM(c.internal_cost), 0) AS used"
@@ -287,7 +316,7 @@ async def get_key_top10_budget(
         " LEFT JOIN aihelms.projects p ON p.id = k.owner_id AND k.owner_type = 'project'"
         " LEFT JOIN aihelms.cost_summary_daily c ON c.ai_key_id = k.id AND c.summary_date >= :start AND c.summary_date <= :end"
         " WHERE k.is_active = true AND k.budget_limit IS NOT NULL AND k.budget_limit > 0"
-        f"{id_filter}"
+        f"{tenant_filter}{id_filter}"
         " GROUP BY k.id, k.name, k.owner_type, u.display_name, d.name, p.name, k.key_type, k.budget_limit"
         " ORDER BY used DESC"
     )
@@ -311,16 +340,20 @@ async def get_cumulative_cost_by_date(
     start_date: date,
     end_date: date,
     key_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     if key_ids == []:
         return []
     params: dict = {"start": start_date, "end": end_date}
     id_filter = build_id_filter("c.ai_key_id", key_ids, params, "trend_key")
+    tenant_filter = " AND c.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT c.summary_date::date AS d, COALESCE(SUM(c.internal_cost), 0) AS daily_cost"
         " FROM aihelms.cost_summary_daily c"
         " WHERE c.summary_date >= :start AND c.summary_date <= :end"
-        f"{id_filter} GROUP BY 1 ORDER BY 1"
+        f"{tenant_filter}{id_filter} GROUP BY 1 ORDER BY 1"
     )
     result = await session.execute(sql, params)
     rows = []
@@ -336,11 +369,15 @@ async def get_user_personal_key_budget(
     start_date: date,
     end_date: date,
     key_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     if key_ids == []:
         return []
     params: dict = {"start": start_date, "end": end_date}
     id_filter = build_id_filter("k.id", key_ids, params, "user_key")
+    tenant_filter = " AND k.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT COALESCE(NULLIF(u.display_name, ''), u.username, '') AS user_name,"
         " k.name AS key_name, k.key_type,"
@@ -351,7 +388,7 @@ async def get_user_personal_key_budget(
         " AND c.summary_date >= :start AND c.summary_date <= :end"
         " WHERE k.is_active = true"
         " AND k.key_type IN ('personal_main','personal_scene')"
-        f"{id_filter}"
+        f"{tenant_filter}{id_filter}"
         " GROUP BY k.id, u.display_name, u.username, k.name, k.key_type, k.budget_limit"
         " ORDER BY used DESC"
     )
@@ -378,11 +415,15 @@ async def get_user_budget_top10(
     start_date: date,
     end_date: date,
     key_ids: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     if key_ids == []:
         return []
     params: dict = {"start": start_date, "end": end_date}
     id_filter = build_id_filter("k.id", key_ids, params, "user_budget_top")
+    tenant_filter = " AND k.tenant_id = :tenant_id" if tenant_id is not None else ""
+    if tenant_id is not None:
+        params["tenant_id"] = tenant_id
     sql = text(
         "WITH RECURSIVE all_paths AS ("
         " SELECT id, name, parent_id, name::text AS path"
@@ -390,12 +431,12 @@ async def get_user_budget_top10(
         " UNION ALL"
         " SELECT d.id, d.name, d.parent_id, (ap.path || ' / ' || d.name)::text"
         " FROM aihelms.departments d JOIN all_paths ap ON ap.id = d.parent_id"
-        " ), user_dept AS ("
+        "), user_dept AS ("
         " SELECT DISTINCT ON (ud.user_id) ud.user_id, ap.path"
         " FROM aihelms.user_departments ud"
         " JOIN all_paths ap ON ap.id = ud.department_id"
         " ORDER BY ud.user_id, length(ap.path) DESC"
-        " )"
+        ")"
         " SELECT u.id,"
         " COALESCE(NULLIF(u.display_name, ''), u.username, '') AS user_name,"
         " COALESCE(udp.path,'') AS department,"
@@ -407,7 +448,7 @@ async def get_user_budget_top10(
         " AND c.summary_date >= :start AND c.summary_date <= :end"
         " WHERE k.is_active = true"
         " AND k.key_type IN ('personal_main','personal_scene')"
-        f"{id_filter}"
+        f"{tenant_filter}{id_filter}"
         " GROUP BY u.id, u.display_name, u.username, udp.path"
         " ORDER BY used DESC LIMIT 10"
     )

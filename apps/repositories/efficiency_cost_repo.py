@@ -45,6 +45,7 @@ def _build_cost_filters(
     department_id,
     table_alias: str = "",
     project_id=None,
+    tenant_id: int | None = None,
 ) -> tuple[str, dict]:
     prefix = f"{table_alias}." if table_alias else ""
     user_col = f"{prefix}user_id" if prefix else "cost_summary_daily.user_id"
@@ -77,6 +78,9 @@ def _build_cost_filters(
             f" WHERE up_filter.user_id = {user_col}"
             f" AND up_filter.project_id IN ({', '.join(keys)}))"
         )
+    if tenant_id is not None:
+        filters += f" AND {prefix}tenant_id = :tenant_id"
+        params["tenant_id"] = tenant_id
     return filters, params
 
 
@@ -87,9 +91,15 @@ async def get_cost_trend(
     cost_type: str | None = None,
     department_id: int | None = None,
     project_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     filters, params = _build_cost_filters(
-        start_date, end_date, cost_type, department_id, project_id=project_id
+        start_date,
+        end_date,
+        cost_type,
+        department_id,
+        project_id=project_id,
+        tenant_id=tenant_id,
     )
     sql = text(
         f"SELECT summary_date::date AS d, cost_type,"
@@ -117,9 +127,15 @@ async def get_cost_by_type(
     department_id: int | None = None,
     cost_type: str | None = None,
     project_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     filters, params = _build_cost_filters(
-        start_date, end_date, cost_type, department_id, project_id=project_id
+        start_date,
+        end_date,
+        cost_type,
+        department_id,
+        project_id=project_id,
+        tenant_id=tenant_id,
     )
     sql = text(
         f"SELECT cost_type,"
@@ -140,8 +156,16 @@ async def get_cost_by_type(
 
 
 async def get_cost_by_dept(
-    session: AsyncSession, start_date: date, end_date: date
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    tenant_id: int | None = None,
 ) -> list[dict]:
+    params: dict = {"start": start_date, "end": end_date}
+    tenant_filter = ""
+    if tenant_id is not None:
+        tenant_filter = " AND c.tenant_id = :tenant_id"
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT d.name, COALESCE(SUM(c.internal_cost), 0) AS internal_cost,"
         " COALESCE(SUM(c.external_cost), 0) AS external_cost"
@@ -149,9 +173,10 @@ async def get_cost_by_dept(
         " JOIN aihelms.user_departments ud_dim ON ud_dim.user_id = c.user_id"
         " JOIN aihelms.departments d ON d.id = ud_dim.department_id"
         " WHERE c.summary_date >= :start AND c.summary_date <= :end"
+        f"{tenant_filter}"
         " GROUP BY d.name ORDER BY internal_cost DESC"
     )
-    result = await session.execute(sql, {"start": start_date, "end": end_date})
+    result = await session.execute(sql, params)
     return [
         {
             "name": r[0],
@@ -164,17 +189,26 @@ async def get_cost_by_dept(
 
 
 async def get_dept_per_capita_cost(
-    session: AsyncSession, start_date: date, end_date: date
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    tenant_id: int | None = None,
 ) -> list[dict]:
+    params: dict = {"start": start_date, "end": end_date}
+    tenant_filter = ""
+    if tenant_id is not None:
+        tenant_filter = " AND c.tenant_id = :tenant_id"
+        params["tenant_id"] = tenant_id
     sql = text(
         "SELECT d.name, COALESCE(SUM(c.internal_cost), 0) AS cost, COUNT(DISTINCT c.user_id) AS users"
         " FROM aihelms.cost_summary_daily c"
         " JOIN aihelms.user_departments ud_dim ON ud_dim.user_id = c.user_id"
         " JOIN aihelms.departments d ON d.id = ud_dim.department_id"
         " WHERE c.summary_date >= :start AND c.summary_date <= :end AND c.user_id IS NOT NULL"
+        f"{tenant_filter}"
         " GROUP BY d.name ORDER BY cost DESC"
     )
-    result = await session.execute(sql, {"start": start_date, "end": end_date})
+    result = await session.execute(sql, params)
     return [
         {
             "name": r[0],
@@ -233,9 +267,10 @@ async def get_cost_by_dimension(
     cost_type: str | None = None,
     department_id: int | None = None,
     project_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     filters, params = _build_cost_filters(
-        start_date, end_date, cost_type, department_id, "c", project_id
+        start_date, end_date, cost_type, department_id, "c", project_id, tenant_id
     )
     name_expr, join_sql, _ = _cost_dimension_config(
         dimension, params, department_id, project_id
@@ -267,9 +302,10 @@ async def get_per_capita_cost_by_dimension(
     cost_type: str | None = None,
     department_id: int | None = None,
     project_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     filters, params = _build_cost_filters(
-        start_date, end_date, cost_type, department_id, "c", project_id
+        start_date, end_date, cost_type, department_id, "c", project_id, tenant_id
     )
     name_expr, join_sql, _ = _cost_dimension_config(
         dimension, params, department_id, project_id
@@ -299,9 +335,10 @@ async def get_cost_detail_by_dimension(
     cost_type: str | None = None,
     department_id: int | None = None,
     project_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     filters, params = _build_cost_filters(
-        start_date, end_date, cost_type, department_id, "c", project_id
+        start_date, end_date, cost_type, department_id, "c", project_id, tenant_id
     )
     name_expr, join_sql, _ = _cost_dimension_config(
         dimension, params, department_id, project_id
@@ -354,8 +391,11 @@ async def get_cost_detail_scope_users(
     dimension: str,
     scope_id: int,
     cost_type: str | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
-    filters, params = _build_cost_filters(start_date, end_date, cost_type, None, "c")
+    filters, params = _build_cost_filters(
+        start_date, end_date, cost_type, None, "c", tenant_id=tenant_id
+    )
     params["scope_id"] = scope_id
     if dimension == "project":
         member_filter = (
@@ -426,9 +466,10 @@ async def get_cost_detail_by_department(
     cost_type: str | None = None,
     department_id: int | None = None,
     project_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     filters, params = _build_cost_filters(
-        start_date, end_date, cost_type, department_id, "c", project_id
+        start_date, end_date, cost_type, department_id, "c", project_id, tenant_id
     )
     sql = text(
         f"SELECT d.name, COALESCE(SUM(c.internal_cost), 0) AS internal_cost,"
@@ -464,9 +505,10 @@ async def get_cost_detail_by_model(
     cost_type: str | None = None,
     department_id: int | None = None,
     project_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     filters, params = _build_cost_filters(
-        start_date, end_date, cost_type, department_id, "c", project_id
+        start_date, end_date, cost_type, department_id, "c", project_id, tenant_id
     )
     sql = text(
         f"SELECT"
@@ -542,6 +584,7 @@ async def get_cost_detail_by_mcp(
     cost_type: str | None = None,
     department_id: int | None = None,
     project_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     if cost_type and cost_type != "mcp":
         return []
@@ -563,6 +606,9 @@ async def get_cost_detail_by_mcp(
             params[key] = item
             keys.append(f":{key}")
         filters += f" AND EXISTS (SELECT 1 FROM aihelms.user_projects up WHERE up.user_id = m.user_id AND up.project_id IN ({', '.join(keys)}))"
+    if tenant_id is not None:
+        filters += " AND m.tenant_id = :tenant_id"
+        params["tenant_id"] = tenant_id
     sql = text(
         f"SELECT"
         f" COALESCE('mcp:' || ms.id::text, 'raw:' || m.server_id::text) AS server_key,"
@@ -606,9 +652,15 @@ async def get_cost_detail_by_date(
     cost_type: str | None = None,
     department_id: int | None = None,
     project_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     filters, params = _build_cost_filters(
-        start_date, end_date, cost_type, department_id, project_id=project_id
+        start_date,
+        end_date,
+        cost_type,
+        department_id,
+        project_id=project_id,
+        tenant_id=tenant_id,
     )
     sql = text(
         f"SELECT summary_date::date AS d,"
@@ -643,9 +695,10 @@ async def get_cost_attribution_detail(
     cost_type: str | None = None,
     department_id: int | None = None,
     project_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     filters, params = _build_cost_filters(
-        start_date, end_date, cost_type, department_id, "c", project_id
+        start_date, end_date, cost_type, department_id, "c", project_id, tenant_id
     )
     membership_filter = _dimension_membership_join_filter(
         dimension, params, department_id, project_id
@@ -765,9 +818,10 @@ async def get_user_top10(
     department_id=None,
     project_id=None,
     metric: str = "cost",
+    tenant_id: int | None = None,
 ) -> list[dict]:
     filters, params = _build_cost_filters(
-        start_date, end_date, cost_type, department_id, "c", project_id
+        start_date, end_date, cost_type, department_id, "c", project_id, tenant_id
     )
     order_columns = {
         "cost": "SUM(c.internal_cost)",
