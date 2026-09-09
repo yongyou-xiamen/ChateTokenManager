@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="ui/static/img/logo.png" alt="AIHelms" width="100">
+<img src="ui/static/img/logo.svg" alt="ChateToken" width="180">
 
 
 <p><strong>Enterprise AI Resource Management Platform</strong></p>
