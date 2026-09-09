@@ -471,7 +471,6 @@ async def update_deployment(
             session, deployment.credential_id, tenant_id=tenant_id
         )
         sync_params = _convert_cost_for_litellm(deployment.litellm_params or {})
-        deployment.litellm_params = sync_params
         routable = _deployment_routable(deployment, credential)
         sync_model_info = dict(deployment.model_info or {})
         sync_model_info["active"] = routable
