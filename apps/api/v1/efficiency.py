@@ -382,7 +382,10 @@ async def list_reports(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    items, total = await efficiency_service.list_reports(session, page, page_size)
+    tenant_id = current_user.get("tenant_id")
+    items, total = await efficiency_service.list_reports(
+        session, page, page_size, tenant_id=tenant_id
+    )
     return {
         "code": 200,
         "message": "ok",
@@ -396,7 +399,10 @@ async def get_report(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    data = await efficiency_service.get_report_detail(session, report_id)
+    tenant_id = current_user.get("tenant_id")
+    data = await efficiency_service.get_report_detail(
+        session, report_id, tenant_id=tenant_id
+    )
     if not data:
         raise HTTPException(status_code=404, detail="报告不存在")
     return {"code": 200, "message": "ok", "data": data}

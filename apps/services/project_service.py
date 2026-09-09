@@ -13,23 +13,34 @@ logger = logging.getLogger(__name__)
 
 
 async def list_projects(
-    session: AsyncSession, page: int = 1, page_size: int = 20, keyword: str = ""
+    session: AsyncSession,
+    page: int = 1,
+    page_size: int = 20,
+    keyword: str = "",
+    tenant_id: int | None = None,
 ) -> dict:
-    total = await project_repo.count_projects(session, keyword)
-    projects = await project_repo.find_projects(session, page, page_size, keyword)
+    total = await project_repo.count_projects(session, keyword, tenant_id=tenant_id)
+    projects = await project_repo.find_projects(
+        session, page, page_size, keyword, tenant_id=tenant_id
+    )
     items = [_serialize_project(p) for p in projects]
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
-async def get_project_by_id(session: AsyncSession, project_id: int) -> dict:
-    project = await project_repo.find_by_id(session, project_id)
+async def get_project_by_id(
+    session: AsyncSession, project_id: int, tenant_id: int | None = None
+) -> dict:
+    project = await project_repo.find_by_id(session, project_id, tenant_id=tenant_id)
     if not project:
         raise NotFoundError("project", project_id)
     return _serialize_project(project)
 
 
 async def create_project(
-    session: AsyncSession, name: str, description: str = ""
+    session: AsyncSession,
+    name: str,
+    description: str = "",
+    tenant_id: int | None = None,
 ) -> dict:
     project = Project(name=name, description=description)
     project = await project_repo.create(session, project)
@@ -51,8 +62,9 @@ async def update_project(
     name: str | None = None,
     description: str | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    project = await project_repo.find_by_id(session, project_id)
+    project = await project_repo.find_by_id(session, project_id, tenant_id=tenant_id)
     if not project:
         raise NotFoundError("project", project_id)
 
@@ -73,8 +85,10 @@ async def update_project(
     return _serialize_project(project)
 
 
-async def delete_project(session: AsyncSession, project_id: int) -> None:
-    project = await project_repo.find_by_id(session, project_id)
+async def delete_project(
+    session: AsyncSession, project_id: int, tenant_id: int | None = None
+) -> None:
+    project = await project_repo.find_by_id(session, project_id, tenant_id=tenant_id)
     if not project:
         raise NotFoundError("project", project_id)
 
@@ -89,8 +103,10 @@ async def delete_project(session: AsyncSession, project_id: int) -> None:
         await litellm_client.block_team(project.litellm_team_id)
 
 
-async def get_project_members(session: AsyncSession, project_id: int) -> list[dict]:
-    project = await project_repo.find_by_id(session, project_id)
+async def get_project_members(
+    session: AsyncSession, project_id: int, tenant_id: int | None = None
+) -> list[dict]:
+    project = await project_repo.find_by_id(session, project_id, tenant_id=tenant_id)
     if not project:
         raise NotFoundError("project", project_id)
 
@@ -111,9 +127,12 @@ async def get_project_members(session: AsyncSession, project_id: int) -> list[di
 
 
 async def add_project_member(
-    session: AsyncSession, project_id: int, user_id: int
+    session: AsyncSession,
+    project_id: int,
+    user_id: int,
+    tenant_id: int | None = None,
 ) -> None:
-    project = await project_repo.find_by_id(session, project_id)
+    project = await project_repo.find_by_id(session, project_id, tenant_id=tenant_id)
     if not project or not project.is_active:
         raise NotFoundError("project", project_id)
 
@@ -136,9 +155,12 @@ async def add_project_member(
 
 
 async def remove_project_member(
-    session: AsyncSession, project_id: int, user_id: int
+    session: AsyncSession,
+    project_id: int,
+    user_id: int,
+    tenant_id: int | None = None,
 ) -> None:
-    project = await project_repo.find_by_id(session, project_id)
+    project = await project_repo.find_by_id(session, project_id, tenant_id=tenant_id)
     if not project:
         raise NotFoundError("project", project_id)
 

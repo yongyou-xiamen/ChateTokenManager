@@ -33,9 +33,12 @@ async def list_providers(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
-    result = await provider_service.list_providers(session, page, page_size)
+    tenant_id = current_user.get("tenant_id")
+    result = await provider_service.list_providers(
+        session, page, page_size, tenant_id=tenant_id
+    )
     return {"code": 200, "message": "ok", "data": result}
 
 
@@ -43,8 +46,9 @@ async def list_providers(
 async def create_provider(
     req: CreateProviderRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     provider = await provider_service.create_provider(
         session,
         name=req.name,
@@ -53,6 +57,7 @@ async def create_provider(
         monthly_budget=req.monthly_budget,
         description=req.description,
         config=req.config,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "供应商创建成功", "data": provider}
 
@@ -61,10 +66,13 @@ async def create_provider(
 async def get_provider(
     provider_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        provider = await provider_service.get_provider_by_id(session, provider_id)
+        provider = await provider_service.get_provider_by_id(
+            session, provider_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="供应商不存在")
     return {"code": 200, "message": "ok", "data": provider}
@@ -75,8 +83,9 @@ async def update_provider(
     provider_id: int,
     req: UpdateProviderRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         provider = await provider_service.update_provider(
             session,
@@ -88,6 +97,7 @@ async def update_provider(
             is_active=req.is_active,
             description=req.description,
             config=req.config,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="供应商不存在")
@@ -98,10 +108,13 @@ async def update_provider(
 async def delete_provider(
     provider_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:delete")),
+    current_user: dict = Depends(require_permission("user:delete")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await provider_service.delete_provider(session, provider_id)
+        await provider_service.delete_provider(
+            session, provider_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="供应商不存在")
     except ConflictError as e:

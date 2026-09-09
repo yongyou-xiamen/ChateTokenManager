@@ -12,14 +12,18 @@ from services import litellm_client
 logger = logging.getLogger(__name__)
 
 
-async def get_department_tree(session: AsyncSession) -> list[dict]:
-    departments = await department_repo.find_all_active(session)
+async def get_department_tree(
+    session: AsyncSession, tenant_id: int | None = None
+) -> list[dict]:
+    departments = await department_repo.find_all_active(session, tenant_id=tenant_id)
     items = [_serialize_dept(d) for d in departments]
     return _build_tree(items)
 
 
-async def get_department_by_id(session: AsyncSession, dept_id: int) -> dict:
-    dept = await department_repo.find_by_id(session, dept_id)
+async def get_department_by_id(
+    session: AsyncSession, dept_id: int, tenant_id: int | None = None
+) -> dict:
+    dept = await department_repo.find_by_id(session, dept_id, tenant_id=tenant_id)
     if not dept:
         raise NotFoundError("department", dept_id)
     data = _serialize_dept(dept)
@@ -36,12 +40,15 @@ async def create_department(
     name: str,
     parent_id: int | None = None,
     description: str = "",
+    tenant_id: int | None = None,
 ) -> dict:
     # 前端以 0 表示顶级部门，归一成 None，避免外键约束违反
     if not parent_id or parent_id <= 0:
         parent_id = None
     else:
-        parent = await department_repo.find_by_id(session, parent_id)
+        parent = await department_repo.find_by_id(
+            session, parent_id, tenant_id=tenant_id
+        )
         if not parent or not parent.is_active:
             raise NotFoundError("parent department", parent_id)
 
@@ -61,8 +68,9 @@ async def update_department(
     description: str | None = None,
     sort_order: int | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    dept = await department_repo.find_by_id(session, dept_id)
+    dept = await department_repo.find_by_id(session, dept_id, tenant_id=tenant_id)
     if not dept:
         raise NotFoundError("department", dept_id)
 
@@ -81,11 +89,13 @@ async def update_department(
                 await litellm_client.block_team(dept.litellm_team_id)
 
     await session.commit()
-    return await get_department_by_id(session, dept_id)
+    return await get_department_by_id(session, dept_id, tenant_id=tenant_id)
 
 
-async def delete_department(session: AsyncSession, dept_id: int) -> None:
-    dept = await department_repo.find_by_id(session, dept_id)
+async def delete_department(
+    session: AsyncSession, dept_id: int, tenant_id: int | None = None
+) -> None:
+    dept = await department_repo.find_by_id(session, dept_id, tenant_id=tenant_id)
     if not dept:
         raise NotFoundError("department", dept_id)
 
@@ -101,8 +111,10 @@ async def delete_department(session: AsyncSession, dept_id: int) -> None:
     await session.commit()
 
 
-async def get_department_members(session: AsyncSession, dept_id: int) -> list[dict]:
-    dept = await department_repo.find_by_id(session, dept_id)
+async def get_department_members(
+    session: AsyncSession, dept_id: int, tenant_id: int | None = None
+) -> list[dict]:
+    dept = await department_repo.find_by_id(session, dept_id, tenant_id=tenant_id)
     if not dept:
         raise NotFoundError("department", dept_id)
 
@@ -124,9 +136,12 @@ async def get_department_members(session: AsyncSession, dept_id: int) -> list[di
 
 
 async def add_department_member(
-    session: AsyncSession, dept_id: int, user_id: int
+    session: AsyncSession,
+    dept_id: int,
+    user_id: int,
+    tenant_id: int | None = None,
 ) -> None:
-    dept = await department_repo.find_by_id(session, dept_id)
+    dept = await department_repo.find_by_id(session, dept_id, tenant_id=tenant_id)
     if not dept or not dept.is_active:
         raise NotFoundError("department", dept_id)
 
@@ -143,9 +158,12 @@ async def add_department_member(
 
 
 async def remove_department_member(
-    session: AsyncSession, dept_id: int, user_id: int
+    session: AsyncSession,
+    dept_id: int,
+    user_id: int,
+    tenant_id: int | None = None,
 ) -> None:
-    dept = await department_repo.find_by_id(session, dept_id)
+    dept = await department_repo.find_by_id(session, dept_id, tenant_id=tenant_id)
     if not dept:
         raise NotFoundError("department", dept_id)
 
@@ -158,9 +176,12 @@ async def remove_department_member(
 
 
 async def update_department_managers(
-    session: AsyncSession, dept_id: int, manager_user_ids: list[int]
+    session: AsyncSession,
+    dept_id: int,
+    manager_user_ids: list[int],
+    tenant_id: int | None = None,
 ) -> None:
-    dept = await department_repo.find_by_id(session, dept_id)
+    dept = await department_repo.find_by_id(session, dept_id, tenant_id=tenant_id)
     if not dept:
         raise NotFoundError("department", dept_id)
 

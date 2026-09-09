@@ -64,11 +64,12 @@ async def list_published_skills(
     page_size: int = Query(50, ge=1, le=200),
     category: str | None = None,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """公开接口：已认证用户可查看已发布的 Skill 列表。"""
+    tenant_id = current_user.get("tenant_id")
     data = await skill_service.list_skills(
-        session, page, page_size, category, is_published=True
+        session, page, page_size, category, is_published=True, tenant_id=tenant_id
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -80,10 +81,11 @@ async def list_skills(
     category: str | None = None,
     is_published: bool | None = None,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("skill:read")),
+    current_user: dict = Depends(require_permission("skill:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     data = await skill_service.list_skills(
-        session, page, page_size, category, is_published
+        session, page, page_size, category, is_published, tenant_id=tenant_id
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -92,10 +94,11 @@ async def list_skills(
 async def get_skill(
     skill_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("skill:read")),
+    current_user: dict = Depends(require_permission("skill:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        data = await skill_service.get_skill(session, skill_id)
+        data = await skill_service.get_skill(session, skill_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Skill 不存在")
     return {"code": 200, "message": "ok", "data": data}
@@ -119,6 +122,7 @@ async def create_skill(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission("skill:create")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         tags_list = json.loads(tags) if tags else []
     except json.JSONDecodeError:
@@ -146,6 +150,7 @@ async def create_skill(
         zip_content=zip_content,
         zip_filename=zip_filename,
         created_by=current_user["id"],
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "Skill 创建成功", "data": data}
 
@@ -168,8 +173,9 @@ async def update_skill(
     requires_approval: bool | None = Form(None),
     zip_file: UploadFile | None = File(None),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("skill:update")),
+    current_user: dict = Depends(require_permission("skill:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     kwargs: dict = {}
     if name is not None:
         kwargs["name"] = name
@@ -213,6 +219,7 @@ async def update_skill(
             skill_id,
             zip_content=zip_content,
             zip_filename=zip_filename,
+            tenant_id=tenant_id,
             **kwargs,
         )
     except NotFoundError:
@@ -224,10 +231,11 @@ async def update_skill(
 async def delete_skill(
     skill_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("skill:delete")),
+    current_user: dict = Depends(require_permission("skill:delete")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await skill_service.delete_skill(session, skill_id)
+        await skill_service.delete_skill(session, skill_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Skill 不存在")
     return {"code": 200, "message": "Skill 删除成功", "data": None}
@@ -239,9 +247,10 @@ async def download_skill(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission("skill:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         zip_path, download_name, _ = await skill_service.get_skill_zip(
-            session, skill_id
+            session, skill_id, tenant_id=tenant_id
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Skill 或 zip 文件不存在")
@@ -276,9 +285,10 @@ async def get_install_info(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         data = await skill_service.get_install_info(
-            session, skill_id, user_id=current_user["id"]
+            session, skill_id, user_id=current_user["id"], tenant_id=tenant_id
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Skill 不存在")

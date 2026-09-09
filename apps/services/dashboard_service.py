@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from repositories import dashboard_repo
+from repositories.base import apply_tenant_filter
 
 from models.db import (
     AdminAuditLog,
@@ -33,15 +34,20 @@ def _prev_period(start_date: date, end_date: date) -> tuple[date, date]:
 
 
 async def get_dashboard(
-    session: AsyncSession, start_date: date, end_date: date
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    tenant_id: int | None = None,
 ) -> dict:
     """聚合 Dashboard 所有板块数据。"""
     prev_start, prev_end = _prev_period(start_date, end_date)
     status = await _get_status(session, start_date, end_date, prev_start, prev_end)
     trend = await _get_request_trend(session, start_date, end_date)
-    resources = await _get_resources(session)
-    recent_activities = await _get_recent_activities(session)
-    pending_approvals, pending_total = await _get_latest_pending_approvals(session)
+    resources = await _get_resources(session, tenant_id=tenant_id)
+    recent_activities = await _get_recent_activities(session, tenant_id=tenant_id)
+    pending_approvals, pending_total = await _get_latest_pending_approvals(
+        session, tenant_id=tenant_id
+    )
     service_status = await _get_service_status(session)
     last_updated_at = await _get_last_updated_at(session)
     cost_leaderboard = await dashboard_repo.get_cost_leaderboard(
@@ -141,20 +147,27 @@ async def _get_request_trend(
 
 
 async def _get_latest_pending_approvals(
-    session: AsyncSession,
+    session: AsyncSession, tenant_id: int | None = None
 ) -> tuple[list[dict], int]:
-    total_result = await session.execute(
+    count_stmt = apply_tenant_filter(
         select(func.count(ResourceApplication.id)).where(
             ResourceApplication.status == "pending"
-        )
+        ),
+        ResourceApplication,
+        tenant_id,
     )
+    total_result = await session.execute(count_stmt)
     total = int(total_result.scalar() or 0)
-    result = await session.execute(
-        select(ResourceApplication)
-        .where(ResourceApplication.status == "pending")
+    list_stmt = (
+        apply_tenant_filter(
+            select(ResourceApplication).where(ResourceApplication.status == "pending"),
+            ResourceApplication,
+            tenant_id,
+        )
         .order_by(ResourceApplication.created_at.desc())
         .limit(5)
     )
+    result = await session.execute(list_stmt)
     rows = []
     for app in result.scalars().all():
         applicant = (
@@ -267,21 +280,35 @@ async def _get_last_updated_at(session: AsyncSession) -> datetime | None:
     return await dashboard_repo.get_last_updated_at(session)
 
 
-async def _get_resources(session: AsyncSession) -> list[dict]:
-    models_total = await _count(session, Model)
-    models_published = await _count(session, Model, Model.is_published.is_(True))
-    mcp_total = await _count(session, McpServer)
-    mcp_published = await _count(session, McpServer, McpServer.is_published.is_(True))
-    skills_total = await _count(session, Skill)
-    skills_published = await _count(session, Skill, Skill.is_published.is_(True))
-    agents_total = await _count(session, Agent)
-    agents_published = await _count(session, Agent, Agent.is_published.is_(True))
-    ai_keys_total = await _count(session, AiKey)
-    ai_keys_active = await _count(session, AiKey, AiKey.is_active.is_(True))
-    users_total = await _count(session, User)
-    users_active = await _count(session, User, User.is_active.is_(True))
-    departments_total = await _count(session, Department)
-    projects_total = await _count(session, Project)
+async def _get_resources(
+    session: AsyncSession, tenant_id: int | None = None
+) -> list[dict]:
+    models_total = await _count(session, Model, tenant_id=tenant_id)
+    models_published = await _count(
+        session, Model, Model.is_published.is_(True), tenant_id=tenant_id
+    )
+    mcp_total = await _count(session, McpServer, tenant_id=tenant_id)
+    mcp_published = await _count(
+        session, McpServer, McpServer.is_published.is_(True), tenant_id=tenant_id
+    )
+    skills_total = await _count(session, Skill, tenant_id=tenant_id)
+    skills_published = await _count(
+        session, Skill, Skill.is_published.is_(True), tenant_id=tenant_id
+    )
+    agents_total = await _count(session, Agent, tenant_id=tenant_id)
+    agents_published = await _count(
+        session, Agent, Agent.is_published.is_(True), tenant_id=tenant_id
+    )
+    ai_keys_total = await _count(session, AiKey, tenant_id=tenant_id)
+    ai_keys_active = await _count(
+        session, AiKey, AiKey.is_active.is_(True), tenant_id=tenant_id
+    )
+    users_total = await _count(session, User, tenant_id=tenant_id)
+    users_active = await _count(
+        session, User, User.is_active.is_(True), tenant_id=tenant_id
+    )
+    departments_total = await _count(session, Department, tenant_id=tenant_id)
+    projects_total = await _count(session, Project, tenant_id=tenant_id)
 
     return [
         {
@@ -351,9 +378,12 @@ async def _get_resources(session: AsyncSession) -> list[dict]:
     ]
 
 
-async def _get_recent_activities(session: AsyncSession) -> list[dict]:
+async def _get_recent_activities(
+    session: AsyncSession, tenant_id: int | None = None
+) -> list[dict]:
+    stmt = apply_tenant_filter(select(AdminAuditLog), AdminAuditLog, tenant_id)
     result = await session.execute(
-        select(AdminAuditLog).order_by(AdminAuditLog.created_at.desc()).limit(5)
+        stmt.order_by(AdminAuditLog.created_at.desc()).limit(5)
     )
     return [
         {
@@ -365,8 +395,15 @@ async def _get_recent_activities(session: AsyncSession) -> list[dict]:
     ]
 
 
-async def _count(session: AsyncSession, model: type, *filters) -> int:
+async def _count(
+    session: AsyncSession,
+    model: type,
+    *filters,
+    tenant_id: int | None = None,
+) -> int:
     stmt = select(func.count()).select_from(model)
+    if tenant_id is not None and hasattr(model, "tenant_id"):
+        stmt = stmt.where(model.tenant_id == tenant_id)
     for f in filters:
         stmt = stmt.where(f)
     result = await session.execute(stmt)

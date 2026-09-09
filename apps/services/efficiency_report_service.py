@@ -7,9 +7,14 @@ from repositories import efficiency_repo
 
 
 async def list_reports(
-    session: AsyncSession, page: int = 1, page_size: int = 20
+    session: AsyncSession,
+    page: int = 1,
+    page_size: int = 20,
+    tenant_id: int | None = None,
 ) -> tuple[list, int]:
-    reports, total = await efficiency_repo.list_reports(session, page, page_size)
+    reports, total = await efficiency_repo.list_reports(
+        session, page, page_size, tenant_id=tenant_id
+    )
     items = [
         {
             "id": r.id,
@@ -25,8 +30,12 @@ async def list_reports(
     return items, total
 
 
-async def get_report_detail(session: AsyncSession, report_id: int) -> dict | None:
-    report = await efficiency_repo.get_report_by_id(session, report_id)
+async def get_report_detail(
+    session: AsyncSession, report_id: int, tenant_id: int | None = None
+) -> dict | None:
+    report = await efficiency_repo.get_report_by_id(
+        session, report_id, tenant_id=tenant_id
+    )
     if not report:
         return None
     suggestions = await efficiency_repo.list_suggestions_by_report(session, report_id)

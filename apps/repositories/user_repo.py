@@ -2,6 +2,7 @@ from sqlalchemy import select, func, or_, delete, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.db import User, UserRole, UserDepartment, UserProject
+from repositories.base import apply_tenant_filter
 
 
 async def count_users(
@@ -9,8 +10,13 @@ async def count_users(
     keyword: str = "",
     is_admin: bool | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> int:
-    stmt = select(func.count(User.id)).where(User.is_super_admin == False)
+    stmt = apply_tenant_filter(
+        select(func.count(User.id)).where(User.is_super_admin == False),
+        User,
+        tenant_id,
+    )
     if keyword:
         pattern = f"%{keyword}%"
         stmt = stmt.where(
@@ -36,9 +42,12 @@ async def find_users(
     keyword: str = "",
     is_admin: bool | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> list[User]:
     offset = (page - 1) * page_size
-    stmt = select(User).where(User.is_super_admin == False).order_by(User.id)
+    stmt = apply_tenant_filter(
+        select(User).where(User.is_super_admin == False), User, tenant_id
+    ).order_by(User.id)
     if keyword:
         pattern = f"%{keyword}%"
         stmt = stmt.where(
@@ -145,9 +154,13 @@ async def replace_user_projects(
 
 
 async def find_users_paginated(
-    session: AsyncSession, page: int, page_size: int, keyword: str | None = None
+    session: AsyncSession,
+    page: int,
+    page_size: int,
+    keyword: str | None = None,
+    tenant_id: int | None = None,
 ) -> tuple[list[User], int]:
     kw = keyword or ""
-    total = await count_users(session, kw)
-    users = await find_users(session, page, page_size, kw)
+    total = await count_users(session, kw, tenant_id=tenant_id)
+    users = await find_users(session, page, page_size, kw, tenant_id=tenant_id)
     return users, total

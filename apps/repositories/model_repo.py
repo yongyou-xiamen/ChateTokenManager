@@ -12,6 +12,7 @@ from models.db import (
     ModelUserVisibility,
     RouterSettings,
 )
+from repositories.base import apply_tenant_filter
 
 
 async def create(session: AsyncSession, model: Model) -> Model:
@@ -21,20 +22,33 @@ async def create(session: AsyncSession, model: Model) -> Model:
     return model
 
 
-async def find_by_id(session: AsyncSession, model_id: int) -> Model | None:
-    result = await session.execute(select(Model).where(Model.id == model_id))
+async def find_by_id(
+    session: AsyncSession, model_id: int, tenant_id: int | None = None
+) -> Model | None:
+    stmt = apply_tenant_filter(
+        select(Model).where(Model.id == model_id), Model, tenant_id
+    )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
-async def find_by_ids(session: AsyncSession, ids: list[int]) -> list[Model]:
+async def find_by_ids(
+    session: AsyncSession, ids: list[int], tenant_id: int | None = None
+) -> list[Model]:
     if not ids:
         return []
-    result = await session.execute(select(Model).where(Model.id.in_(ids)))
+    stmt = apply_tenant_filter(select(Model).where(Model.id.in_(ids)), Model, tenant_id)
+    result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
-async def find_by_model_id(session: AsyncSession, model_id_str: str) -> Model | None:
-    result = await session.execute(select(Model).where(Model.model_id == model_id_str))
+async def find_by_model_id(
+    session: AsyncSession, model_id_str: str, tenant_id: int | None = None
+) -> Model | None:
+    stmt = apply_tenant_filter(
+        select(Model).where(Model.model_id == model_id_str), Model, tenant_id
+    )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -44,8 +58,9 @@ async def find_all(
     page_size: int = 50,
     category: str | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> list[Model]:
-    stmt = select(Model).order_by(Model.id)
+    stmt = apply_tenant_filter(select(Model), Model, tenant_id).order_by(Model.id)
     if category:
         stmt = stmt.where(Model.category == category)
     if is_active is not None:
@@ -60,8 +75,9 @@ async def count_all(
     session: AsyncSession,
     category: str | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> int:
-    stmt = select(func.count(Model.id))
+    stmt = apply_tenant_filter(select(func.count(Model.id)), Model, tenant_id)
     if category:
         stmt = stmt.where(Model.category == category)
     if is_active is not None:
@@ -71,9 +87,11 @@ async def count_all(
 
 
 async def find_all_active(
-    session: AsyncSession, published_only: bool = False
+    session: AsyncSession, published_only: bool = False, tenant_id: int | None = None
 ) -> list[Model]:
-    stmt = select(Model).where(Model.is_active == True)
+    stmt = apply_tenant_filter(
+        select(Model).where(Model.is_active == True), Model, tenant_id
+    )
     if published_only:
         stmt = stmt.where(Model.is_published == True)
     result = await session.execute(stmt.order_by(Model.name))
@@ -93,36 +111,45 @@ async def create_deployment(
 
 
 async def find_deployment_by_id(
-    session: AsyncSession, deployment_id: int
+    session: AsyncSession, deployment_id: int, tenant_id: int | None = None
 ) -> ModelDeployment | None:
-    result = await session.execute(
-        select(ModelDeployment).where(ModelDeployment.id == deployment_id)
+    stmt = apply_tenant_filter(
+        select(ModelDeployment).where(ModelDeployment.id == deployment_id),
+        ModelDeployment,
+        tenant_id,
     )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def find_deployments_by_model(
-    session: AsyncSession, model_id: int
+    session: AsyncSession, model_id: int, tenant_id: int | None = None
 ) -> list[ModelDeployment]:
-    result = await session.execute(
-        select(ModelDeployment)
-        .where(ModelDeployment.model_id == model_id)
-        .options(selectinload(ModelDeployment.credential))
-        .order_by(ModelDeployment.id)
+    stmt = apply_tenant_filter(
+        select(ModelDeployment).where(ModelDeployment.model_id == model_id),
+        ModelDeployment,
+        tenant_id,
     )
+    stmt = stmt.options(selectinload(ModelDeployment.credential)).order_by(
+        ModelDeployment.id
+    )
+    result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
-async def find_all_active_deployments(session: AsyncSession) -> list[ModelDeployment]:
-    result = await session.execute(
-        select(ModelDeployment)
-        .where(ModelDeployment.is_active == True)
-        .options(
-            selectinload(ModelDeployment.model),
-            selectinload(ModelDeployment.credential),
-        )
-        .order_by(ModelDeployment.model_id, ModelDeployment.id)
+async def find_all_active_deployments(
+    session: AsyncSession, tenant_id: int | None = None
+) -> list[ModelDeployment]:
+    stmt = apply_tenant_filter(
+        select(ModelDeployment).where(ModelDeployment.is_active == True),
+        ModelDeployment,
+        tenant_id,
     )
+    stmt = stmt.options(
+        selectinload(ModelDeployment.model),
+        selectinload(ModelDeployment.credential),
+    ).order_by(ModelDeployment.model_id, ModelDeployment.id)
+    result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
@@ -172,27 +199,34 @@ async def create_access_group(
 
 
 async def find_access_group_by_id(
-    session: AsyncSession, group_id: int
+    session: AsyncSession, group_id: int, tenant_id: int | None = None
 ) -> ModelAccessGroup | None:
-    result = await session.execute(
-        select(ModelAccessGroup).where(ModelAccessGroup.id == group_id)
+    stmt = apply_tenant_filter(
+        select(ModelAccessGroup).where(ModelAccessGroup.id == group_id),
+        ModelAccessGroup,
+        tenant_id,
     )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def find_access_group_by_name(
-    session: AsyncSession, group_name: str
+    session: AsyncSession, group_name: str, tenant_id: int | None = None
 ) -> ModelAccessGroup | None:
-    result = await session.execute(
-        select(ModelAccessGroup).where(ModelAccessGroup.group_name == group_name)
+    stmt = apply_tenant_filter(
+        select(ModelAccessGroup).where(ModelAccessGroup.group_name == group_name),
+        ModelAccessGroup,
+        tenant_id,
     )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
-async def find_all_access_groups(session: AsyncSession) -> list[ModelAccessGroup]:
-    result = await session.execute(
-        select(ModelAccessGroup).order_by(ModelAccessGroup.id)
-    )
+async def find_all_access_groups(
+    session: AsyncSession, tenant_id: int | None = None
+) -> list[ModelAccessGroup]:
+    stmt = apply_tenant_filter(select(ModelAccessGroup), ModelAccessGroup, tenant_id)
+    result = await session.execute(stmt.order_by(ModelAccessGroup.id))
     return list(result.scalars().all())
 
 

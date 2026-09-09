@@ -2,10 +2,17 @@ from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.db import Project, UserProject, User
+from repositories.base import apply_tenant_filter
 
 
-async def count_projects(session: AsyncSession, keyword: str = "") -> int:
-    stmt = select(func.count(Project.id)).where(Project.is_active == True)
+async def count_projects(
+    session: AsyncSession, keyword: str = "", tenant_id: int | None = None
+) -> int:
+    stmt = apply_tenant_filter(
+        select(func.count(Project.id)).where(Project.is_active == True),
+        Project,
+        tenant_id,
+    )
     if keyword:
         stmt = stmt.where(Project.name.ilike(f"%{keyword}%"))
     result = await session.execute(stmt)
@@ -13,10 +20,17 @@ async def count_projects(session: AsyncSession, keyword: str = "") -> int:
 
 
 async def find_projects(
-    session: AsyncSession, page: int, page_size: int, keyword: str = ""
+    session: AsyncSession,
+    page: int,
+    page_size: int,
+    keyword: str = "",
+    tenant_id: int | None = None,
 ) -> list[Project]:
     offset = (page - 1) * page_size
-    stmt = select(Project).where(Project.is_active == True).order_by(Project.id)
+    stmt = apply_tenant_filter(
+        select(Project).where(Project.is_active == True), Project, tenant_id
+    )
+    stmt = stmt.order_by(Project.id)
     if keyword:
         stmt = stmt.where(Project.name.ilike(f"%{keyword}%"))
     stmt = stmt.limit(page_size).offset(offset)
@@ -24,8 +38,13 @@ async def find_projects(
     return list(result.scalars().all())
 
 
-async def find_by_id(session: AsyncSession, project_id: int) -> Project | None:
-    result = await session.execute(select(Project).where(Project.id == project_id))
+async def find_by_id(
+    session: AsyncSession, project_id: int, tenant_id: int | None = None
+) -> Project | None:
+    stmt = apply_tenant_filter(
+        select(Project).where(Project.id == project_id), Project, tenant_id
+    )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -80,9 +99,13 @@ async def remove_member(session: AsyncSession, user_id: int, project_id: int) ->
 
 
 async def find_paginated(
-    session: AsyncSession, page: int, page_size: int, keyword: str | None = None
+    session: AsyncSession,
+    page: int,
+    page_size: int,
+    keyword: str | None = None,
+    tenant_id: int | None = None,
 ) -> tuple[list[Project], int]:
     kw = keyword or ""
-    total = await count_projects(session, kw)
-    items = await find_projects(session, page, page_size, kw)
+    total = await count_projects(session, kw, tenant_id=tenant_id)
+    items = await find_projects(session, page, page_size, kw, tenant_id=tenant_id)
     return items, total

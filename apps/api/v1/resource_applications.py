@@ -60,8 +60,9 @@ async def list_applications(
     reviewed_after: date | None = None,
     reviewed_before: date | None = None,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("resource_application:read")),
+    current_user: dict = Depends(require_permission("resource_application:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     data = await resource_application_service.list_applications(
         session,
         page,
@@ -73,6 +74,7 @@ async def list_applications(
         _date_end(created_before),
         _date_start(reviewed_after),
         _date_end(reviewed_before),
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -87,8 +89,15 @@ async def list_my_applications(
     current_user: dict = Depends(get_current_user),
 ):
     """List current user's own resource applications."""
+    tenant_id = current_user.get("tenant_id")
     data = await resource_application_service.list_applications(
-        session, page, page_size, current_user["id"], resource_type, status
+        session,
+        page,
+        page_size,
+        current_user["id"],
+        resource_type,
+        status,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -97,10 +106,13 @@ async def list_my_applications(
 async def get_application(
     app_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("resource_application:read")),
+    current_user: dict = Depends(require_permission("resource_application:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        data = await resource_application_service.get_application(session, app_id)
+        data = await resource_application_service.get_application(
+            session, app_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="申请不存在")
     return {"code": 200, "message": "ok", "data": data}
@@ -112,6 +124,7 @@ async def create_application(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         data = await resource_application_service.create_application(
             session,
@@ -120,6 +133,7 @@ async def create_application(
             resource_id=req.resource_id,
             reason=req.reason,
             request_config=req.request_config,
+            tenant_id=tenant_id,
         )
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -137,6 +151,7 @@ async def approve_application(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission("resource_application:approve")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         data = await resource_application_service.approve_application(
             session,
@@ -144,6 +159,7 @@ async def approve_application(
             reviewer_id=current_user["id"],
             approval_config=req.approval_config,
             review_notes=req.review_notes,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="申请不存在")
@@ -159,12 +175,14 @@ async def reject_application(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission("resource_application:approve")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         data = await resource_application_service.reject_application(
             session,
             app_id=app_id,
             reviewer_id=current_user["id"],
             review_notes=req.review_notes,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="申请不存在")
@@ -179,12 +197,14 @@ async def batch_approve_applications(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission("resource_application:approve")),
 ):
+    tenant_id = current_user.get("tenant_id")
     data = await resource_application_service.batch_approve_applications(
         session,
         app_ids=req.app_ids,
         reviewer_id=current_user["id"],
         approval_config=req.approval_config,
         review_notes=req.review_notes,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "批量审批完成", "data": data}
 
@@ -195,10 +215,12 @@ async def batch_reject_applications(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission("resource_application:approve")),
 ):
+    tenant_id = current_user.get("tenant_id")
     data = await resource_application_service.batch_reject_applications(
         session,
         app_ids=req.app_ids,
         reviewer_id=current_user["id"],
         review_notes=req.review_notes,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "批量驳回完成", "data": data}

@@ -19,9 +19,12 @@ async def list_projects(
     page_size: int = Query(20, ge=1, le=100),
     keyword: str = Query("", max_length=64),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("project:read")),
+    current_user: dict = Depends(require_permission("project:read")),
 ):
-    result = await project_service.list_projects(session, page, page_size, keyword)
+    tenant_id = current_user.get("tenant_id")
+    result = await project_service.list_projects(
+        session, page, page_size, keyword, tenant_id=tenant_id
+    )
     return {"code": 200, "message": "ok", "data": result}
 
 
@@ -29,10 +32,13 @@ async def list_projects(
 async def get_project(
     project_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("project:read")),
+    current_user: dict = Depends(require_permission("project:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        project = await project_service.get_project_by_id(session, project_id)
+        project = await project_service.get_project_by_id(
+            session, project_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="项目不存在")
     return {"code": 200, "message": "ok", "data": project}
@@ -42,10 +48,11 @@ async def get_project(
 async def create_project(
     req: CreateProjectRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("project:create")),
+    current_user: dict = Depends(require_permission("project:create")),
 ):
+    tenant_id = current_user.get("tenant_id")
     project = await project_service.create_project(
-        session, name=req.name, description=req.description
+        session, name=req.name, description=req.description, tenant_id=tenant_id
     )
     return {"code": 200, "message": "项目创建成功", "data": project}
 
@@ -55,8 +62,9 @@ async def update_project(
     project_id: int,
     req: UpdateProjectRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("project:update")),
+    current_user: dict = Depends(require_permission("project:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         project = await project_service.update_project(
             session,
@@ -64,6 +72,7 @@ async def update_project(
             name=req.name,
             description=req.description,
             is_active=req.is_active,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="项目不存在")
@@ -74,10 +83,11 @@ async def update_project(
 async def delete_project(
     project_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("project:delete")),
+    current_user: dict = Depends(require_permission("project:delete")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await project_service.delete_project(session, project_id)
+        await project_service.delete_project(session, project_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="项目不存在")
     except ConflictError as e:
@@ -89,10 +99,13 @@ async def delete_project(
 async def get_project_members(
     project_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("project:read")),
+    current_user: dict = Depends(require_permission("project:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        members = await project_service.get_project_members(session, project_id)
+        members = await project_service.get_project_members(
+            session, project_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="项目不存在")
     return {"code": 200, "message": "ok", "data": members}
@@ -103,10 +116,13 @@ async def add_project_member(
     project_id: int,
     req: ProjectMemberRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("project:update")),
+    current_user: dict = Depends(require_permission("project:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await project_service.add_project_member(session, project_id, req.user_id)
+        await project_service.add_project_member(
+            session, project_id, req.user_id, tenant_id=tenant_id
+        )
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ConflictError as e:
@@ -119,10 +135,13 @@ async def remove_project_member(
     project_id: int,
     user_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("project:update")),
+    current_user: dict = Depends(require_permission("project:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await project_service.remove_project_member(session, project_id, user_id)
+        await project_service.remove_project_member(
+            session, project_id, user_id, tenant_id=tenant_id
+        )
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"code": 200, "message": "成员移除成功", "data": None}

@@ -2,6 +2,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.db import AiKey
+from repositories.base import apply_tenant_filter
 
 
 async def create(session: AsyncSession, ai_key: AiKey) -> AiKey:
@@ -11,8 +12,13 @@ async def create(session: AsyncSession, ai_key: AiKey) -> AiKey:
     return ai_key
 
 
-async def find_by_id(session: AsyncSession, key_id: int) -> AiKey | None:
-    result = await session.execute(select(AiKey).where(AiKey.id == key_id))
+async def find_by_id(
+    session: AsyncSession, key_id: int, tenant_id: int | None = None
+) -> AiKey | None:
+    stmt = apply_tenant_filter(
+        select(AiKey).where(AiKey.id == key_id), AiKey, tenant_id
+    )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -32,66 +38,77 @@ async def find_by_owner(
     session: AsyncSession,
     owner_type: str,
     owner_id: int,
+    tenant_id: int | None = None,
 ) -> list[AiKey]:
-    result = await session.execute(
-        select(AiKey)
-        .where(AiKey.owner_type == owner_type, AiKey.owner_id == owner_id)
-        .order_by(AiKey.id)
-    )
+    stmt = apply_tenant_filter(select(AiKey), AiKey, tenant_id)
+    stmt = stmt.where(
+        AiKey.owner_type == owner_type, AiKey.owner_id == owner_id
+    ).order_by(AiKey.id)
+    result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
-async def find_by_user(session: AsyncSession, user_id: int) -> list[AiKey]:
-    result = await session.execute(
-        select(AiKey)
-        .where(AiKey.owner_type == "user", AiKey.owner_id == user_id)
-        .order_by(AiKey.id)
+async def find_by_user(
+    session: AsyncSession, user_id: int, tenant_id: int | None = None
+) -> list[AiKey]:
+    stmt = apply_tenant_filter(select(AiKey), AiKey, tenant_id)
+    stmt = stmt.where(AiKey.owner_type == "user", AiKey.owner_id == user_id).order_by(
+        AiKey.id
     )
+    result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
-async def find_personal_main(session: AsyncSession, user_id: int) -> AiKey | None:
-    result = await session.execute(
-        select(AiKey).where(
-            AiKey.owner_type == "user",
-            AiKey.owner_id == user_id,
-            AiKey.key_type == "personal_main",
-        )
+async def find_personal_main(
+    session: AsyncSession, user_id: int, tenant_id: int | None = None
+) -> AiKey | None:
+    stmt = apply_tenant_filter(select(AiKey), AiKey, tenant_id)
+    stmt = stmt.where(
+        AiKey.owner_type == "user",
+        AiKey.owner_id == user_id,
+        AiKey.key_type == "personal_main",
     )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
-async def find_all_main_keys(session: AsyncSession) -> list[AiKey]:
+async def find_all_main_keys(
+    session: AsyncSession, tenant_id: int | None = None
+) -> list[AiKey]:
     """查找所有主 Key（personal_main / dept_main / project_main）。"""
-    result = await session.execute(
-        select(AiKey).where(
-            AiKey.key_type.in_(["personal_main", "dept_main", "project_main"]),
-            AiKey.is_active == True,
-        )
+    stmt = apply_tenant_filter(select(AiKey), AiKey, tenant_id)
+    stmt = stmt.where(
+        AiKey.key_type.in_(["personal_main", "dept_main", "project_main"]),
+        AiKey.is_active == True,
     )
+    result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
 async def find_keys_referencing_model(
-    session: AsyncSession, model_id_str: str
+    session: AsyncSession, model_id_str: str, tenant_id: int | None = None
 ) -> list[AiKey]:
     """查找 models 列表中引用了指定 model_id 字符串的所有 Key（含场景 Key）。"""
-    result = await session.execute(
-        select(AiKey).where(AiKey.models.contains([model_id_str]))
-    )
+    stmt = apply_tenant_filter(select(AiKey), AiKey, tenant_id)
+    stmt = stmt.where(AiKey.models.contains([model_id_str]))
+    result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
 async def find_main_key(
-    session: AsyncSession, owner_type: str, owner_id: int, key_type: str
+    session: AsyncSession,
+    owner_type: str,
+    owner_id: int,
+    key_type: str,
+    tenant_id: int | None = None,
 ) -> AiKey | None:
-    result = await session.execute(
-        select(AiKey).where(
-            AiKey.owner_type == owner_type,
-            AiKey.owner_id == owner_id,
-            AiKey.key_type == key_type,
-        )
+    stmt = apply_tenant_filter(select(AiKey), AiKey, tenant_id)
+    stmt = stmt.where(
+        AiKey.owner_type == owner_type,
+        AiKey.owner_id == owner_id,
+        AiKey.key_type == key_type,
     )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -102,8 +119,9 @@ async def find_all(
     owner_type: str | None = None,
     owner_id: int | None = None,
     key_type: str | None = None,
+    tenant_id: int | None = None,
 ) -> list[AiKey]:
-    stmt = select(AiKey).order_by(AiKey.id)
+    stmt = apply_tenant_filter(select(AiKey), AiKey, tenant_id).order_by(AiKey.id)
     if owner_type:
         stmt = stmt.where(AiKey.owner_type == owner_type)
     if owner_id:
@@ -121,8 +139,9 @@ async def count_all(
     owner_type: str | None = None,
     owner_id: int | None = None,
     key_type: str | None = None,
+    tenant_id: int | None = None,
 ) -> int:
-    stmt = select(func.count(AiKey.id))
+    stmt = apply_tenant_filter(select(func.count(AiKey.id)), AiKey, tenant_id)
     if owner_type:
         stmt = stmt.where(AiKey.owner_type == owner_type)
     if owner_id:

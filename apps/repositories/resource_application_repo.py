@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.db import ResourceApplication
+from repositories.base import apply_tenant_filter
 
 
 async def create(
@@ -15,10 +16,15 @@ async def create(
     return app
 
 
-async def find_by_id(session: AsyncSession, app_id: int) -> ResourceApplication | None:
-    result = await session.execute(
-        select(ResourceApplication).where(ResourceApplication.id == app_id)
+async def find_by_id(
+    session: AsyncSession, app_id: int, tenant_id: int | None = None
+) -> ResourceApplication | None:
+    stmt = apply_tenant_filter(
+        select(ResourceApplication).where(ResourceApplication.id == app_id),
+        ResourceApplication,
+        tenant_id,
     )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -48,8 +54,11 @@ async def find_all(
     created_before: datetime | None = None,
     reviewed_after: datetime | None = None,
     reviewed_before: datetime | None = None,
+    tenant_id: int | None = None,
 ) -> list[ResourceApplication]:
-    stmt = select(ResourceApplication).order_by(ResourceApplication.id.desc())
+    stmt = apply_tenant_filter(
+        select(ResourceApplication), ResourceApplication, tenant_id
+    ).order_by(ResourceApplication.id.desc())
     if user_id is not None:
         stmt = stmt.where(ResourceApplication.user_id == user_id)
     if resource_type:
@@ -82,8 +91,11 @@ async def count_all(
     created_before: datetime | None = None,
     reviewed_after: datetime | None = None,
     reviewed_before: datetime | None = None,
+    tenant_id: int | None = None,
 ) -> int:
-    stmt = select(func.count(ResourceApplication.id))
+    stmt = apply_tenant_filter(
+        select(func.count(ResourceApplication.id)), ResourceApplication, tenant_id
+    )
     if user_id is not None:
         stmt = stmt.where(ResourceApplication.user_id == user_id)
     if resource_type:

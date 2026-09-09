@@ -2,6 +2,7 @@ from sqlalchemy import select, func, delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.db import Skill, SkillCategory
+from repositories.base import apply_tenant_filter
 
 
 # ─── Skill ───────────────────────────────────────────────────────────────────
@@ -14,13 +15,23 @@ async def create(session: AsyncSession, skill: Skill) -> Skill:
     return skill
 
 
-async def find_by_id(session: AsyncSession, skill_id: int) -> Skill | None:
-    result = await session.execute(select(Skill).where(Skill.id == skill_id))
+async def find_by_id(
+    session: AsyncSession, skill_id: int, tenant_id: int | None = None
+) -> Skill | None:
+    stmt = apply_tenant_filter(
+        select(Skill).where(Skill.id == skill_id), Skill, tenant_id
+    )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
-async def find_by_skill_id(session: AsyncSession, skill_id: str) -> Skill | None:
-    result = await session.execute(select(Skill).where(Skill.skill_id == skill_id))
+async def find_by_skill_id(
+    session: AsyncSession, skill_id: str, tenant_id: int | None = None
+) -> Skill | None:
+    stmt = apply_tenant_filter(
+        select(Skill).where(Skill.skill_id == skill_id), Skill, tenant_id
+    )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -31,8 +42,11 @@ async def find_all(
     category: str | None = None,
     is_published: bool | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> list[Skill]:
-    stmt = select(Skill).order_by(Skill.id.desc())
+    stmt = apply_tenant_filter(select(Skill), Skill, tenant_id).order_by(
+        Skill.id.desc()
+    )
     if category:
         stmt = stmt.where(Skill.category == category)
     if is_published is not None:
@@ -50,8 +64,9 @@ async def count_all(
     category: str | None = None,
     is_published: bool | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> int:
-    stmt = select(func.count(Skill.id))
+    stmt = apply_tenant_filter(select(func.count(Skill.id)), Skill, tenant_id)
     if category:
         stmt = stmt.where(Skill.category == category)
     if is_published is not None:
@@ -62,10 +77,13 @@ async def count_all(
     return result.scalar_one()
 
 
-async def find_by_ids(session: AsyncSession, ids: list[int]) -> list[Skill]:
+async def find_by_ids(
+    session: AsyncSession, ids: list[int], tenant_id: int | None = None
+) -> list[Skill]:
     if not ids:
         return []
-    result = await session.execute(select(Skill).where(Skill.id.in_(ids)))
+    stmt = apply_tenant_filter(select(Skill).where(Skill.id.in_(ids)), Skill, tenant_id)
+    result = await session.execute(stmt)
     return list(result.scalars().all())
 
 

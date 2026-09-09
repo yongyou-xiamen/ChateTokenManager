@@ -11,10 +11,15 @@ logger = logging.getLogger(__name__)
 
 
 async def list_providers(
-    session: AsyncSession, page: int = 1, page_size: int = 50
+    session: AsyncSession,
+    page: int = 1,
+    page_size: int = 50,
+    tenant_id: int | None = None,
 ) -> dict:
-    total = await provider_repo.count_all(session, is_active=True)
-    items = await provider_repo.find_all(session, page, page_size, is_active=True)
+    total = await provider_repo.count_all(session, is_active=True, tenant_id=tenant_id)
+    items = await provider_repo.find_all(
+        session, page, page_size, is_active=True, tenant_id=tenant_id
+    )
     return {
         "items": [_serialize(p) for p in items],
         "total": total,
@@ -23,8 +28,10 @@ async def list_providers(
     }
 
 
-async def get_provider_by_id(session: AsyncSession, provider_id: int) -> dict:
-    provider = await provider_repo.find_by_id(session, provider_id)
+async def get_provider_by_id(
+    session: AsyncSession, provider_id: int, tenant_id: int | None = None
+) -> dict:
+    provider = await provider_repo.find_by_id(session, provider_id, tenant_id=tenant_id)
     if not provider:
         raise NotFoundError("provider", provider_id)
     return _serialize(provider)
@@ -38,6 +45,7 @@ async def create_provider(
     monthly_budget: float | None = None,
     description: str = "",
     config: dict | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     provider = Provider(
         name=name,
@@ -63,8 +71,9 @@ async def update_provider(
     is_active: bool | None = None,
     description: str | None = None,
     config: dict | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    provider = await provider_repo.find_by_id(session, provider_id)
+    provider = await provider_repo.find_by_id(session, provider_id, tenant_id=tenant_id)
     if not provider:
         raise NotFoundError("provider", provider_id)
 
@@ -88,12 +97,16 @@ async def update_provider(
     return _serialize(provider)
 
 
-async def delete_provider(session: AsyncSession, provider_id: int) -> None:
-    provider = await provider_repo.find_by_id(session, provider_id)
+async def delete_provider(
+    session: AsyncSession, provider_id: int, tenant_id: int | None = None
+) -> None:
+    provider = await provider_repo.find_by_id(session, provider_id, tenant_id=tenant_id)
     if not provider:
         raise NotFoundError("provider", provider_id)
 
-    credentials = await credential_repo.find_by_provider(session, provider_id)
+    credentials = await credential_repo.find_by_provider(
+        session, provider_id, tenant_id=tenant_id
+    )
     if credentials:
         raise ConflictError("该供应商下有凭证，请先删除或迁移凭证")
 

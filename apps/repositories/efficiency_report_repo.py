@@ -7,16 +7,23 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.db import EfficiencyReport, EfficiencySuggestion
+from repositories.base import apply_tenant_filter
 
 
 async def list_reports(
-    session: AsyncSession, page: int = 1, page_size: int = 20
+    session: AsyncSession,
+    page: int = 1,
+    page_size: int = 20,
+    tenant_id: int | None = None,
 ) -> tuple[list[EfficiencyReport], int]:
-    count_result = await session.execute(select(func.count(EfficiencyReport.id)))
+    count_stmt = apply_tenant_filter(
+        select(func.count(EfficiencyReport.id)), EfficiencyReport, tenant_id
+    )
+    count_result = await session.execute(count_stmt)
     total = count_result.scalar() or 0
+    q = apply_tenant_filter(select(EfficiencyReport), EfficiencyReport, tenant_id)
     q = (
-        select(EfficiencyReport)
-        .order_by(EfficiencyReport.created_at.desc())
+        q.order_by(EfficiencyReport.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
@@ -25,9 +32,15 @@ async def list_reports(
 
 
 async def get_report_by_id(
-    session: AsyncSession, report_id: int
+    session: AsyncSession, report_id: int, tenant_id: int | None = None
 ) -> EfficiencyReport | None:
-    return await session.get(EfficiencyReport, report_id)
+    stmt = apply_tenant_filter(
+        select(EfficiencyReport).where(EfficiencyReport.id == report_id),
+        EfficiencyReport,
+        tenant_id,
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
 
 
 async def create_report(

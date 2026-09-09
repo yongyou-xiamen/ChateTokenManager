@@ -23,12 +23,25 @@ async def list_agents(
     category: str | None = None,
     platform: str | None = None,
     is_published: bool | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     total = await agent_repo.count_all(
-        session, category, platform, is_published, is_active=True
+        session,
+        category,
+        platform,
+        is_published,
+        is_active=True,
+        tenant_id=tenant_id,
     )
     items = await agent_repo.find_all(
-        session, page, page_size, category, platform, is_published, is_active=True
+        session,
+        page,
+        page_size,
+        category,
+        platform,
+        is_published,
+        is_active=True,
+        tenant_id=tenant_id,
     )
     return {
         "items": [_serialize(a) for a in items],
@@ -38,8 +51,10 @@ async def list_agents(
     }
 
 
-async def get_agent(session: AsyncSession, agent_id: int) -> dict:
-    agent = await agent_repo.find_by_id(session, agent_id)
+async def get_agent(
+    session: AsyncSession, agent_id: int, tenant_id: int | None = None
+) -> dict:
+    agent = await agent_repo.find_by_id(session, agent_id, tenant_id=tenant_id)
     if not agent:
         raise NotFoundError("agent", agent_id)
     return _serialize(agent)
@@ -63,6 +78,7 @@ async def create_agent(
     project_id: int | None = None,
     cost_attribution: str = "owner",
     created_by: int | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     aid = str(uuid.uuid4())
     agent = Agent(
@@ -91,7 +107,7 @@ async def create_agent(
         from services import ai_key_service
 
         await ai_key_service.sync_public_resource_to_all_keys(
-            session, "agents", agent.id
+            session, "agents", agent.id, tenant_id=tenant_id
         )
 
     await session.commit()
@@ -99,8 +115,13 @@ async def create_agent(
     return _serialize(agent)
 
 
-async def update_agent(session: AsyncSession, agent_id: int, **kwargs) -> dict:
-    agent = await agent_repo.find_by_id(session, agent_id)
+async def update_agent(
+    session: AsyncSession,
+    agent_id: int,
+    tenant_id: int | None = None,
+    **kwargs,
+) -> dict:
+    agent = await agent_repo.find_by_id(session, agent_id, tenant_id=tenant_id)
     if not agent:
         raise NotFoundError("agent", agent_id)
     if "icon_url" in kwargs:
@@ -116,7 +137,7 @@ async def update_agent(session: AsyncSession, agent_id: int, **kwargs) -> dict:
         from services import ai_key_service
 
         await ai_key_service.sync_public_resource_to_all_keys(
-            session, "agents", agent.id
+            session, "agents", agent.id, tenant_id=tenant_id
         )
 
     await session.commit()
@@ -124,8 +145,10 @@ async def update_agent(session: AsyncSession, agent_id: int, **kwargs) -> dict:
     return _serialize(agent)
 
 
-async def delete_agent(session: AsyncSession, agent_id: int) -> None:
-    agent = await agent_repo.find_by_id(session, agent_id)
+async def delete_agent(
+    session: AsyncSession, agent_id: int, tenant_id: int | None = None
+) -> None:
+    agent = await agent_repo.find_by_id(session, agent_id, tenant_id=tenant_id)
     if not agent:
         raise NotFoundError("agent", agent_id)
     agent.is_active = False
@@ -136,9 +159,13 @@ async def delete_agent(session: AsyncSession, agent_id: int) -> None:
 
 
 async def record_usage(
-    session: AsyncSession, agent_id: int, user_id: int, session_id: str = ""
+    session: AsyncSession,
+    agent_id: int,
+    user_id: int,
+    session_id: str = "",
+    tenant_id: int | None = None,
 ) -> dict:
-    agent = await agent_repo.find_by_id(session, agent_id)
+    agent = await agent_repo.find_by_id(session, agent_id, tenant_id=tenant_id)
     if not agent:
         raise NotFoundError("agent", agent_id)
 
@@ -165,8 +192,9 @@ async def list_usage_logs(
     page: int = 1,
     page_size: int = 50,
     user_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    agent = await agent_repo.find_by_id(session, agent_id)
+    agent = await agent_repo.find_by_id(session, agent_id, tenant_id=tenant_id)
     if not agent:
         raise NotFoundError("agent", agent_id)
     total = await agent_repo.count_usage_logs(session, agent_id, user_id)
@@ -277,9 +305,14 @@ async def delete_platform(session: AsyncSession, platform_id: int) -> None:
     await session.commit()
 
 
-async def resolve_key(session: AsyncSession, agent_id: int, user_id: int) -> dict:
+async def resolve_key(
+    session: AsyncSession,
+    agent_id: int,
+    user_id: int,
+    tenant_id: int | None = None,
+) -> dict:
     """根据智能体的 cost_attribution 模式返回对应的 Key 信息。"""
-    agent = await agent_repo.find_by_id(session, agent_id)
+    agent = await agent_repo.find_by_id(session, agent_id, tenant_id=tenant_id)
     if not agent:
         raise NotFoundError("agent", agent_id)
 

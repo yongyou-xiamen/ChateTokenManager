@@ -92,18 +92,22 @@ async def list_models(
     page_size: int = Query(50, ge=1, le=100),
     category: str | None = Query(None),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
-    result = await model_service.list_models(session, page, page_size, category)
+    tenant_id = current_user.get("tenant_id")
+    result = await model_service.list_models(
+        session, page, page_size, category, tenant_id=tenant_id
+    )
     return {"code": 200, "message": "ok", "data": result}
 
 
 @router.get("/active")
 async def get_active_models(
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
-    models = await model_service.get_all_active_models(session)
+    tenant_id = current_user.get("tenant_id")
+    models = await model_service.get_all_active_models(session, tenant_id=tenant_id)
     return {"code": 200, "message": "ok", "data": models}
 
 
@@ -111,8 +115,9 @@ async def get_active_models(
 async def create_model(
     req: CreateModelRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         model = await model_service.create_model(
             session,
@@ -122,6 +127,7 @@ async def create_model(
             capabilities=req.capabilities,
             description=req.description,
             logo_provider_type=req.logo_provider_type,
+            tenant_id=tenant_id,
         )
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=str(e))
@@ -132,10 +138,13 @@ async def create_model(
 async def get_model(
     model_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        model = await model_service.get_model_by_id(session, model_id)
+        model = await model_service.get_model_by_id(
+            session, model_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="模型不存在")
     return {"code": 200, "message": "ok", "data": model}
@@ -146,8 +155,9 @@ async def update_model(
     model_id: int,
     req: UpdateModelRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         model = await model_service.update_model(
             session,
@@ -159,6 +169,7 @@ async def update_model(
             description=req.description,
             logo_provider_type=req.logo_provider_type,
             is_active=req.is_active,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="模型不存在")
@@ -171,10 +182,11 @@ async def update_model(
 async def delete_model(
     model_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:delete")),
+    current_user: dict = Depends(require_permission("user:delete")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await model_service.delete_model(session, model_id)
+        await model_service.delete_model(session, model_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="模型不存在")
     return {"code": 200, "message": "模型删除成功", "data": None}
@@ -187,10 +199,13 @@ async def delete_model(
 async def get_model_visibility(
     model_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        result = await model_service.get_model_visibility(session, model_id)
+        result = await model_service.get_model_visibility(
+            session, model_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="模型不存在")
     return {"code": 200, "message": "ok", "data": result}
@@ -201,8 +216,9 @@ async def update_model_publish(
     model_id: int,
     req: UpdateModelPublishRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         result = await model_service.update_model_publish(
             session,
@@ -211,6 +227,7 @@ async def update_model_publish(
             visibility_type=req.visibility_type,
             department_ids=req.department_ids,
             requires_approval=req.requires_approval,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="模型不存在")
@@ -225,12 +242,13 @@ async def create_deployment(
     model_id: int,
     req: CreateDeploymentRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
     if "model" not in req.litellm_params:
         raise HTTPException(
             status_code=400, detail="litellm_params 必须包含 model 字段"
         )
+    tenant_id = current_user.get("tenant_id")
     try:
         deployment = await model_service.create_deployment(
             session,
@@ -243,6 +261,7 @@ async def create_deployment(
             monthly_call_quota=req.monthly_call_quota,
             model_info=req.model_info,
             model_id_str=req.model_id_str or None,
+            tenant_id=tenant_id,
         )
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -257,8 +276,9 @@ async def update_deployment(
     deployment_id: int,
     req: UpdateDeploymentRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         deployment = await model_service.update_deployment(
             session,
@@ -272,6 +292,7 @@ async def update_deployment(
             model_info=req.model_info,
             is_active=req.is_active,
             model_id_str=req.model_id_str or None,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="部署不存在")
@@ -283,10 +304,13 @@ async def delete_deployment(
     model_id: int,
     deployment_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:delete")),
+    current_user: dict = Depends(require_permission("user:delete")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await model_service.delete_deployment(session, deployment_id)
+        await model_service.delete_deployment(
+            session, deployment_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="部署不存在")
     return {"code": 200, "message": "渠道删除成功", "data": None}
@@ -298,9 +322,10 @@ async def delete_deployment(
 @router.get("/access-groups/list")
 async def list_access_groups(
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
-    groups = await model_service.list_access_groups(session)
+    tenant_id = current_user.get("tenant_id")
+    groups = await model_service.list_access_groups(session, tenant_id=tenant_id)
     return {"code": 200, "message": "ok", "data": groups}
 
 
@@ -308,14 +333,16 @@ async def list_access_groups(
 async def create_access_group(
     req: CreateAccessGroupRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         group = await model_service.create_access_group(
             session,
             group_name=req.group_name,
             description=req.description,
             model_ids=req.model_ids,
+            tenant_id=tenant_id,
         )
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=str(e))
@@ -327,8 +354,9 @@ async def update_access_group(
     group_id: int,
     req: UpdateAccessGroupRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         group = await model_service.update_access_group(
             session,
@@ -337,6 +365,7 @@ async def update_access_group(
             description=req.description,
             model_ids=req.model_ids,
             is_active=req.is_active,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="访问组不存在")
@@ -347,10 +376,11 @@ async def update_access_group(
 async def delete_access_group(
     group_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:delete")),
+    current_user: dict = Depends(require_permission("user:delete")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await model_service.delete_access_group(session, group_id)
+        await model_service.delete_access_group(session, group_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="访问组不存在")
     return {"code": 200, "message": "访问组删除成功", "data": None}
@@ -390,7 +420,10 @@ async def update_router_settings(
 @router.post("/resync-anthropic", summary="重新同步 Anthropic 格式部署")
 async def resync_anthropic(
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
-    result = await model_service.resync_anthropic_deployments(session)
+    tenant_id = current_user.get("tenant_id")
+    result = await model_service.resync_anthropic_deployments(
+        session, tenant_id=tenant_id
+    )
     return {"code": 200, "message": "同步完成", "data": result}

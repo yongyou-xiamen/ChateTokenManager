@@ -50,9 +50,14 @@ async def list_skills(
     page_size: int = 50,
     category: str | None = None,
     is_published: bool | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    total = await skill_repo.count_all(session, category, is_published)
-    items = await skill_repo.find_all(session, page, page_size, category, is_published)
+    total = await skill_repo.count_all(
+        session, category, is_published, tenant_id=tenant_id
+    )
+    items = await skill_repo.find_all(
+        session, page, page_size, category, is_published, tenant_id=tenant_id
+    )
     latest_audit_map = await _latest_audit_map(session, items)
     return {
         "items": [_serialize(s, latest_audit_map) for s in items],
@@ -62,8 +67,10 @@ async def list_skills(
     }
 
 
-async def get_skill(session: AsyncSession, skill_id: int) -> dict:
-    skill = await skill_repo.find_by_id(session, skill_id)
+async def get_skill(
+    session: AsyncSession, skill_id: int, tenant_id: int | None = None
+) -> dict:
+    skill = await skill_repo.find_by_id(session, skill_id, tenant_id=tenant_id)
     if not skill:
         raise NotFoundError("skill", skill_id)
     latest_audit_map = await _latest_audit_map(session, [skill])
@@ -87,6 +94,7 @@ async def create_skill(
     zip_content: bytes | None = None,
     zip_filename: str = "",
     created_by: int | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     sid = str(uuid.uuid4())
     zip_path = ""
@@ -126,7 +134,7 @@ async def create_skill(
         from services import ai_key_service
 
         await ai_key_service.sync_public_resource_to_all_keys(
-            session, "skills", skill.id
+            session, "skills", skill.id, tenant_id=tenant_id
         )
 
     await session.commit()
@@ -139,9 +147,10 @@ async def update_skill(
     skill_id: int,
     zip_content: bytes | None = None,
     zip_filename: str | None = None,
+    tenant_id: int | None = None,
     **kwargs,
 ) -> dict:
-    skill = await skill_repo.find_by_id(session, skill_id)
+    skill = await skill_repo.find_by_id(session, skill_id, tenant_id=tenant_id)
     if not skill:
         raise NotFoundError("skill", skill_id)
 
@@ -175,7 +184,7 @@ async def update_skill(
         from services import ai_key_service
 
         await ai_key_service.sync_public_resource_to_all_keys(
-            session, "skills", skill.id
+            session, "skills", skill.id, tenant_id=tenant_id
         )
 
     await session.commit()
@@ -183,8 +192,10 @@ async def update_skill(
     return _serialize(skill)
 
 
-async def delete_skill(session: AsyncSession, skill_id: int) -> None:
-    skill = await skill_repo.find_by_id(session, skill_id)
+async def delete_skill(
+    session: AsyncSession, skill_id: int, tenant_id: int | None = None
+) -> None:
+    skill = await skill_repo.find_by_id(session, skill_id, tenant_id=tenant_id)
     if not skill:
         raise NotFoundError("skill", skill_id)
     if skill.zip_path and os.path.exists(skill.zip_path):
@@ -197,10 +208,13 @@ async def delete_skill(session: AsyncSession, skill_id: int) -> None:
 
 
 async def get_skill_zip(
-    session: AsyncSession, skill_id: int, require_published: bool = False
+    session: AsyncSession,
+    skill_id: int,
+    require_published: bool = False,
+    tenant_id: int | None = None,
 ) -> tuple[str, str, int]:
     """返回 (zip_path, zip_filename, zip_size)。同时增加下载计数。"""
-    skill = await skill_repo.find_by_id(session, skill_id)
+    skill = await skill_repo.find_by_id(session, skill_id, tenant_id=tenant_id)
     if not skill:
         raise NotFoundError("skill", skill_id)
     if require_published and not skill.is_published:
@@ -216,13 +230,17 @@ async def get_skill_zip(
 
 
 async def get_install_info(
-    session: AsyncSession, skill_id: int, user_id: int | None = None
+    session: AsyncSession,
+    skill_id: int,
+    user_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     """返回 Skill 安装信息：介绍 / agent prompt / 使用说明。
+
     agent_prompt 由后端按 platform_public_url 拼接的下载 URL 自动生成。
     若提供 user_id，会查找用户主 Key 并在 URL 中嵌入 token。
     """
-    skill = await skill_repo.find_by_id(session, skill_id)
+    skill = await skill_repo.find_by_id(session, skill_id, tenant_id=tenant_id)
     if not skill:
         raise NotFoundError("skill", skill_id)
 
@@ -232,7 +250,9 @@ async def get_install_info(
     if user_id:
         from repositories import ai_key_repo
 
-        main_key = await ai_key_repo.find_personal_main(session, user_id)
+        main_key = await ai_key_repo.find_personal_main(
+            session, user_id, tenant_id=tenant_id
+        )
         if main_key and main_key.litellm_key_id:
             download_url = f"{download_url}?token={main_key.litellm_key_id}"
 

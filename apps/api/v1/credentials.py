@@ -30,10 +30,11 @@ async def list_credentials(
     page_size: int = Query(50, ge=1, le=100),
     provider_id: int | None = None,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     result = await credential_service.list_credentials(
-        session, page, page_size, provider_id
+        session, page, page_size, provider_id, tenant_id=tenant_id
     )
     return {"code": 200, "message": "ok", "data": result}
 
@@ -42,8 +43,9 @@ async def list_credentials(
 async def create_credential(
     req: CreateCredentialRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         credential = await credential_service.create_credential(
             session,
@@ -51,6 +53,7 @@ async def create_credential(
             credential_values=req.credential_values,
             provider_id=req.provider_id,
             credential_info=req.credential_info,
+            tenant_id=tenant_id,
         )
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=str(e))
@@ -69,11 +72,12 @@ async def get_provider_fields(
 async def get_credential(
     credential_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         credential = await credential_service.get_credential_by_id(
-            session, credential_id
+            session, credential_id, tenant_id=tenant_id
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="凭证不存在")
@@ -85,8 +89,9 @@ async def update_credential(
     credential_id: int,
     req: UpdateCredentialRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         credential = await credential_service.update_credential(
             session,
@@ -95,6 +100,7 @@ async def update_credential(
             provider_id=req.provider_id,
             credential_info=req.credential_info,
             is_active=req.is_active,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="凭证不存在")
@@ -105,10 +111,13 @@ async def update_credential(
 async def delete_credential(
     credential_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:delete")),
+    current_user: dict = Depends(require_permission("user:delete")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await credential_service.delete_credential(session, credential_id)
+        await credential_service.delete_credential(
+            session, credential_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="凭证不存在")
     except ConflictError as e:
@@ -133,10 +142,13 @@ async def get_credential_models(
 async def get_provider_models(
     provider_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
     """获取该供应商所有凭证关联的模型 ID 列表"""
-    creds = await credential_service.list_credentials(session, 1, 100, provider_id)
+    tenant_id = current_user.get("tenant_id")
+    creds = await credential_service.list_credentials(
+        session, 1, 100, provider_id, tenant_id=tenant_id
+    )
     cred_ids = [item["id"] for item in creds["items"]]
     model_ids = await model_service.get_model_ids_by_credential_ids(session, cred_ids)
     return {"code": 200, "message": "ok", "data": model_ids}

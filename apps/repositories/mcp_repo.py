@@ -2,6 +2,7 @@ from sqlalchemy import select, func, delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.db import McpServer, McpTool, McpCallLog, McpCategory
+from repositories.base import apply_tenant_filter
 
 
 # ─── McpServer ───────────────────────────────────────────────────────────────
@@ -14,33 +15,49 @@ async def create_server(session: AsyncSession, server: McpServer) -> McpServer:
     return server
 
 
-async def find_server_by_id(session: AsyncSession, server_id: int) -> McpServer | None:
-    result = await session.execute(select(McpServer).where(McpServer.id == server_id))
+async def find_server_by_id(
+    session: AsyncSession, server_id: int, tenant_id: int | None = None
+) -> McpServer | None:
+    stmt = apply_tenant_filter(
+        select(McpServer).where(McpServer.id == server_id), McpServer, tenant_id
+    )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def find_server_by_server_id(
-    session: AsyncSession, server_id: str
+    session: AsyncSession, server_id: str, tenant_id: int | None = None
 ) -> McpServer | None:
-    result = await session.execute(
-        select(McpServer).where(McpServer.server_id == server_id)
+    stmt = apply_tenant_filter(
+        select(McpServer).where(McpServer.server_id == server_id),
+        McpServer,
+        tenant_id,
     )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
 async def find_server_by_name(
-    session: AsyncSession, server_name: str
+    session: AsyncSession, server_name: str, tenant_id: int | None = None
 ) -> McpServer | None:
-    result = await session.execute(
-        select(McpServer).where(McpServer.server_name == server_name)
+    stmt = apply_tenant_filter(
+        select(McpServer).where(McpServer.server_name == server_name),
+        McpServer,
+        tenant_id,
     )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
-async def find_servers_by_ids(session: AsyncSession, ids: list[int]) -> list[McpServer]:
+async def find_servers_by_ids(
+    session: AsyncSession, ids: list[int], tenant_id: int | None = None
+) -> list[McpServer]:
     if not ids:
         return []
-    result = await session.execute(select(McpServer).where(McpServer.id.in_(ids)))
+    stmt = apply_tenant_filter(
+        select(McpServer).where(McpServer.id.in_(ids)), McpServer, tenant_id
+    )
+    result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
@@ -52,8 +69,11 @@ async def find_all_servers(
     is_active: bool | None = None,
     is_published: bool | None = None,
     status: str | None = None,
+    tenant_id: int | None = None,
 ) -> list[McpServer]:
-    stmt = select(McpServer).order_by(McpServer.id)
+    stmt = apply_tenant_filter(select(McpServer), McpServer, tenant_id).order_by(
+        McpServer.id
+    )
     if category:
         stmt = stmt.where(McpServer.category == category)
     if is_active is not None:
@@ -74,8 +94,9 @@ async def count_servers(
     is_active: bool | None = None,
     is_published: bool | None = None,
     status: str | None = None,
+    tenant_id: int | None = None,
 ) -> int:
-    stmt = select(func.count(McpServer.id))
+    stmt = apply_tenant_filter(select(func.count(McpServer.id)), McpServer, tenant_id)
     if category:
         stmt = stmt.where(McpServer.category == category)
     if is_active is not None:

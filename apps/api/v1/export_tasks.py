@@ -29,10 +29,16 @@ async def list_export_tasks(
     source: str | None = Query(None),
     status: str | None = Query(None),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("usage_log:read")),
+    current_user: dict = Depends(require_permission("usage_log:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     data = await export_task_service.list_export_tasks(
-        session, page=page, page_size=page_size, source=source, status=status
+        session,
+        page=page,
+        page_size=page_size,
+        source=source,
+        status=status,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -43,6 +49,7 @@ async def create_export_task(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission("usage_log:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         data = await export_task_service.create_export_task(
             session,
@@ -51,6 +58,7 @@ async def create_export_task(
             params=payload.params,
             current_user=current_user,
             task_name=payload.task_name,
+            tenant_id=tenant_id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -76,10 +84,13 @@ async def cleanup_export_tasks(
 async def cancel_export_task(
     task_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("usage_log:read")),
+    current_user: dict = Depends(require_permission("usage_log:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        data = await export_task_service.cancel_export_task(session, task_id)
+        data = await export_task_service.cancel_export_task(
+            session, task_id, tenant_id=tenant_id
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"code": 200, "message": "导出任务已取消", "data": data}
@@ -91,9 +102,10 @@ async def retry_export_task(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission("usage_log:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         data = await export_task_service.retry_export_task(
-            session, task_id, current_user
+            session, task_id, current_user, tenant_id=tenant_id
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -104,9 +116,12 @@ async def retry_export_task(
 async def download_export_task(
     task_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("usage_log:read")),
+    current_user: dict = Depends(require_permission("usage_log:read")),
 ):
-    task = await export_task_service.get_export_task(session, task_id)
+    tenant_id = current_user.get("tenant_id")
+    task = await export_task_service.get_export_task(
+        session, task_id, tenant_id=tenant_id
+    )
     if not task:
         raise HTTPException(status_code=404, detail="导出任务不存在")
     if task.status != "success" or not task.file_path or not task.file_name:

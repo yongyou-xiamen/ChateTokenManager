@@ -62,11 +62,14 @@ async def create_application(
     resource_id: int,
     reason: str = "",
     request_config: dict | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     if resource_type not in VALID_RESOURCE_TYPES:
         raise ValidationError(f"resource_type 必须为 {VALID_RESOURCE_TYPES} 之一")
 
-    await _validate_resource_exists(session, resource_type, resource_id)
+    await _validate_resource_exists(
+        session, resource_type, resource_id, tenant_id=tenant_id
+    )
 
     existing = await resource_application_repo.find_pending_by_user_resource(
         session, user_id, resource_type, resource_id
@@ -84,7 +87,7 @@ async def create_application(
     app = await resource_application_repo.create(session, app)
     await session.commit()
     await session.refresh(app)
-    return await _serialize(session, app)
+    return await _serialize(session, app, tenant_id=tenant_id)
 
 
 async def list_applications(
@@ -98,6 +101,7 @@ async def list_applications(
     created_before: datetime | None = None,
     reviewed_after: datetime | None = None,
     reviewed_before: datetime | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     total = await resource_application_repo.count_all(
         session,
@@ -109,6 +113,7 @@ async def list_applications(
         created_before,
         reviewed_after,
         reviewed_before,
+        tenant_id=tenant_id,
     )
     items = await resource_application_repo.find_all(
         session,
@@ -122,8 +127,9 @@ async def list_applications(
         created_before,
         reviewed_after,
         reviewed_before,
+        tenant_id=tenant_id,
     )
-    serialized = [await _serialize(session, a) for a in items]
+    serialized = [await _serialize(session, a, tenant_id=tenant_id) for a in items]
     return {
         "items": serialized,
         "total": total,
@@ -132,11 +138,15 @@ async def list_applications(
     }
 
 
-async def get_application(session: AsyncSession, app_id: int) -> dict:
-    app = await resource_application_repo.find_by_id(session, app_id)
+async def get_application(
+    session: AsyncSession, app_id: int, tenant_id: int | None = None
+) -> dict:
+    app = await resource_application_repo.find_by_id(
+        session, app_id, tenant_id=tenant_id
+    )
     if not app:
         raise NotFoundError("resource_application", app_id)
-    return await _serialize(session, app)
+    return await _serialize(session, app, tenant_id=tenant_id)
 
 
 async def approve_application(
@@ -145,8 +155,11 @@ async def approve_application(
     reviewer_id: int,
     approval_config: dict | None = None,
     review_notes: str = "",
+    tenant_id: int | None = None,
 ) -> dict:
-    app = await resource_application_repo.find_by_id(session, app_id)
+    app = await resource_application_repo.find_by_id(
+        session, app_id, tenant_id=tenant_id
+    )
     if not app:
         raise NotFoundError("resource_application", app_id)
     if app.status != ApplicationStatus.PENDING:
@@ -158,11 +171,11 @@ async def approve_application(
     app.review_notes = review_notes
     app.approval_config = approval_config or {}
 
-    await _grant_resource(session, app)
+    await _grant_resource(session, app, tenant_id=tenant_id)
 
     await session.commit()
     await session.refresh(app)
-    return await _serialize(session, app)
+    return await _serialize(session, app, tenant_id=tenant_id)
 
 
 async def reject_application(
@@ -170,8 +183,11 @@ async def reject_application(
     app_id: int,
     reviewer_id: int,
     review_notes: str = "",
+    tenant_id: int | None = None,
 ) -> dict:
-    app = await resource_application_repo.find_by_id(session, app_id)
+    app = await resource_application_repo.find_by_id(
+        session, app_id, tenant_id=tenant_id
+    )
     if not app:
         raise NotFoundError("resource_application", app_id)
     if app.status != ApplicationStatus.PENDING:
@@ -184,7 +200,7 @@ async def reject_application(
 
     await session.commit()
     await session.refresh(app)
-    return await _serialize(session, app)
+    return await _serialize(session, app, tenant_id=tenant_id)
 
 
 async def batch_approve_applications(
@@ -193,13 +209,19 @@ async def batch_approve_applications(
     reviewer_id: int,
     approval_config: dict | None = None,
     review_notes: str = "",
+    tenant_id: int | None = None,
 ) -> dict:
     success: list[int] = []
     failed: list[dict[str, str | int]] = []
     for app_id in app_ids:
         try:
             await approve_application(
-                session, app_id, reviewer_id, approval_config, review_notes
+                session,
+                app_id,
+                reviewer_id,
+                approval_config,
+                review_notes,
+                tenant_id=tenant_id,
             )
         except Exception as exc:
             await session.rollback()
@@ -215,12 +237,15 @@ async def batch_reject_applications(
     app_ids: list[int],
     reviewer_id: int,
     review_notes: str = "",
+    tenant_id: int | None = None,
 ) -> dict:
     success: list[int] = []
     failed: list[dict[str, str | int]] = []
     for app_id in app_ids:
         try:
-            await reject_application(session, app_id, reviewer_id, review_notes)
+            await reject_application(
+                session, app_id, reviewer_id, review_notes, tenant_id=tenant_id
+            )
         except Exception as exc:
             await session.rollback()
             _log_batch_failure(app_id, exc)
@@ -250,63 +275,80 @@ def _log_batch_failure(app_id: int, exc: Exception) -> None:
 
 
 async def _validate_resource_exists(
-    session: AsyncSession, resource_type: str, resource_id: int
+    session: AsyncSession,
+    resource_type: str,
+    resource_id: int,
+    tenant_id: int | None = None,
 ) -> None:
     if resource_type == ResourceType.MODEL:
-        model = await model_repo.find_by_id(session, resource_id)
+        model = await model_repo.find_by_id(session, resource_id, tenant_id=tenant_id)
         if not model:
             raise NotFoundError("model", resource_id)
     elif resource_type == ResourceType.MCP:
-        server = await mcp_repo.find_server_by_id(session, resource_id)
+        server = await mcp_repo.find_server_by_id(
+            session, resource_id, tenant_id=tenant_id
+        )
         if not server:
             raise NotFoundError("mcp_server", resource_id)
     elif resource_type == ResourceType.SKILL:
-        skill = await skill_repo.find_by_id(session, resource_id)
+        skill = await skill_repo.find_by_id(session, resource_id, tenant_id=tenant_id)
         if not skill:
             raise NotFoundError("skill", resource_id)
     elif resource_type == ResourceType.AGENT:
-        agent = await agent_repo.find_by_id(session, resource_id)
+        agent = await agent_repo.find_by_id(session, resource_id, tenant_id=tenant_id)
         if not agent:
             raise NotFoundError("agent", resource_id)
 
 
-async def _grant_resource(session: AsyncSession, app: ResourceApplication) -> None:
+async def _grant_resource(
+    session: AsyncSession,
+    app: ResourceApplication,
+    tenant_id: int | None = None,
+) -> None:
     """审批通过时把资源授权落到用户主 Key 上。"""
-    main_key = await ai_key_repo.find_personal_main(session, app.user_id)
+    main_key = await ai_key_repo.find_personal_main(
+        session, app.user_id, tenant_id=tenant_id
+    )
     if not main_key:
         logger.warning("user %s has no personal_main key, skip grant", app.user_id)
         return
 
     if app.resource_type == ResourceType.MODEL:
-        model = await model_repo.find_by_id(session, app.resource_id)
+        model = await model_repo.find_by_id(
+            session, app.resource_id, tenant_id=tenant_id
+        )
         if model and model.model_id not in (main_key.models or []):
             new_models = list(main_key.models or []) + [model.model_id]
             await ai_key_service.update_key_resources(
-                session, main_key.id, models=new_models
+                session, main_key.id, models=new_models, tenant_id=tenant_id
             )
     elif app.resource_type == ResourceType.MCP:
         if app.resource_id not in (main_key.mcps or []):
             new_mcps = list(main_key.mcps or []) + [app.resource_id]
             await ai_key_service.update_key_resources(
-                session, main_key.id, mcps=new_mcps
+                session, main_key.id, mcps=new_mcps, tenant_id=tenant_id
             )
     elif app.resource_type == ResourceType.SKILL:
         if app.resource_id not in (main_key.skills or []):
             new_skills = list(main_key.skills or []) + [app.resource_id]
             await ai_key_service.update_key_resources(
-                session, main_key.id, skills=new_skills
+                session, main_key.id, skills=new_skills, tenant_id=tenant_id
             )
     elif app.resource_type == ResourceType.AGENT:
         if app.resource_id not in (main_key.agents or []):
             new_agents = list(main_key.agents or []) + [app.resource_id]
             await ai_key_service.update_key_resources(
-                session, main_key.id, agents=new_agents
+                session, main_key.id, agents=new_agents, tenant_id=tenant_id
             )
 
 
-async def _serialize(session: AsyncSession, app: ResourceApplication) -> dict:
+async def _serialize(
+    session: AsyncSession,
+    app: ResourceApplication,
+    tenant_id: int | None = None,
+) -> dict:
     resource_info = await _get_resource_info(
-        session, app.resource_type, app.resource_id
+        session, app.resource_type, app.resource_id, tenant_id=tenant_id
     )
     return {
         "id": app.id,
@@ -355,6 +397,7 @@ async def list_applications_for_export(
     created_before: datetime | None = None,
     reviewed_after: datetime | None = None,
     reviewed_before: datetime | None = None,
+    tenant_id: int | None = None,
 ) -> list[ResourceApplication]:
     """获取审批记录的 ORM 对象列表用于导出，保留关系数据。"""
     return await resource_application_repo.find_all(
@@ -369,22 +412,26 @@ async def list_applications_for_export(
         created_before,
         reviewed_after,
         reviewed_before,
+        tenant_id=tenant_id,
     )
 
 
 async def _get_resource_info(
-    session: AsyncSession, resource_type: str, resource_id: int
+    session: AsyncSession,
+    resource_type: str,
+    resource_id: int,
+    tenant_id: int | None = None,
 ) -> dict | None:
     if resource_type == ResourceType.MODEL:
-        m = await model_repo.find_by_id(session, resource_id)
+        m = await model_repo.find_by_id(session, resource_id, tenant_id=tenant_id)
         if m:
             return {"id": m.id, "name": m.name, "model_id": m.model_id}
     elif resource_type == ResourceType.MCP:
-        s = await mcp_repo.find_server_by_id(session, resource_id)
+        s = await mcp_repo.find_server_by_id(session, resource_id, tenant_id=tenant_id)
         if s:
             return {"id": s.id, "name": s.name, "server_name": s.server_name}
     elif resource_type == ResourceType.SKILL:
-        sk = await skill_repo.find_by_id(session, resource_id)
+        sk = await skill_repo.find_by_id(session, resource_id, tenant_id=tenant_id)
         if sk:
             return {
                 "id": sk.id,
@@ -393,7 +440,7 @@ async def _get_resource_info(
                 "icon_url": resolve_icon_url(sk.icon_url or sk.icon),
             }
     elif resource_type == ResourceType.AGENT:
-        ag = await agent_repo.find_by_id(session, resource_id)
+        ag = await agent_repo.find_by_id(session, resource_id, tenant_id=tenant_id)
         if ag:
             return {
                 "id": ag.id,

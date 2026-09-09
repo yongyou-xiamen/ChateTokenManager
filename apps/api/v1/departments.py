@@ -17,9 +17,10 @@ router = APIRouter(prefix="/departments", tags=["departments"])
 @router.get("/tree")
 async def get_department_tree(
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("department:read")),
+    current_user: dict = Depends(require_permission("department:read")),
 ):
-    tree = await department_service.get_department_tree(session)
+    tenant_id = current_user.get("tenant_id")
+    tree = await department_service.get_department_tree(session, tenant_id=tenant_id)
     return {"code": 200, "message": "ok", "data": tree}
 
 
@@ -27,10 +28,13 @@ async def get_department_tree(
 async def get_department(
     dept_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("department:read")),
+    current_user: dict = Depends(require_permission("department:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        dept = await department_service.get_department_by_id(session, dept_id)
+        dept = await department_service.get_department_by_id(
+            session, dept_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="部门不存在")
     return {"code": 200, "message": "ok", "data": dept}
@@ -40,11 +44,16 @@ async def get_department(
 async def create_department(
     req: CreateDepartmentRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("department:create")),
+    current_user: dict = Depends(require_permission("department:create")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         dept = await department_service.create_department(
-            session, name=req.name, parent_id=req.parent_id, description=req.description
+            session,
+            name=req.name,
+            parent_id=req.parent_id,
+            description=req.description,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="父部门不存在")
@@ -56,8 +65,9 @@ async def update_department(
     dept_id: int,
     req: UpdateDepartmentRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("department:update")),
+    current_user: dict = Depends(require_permission("department:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         dept = await department_service.update_department(
             session,
@@ -66,6 +76,7 @@ async def update_department(
             description=req.description,
             sort_order=req.sort_order,
             is_active=req.is_active,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="部门不存在")
@@ -76,10 +87,13 @@ async def update_department(
 async def delete_department(
     dept_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("department:delete")),
+    current_user: dict = Depends(require_permission("department:delete")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await department_service.delete_department(session, dept_id)
+        await department_service.delete_department(
+            session, dept_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="部门不存在")
     except ConflictError as e:
@@ -91,10 +105,13 @@ async def delete_department(
 async def get_department_members(
     dept_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("department:read")),
+    current_user: dict = Depends(require_permission("department:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        members = await department_service.get_department_members(session, dept_id)
+        members = await department_service.get_department_members(
+            session, dept_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="部门不存在")
     return {"code": 200, "message": "ok", "data": members}
@@ -105,10 +122,13 @@ async def add_department_member(
     dept_id: int,
     req: DepartmentMemberRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("department:update")),
+    current_user: dict = Depends(require_permission("department:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await department_service.add_department_member(session, dept_id, req.user_id)
+        await department_service.add_department_member(
+            session, dept_id, req.user_id, tenant_id=tenant_id
+        )
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except ConflictError as e:
@@ -121,10 +141,13 @@ async def remove_department_member(
     dept_id: int,
     user_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("department:update")),
+    current_user: dict = Depends(require_permission("department:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await department_service.remove_department_member(session, dept_id, user_id)
+        await department_service.remove_department_member(
+            session, dept_id, user_id, tenant_id=tenant_id
+        )
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"code": 200, "message": "成员移除成功", "data": None}
@@ -135,11 +158,12 @@ async def update_department_managers(
     dept_id: int,
     req: UpdateDepartmentManagersRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("department:update")),
+    current_user: dict = Depends(require_permission("department:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         await department_service.update_department_managers(
-            session, dept_id, req.manager_user_ids
+            session, dept_id, req.manager_user_ids, tenant_id=tenant_id
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="部门不存在")

@@ -34,10 +34,13 @@ async def list_models(
     page: int = 1,
     page_size: int = 50,
     category: str | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    total = await model_repo.count_all(session, category, is_active=True)
+    total = await model_repo.count_all(
+        session, category, is_active=True, tenant_id=tenant_id
+    )
     items = await model_repo.find_all(
-        session, page, page_size, category, is_active=True
+        session, page, page_size, category, is_active=True, tenant_id=tenant_id
     )
     return {
         "items": [_serialize_model(m) for m in items],
@@ -47,12 +50,16 @@ async def list_models(
     }
 
 
-async def get_model_by_id(session: AsyncSession, model_id: int) -> dict:
-    model = await model_repo.find_by_id(session, model_id)
+async def get_model_by_id(
+    session: AsyncSession, model_id: int, tenant_id: int | None = None
+) -> dict:
+    model = await model_repo.find_by_id(session, model_id, tenant_id=tenant_id)
     if not model:
         raise NotFoundError("model", model_id)
     data = _serialize_model(model)
-    deployments = await model_repo.find_deployments_by_model(session, model_id)
+    deployments = await model_repo.find_deployments_by_model(
+        session, model_id, tenant_id=tenant_id
+    )
     data["deployments"] = [_serialize_deployment(d) for d in deployments]
     return data
 
@@ -79,8 +86,12 @@ def _serialize_active_model(m: Model, has_anthropic: bool) -> dict:
     }
 
 
-async def get_all_active_models(session: AsyncSession) -> list[dict]:
-    models = await model_repo.find_all_active(session, published_only=True)
+async def get_all_active_models(
+    session: AsyncSession, tenant_id: int | None = None
+) -> list[dict]:
+    models = await model_repo.find_all_active(
+        session, published_only=True, tenant_id=tenant_id
+    )
     model_ids = [m.model_id for m in models]
     anthropic_set = await model_repo.find_model_ids_with_anthropic_deployments(
         session, model_ids
@@ -105,10 +116,13 @@ async def create_model(
     capabilities: list[str] | None = None,
     description: str = "",
     logo_provider_type: str | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     effective_model_id = model_id.strip() or None
     if effective_model_id:
-        existing = await model_repo.find_by_model_id(session, effective_model_id)
+        existing = await model_repo.find_by_model_id(
+            session, effective_model_id, tenant_id=tenant_id
+        )
         if existing:
             raise ConflictError(f"模型 ID '{effective_model_id}' 已存在")
 
@@ -136,8 +150,9 @@ async def update_model(
     description: str | None = None,
     logo_provider_type: str | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    model = await model_repo.find_by_id(session, model_id)
+    model = await model_repo.find_by_id(session, model_id, tenant_id=tenant_id)
     if not model:
         raise NotFoundError("model", model_id)
 
@@ -145,7 +160,9 @@ async def update_model(
     renamed = False
     if model_id_str is not None and model_id_str != model.model_id:
         if model_id_str:
-            existing = await model_repo.find_by_model_id(session, model_id_str)
+            existing = await model_repo.find_by_model_id(
+                session, model_id_str, tenant_id=tenant_id
+            )
             if existing and existing.id != model.id:
                 raise ConflictError(f"模型 ID '{model_id_str}' 已被其他模型使用")
         model.model_id = model_id_str
@@ -172,10 +189,15 @@ async def update_model(
 
 
 async def _sync_model_rename(
-    session: AsyncSession, model: Model, old_model_id: str
+    session: AsyncSession,
+    model: Model,
+    old_model_id: str,
+    tenant_id: int | None = None,
 ) -> None:
     """模型 model_id 改名后，级联同步 LiteLLM 部署 model_name 与引用旧名的 Key 授权。"""
-    deployments = await model_repo.find_deployments_by_model(session, model.id)
+    deployments = await model_repo.find_deployments_by_model(
+        session, model.id, tenant_id=tenant_id
+    )
     for deployment in deployments:
         if not deployment.litellm_model_id:
             continue
@@ -203,18 +225,25 @@ async def _sync_model_rename(
                 deployment.id,
             )
 
-    await _sync_keys_after_model_rename(session, old_model_id, model.model_id)
+    await _sync_keys_after_model_rename(
+        session, old_model_id, model.model_id, tenant_id=tenant_id
+    )
 
 
 async def _sync_keys_after_model_rename(
-    session: AsyncSession, old_model_id: str, new_model_id: str
+    session: AsyncSession,
+    old_model_id: str,
+    new_model_id: str,
+    tenant_id: int | None = None,
 ) -> None:
     """把引用旧 model_id 的 Key 的 models 与 model_budgets 键改为新名并推 LiteLLM。"""
     from sqlalchemy.orm.attributes import flag_modified
 
     from services import ai_key_service
 
-    keys = await ai_key_repo.find_keys_referencing_model(session, old_model_id)
+    keys = await ai_key_repo.find_keys_referencing_model(
+        session, old_model_id, tenant_id=tenant_id
+    )
     for key in keys:
         models_changed = False
         if key.models and old_model_id in key.models:
@@ -240,16 +269,21 @@ async def _sync_keys_after_model_rename(
                 rate_limits_changed=key.rate_limit_mode
                 == ai_key_service.RATE_LIMIT_MODE_PER_MODEL,
                 session=session,
+                tenant_id=tenant_id,
             )
     await session.flush()
 
 
-async def delete_model(session: AsyncSession, model_id: int) -> None:
-    model = await model_repo.find_by_id(session, model_id)
+async def delete_model(
+    session: AsyncSession, model_id: int, tenant_id: int | None = None
+) -> None:
+    model = await model_repo.find_by_id(session, model_id, tenant_id=tenant_id)
     if not model:
         raise NotFoundError("model", model_id)
 
-    deployments = await model_repo.find_deployments_by_model(session, model_id)
+    deployments = await model_repo.find_deployments_by_model(
+        session, model_id, tenant_id=tenant_id
+    )
     for d in deployments:
         if d.litellm_model_id:
             litellm_model_name = _get_litellm_model_name(model, d.credential)
@@ -316,15 +350,18 @@ async def create_deployment(
     monthly_call_quota: int | None = None,
     model_info: dict | None = None,
     model_id_str: str | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    model = await model_repo.find_by_id(session, model_id)
+    model = await model_repo.find_by_id(session, model_id, tenant_id=tenant_id)
     if not model:
         raise NotFoundError("model", model_id)
 
     # 设置或更新模型的 model_id
     if model_id_str:
         if model.model_id != model_id_str:
-            existing = await model_repo.find_by_model_id(session, model_id_str)
+            existing = await model_repo.find_by_model_id(
+                session, model_id_str, tenant_id=tenant_id
+            )
             if existing and existing.id != model.id:
                 raise ConflictError(f"模型 ID '{model_id_str}' 已被其他模型使用")
             model.model_id = model_id_str
@@ -334,7 +371,9 @@ async def create_deployment(
 
     credential = None
     if credential_id:
-        credential = await credential_repo.find_by_id(session, credential_id)
+        credential = await credential_repo.find_by_id(
+            session, credential_id, tenant_id=tenant_id
+        )
         if not credential:
             raise NotFoundError("credential", credential_id)
 
@@ -352,7 +391,9 @@ async def create_deployment(
 
     # Sync to LiteLLM
     await _sync_deployment_to_litellm(deployment, model, credential, session)
-    await _sync_model_key_access_after_deployment(session, model, credential)
+    await _sync_model_key_access_after_deployment(
+        session, model, credential, tenant_id=tenant_id
+    )
 
     await session.commit()
     await session.refresh(deployment)
@@ -371,17 +412,24 @@ async def update_deployment(
     model_info: dict | None = None,
     is_active: bool | None = None,
     model_id_str: str | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    deployment = await model_repo.find_deployment_by_id(session, deployment_id)
+    deployment = await model_repo.find_deployment_by_id(
+        session, deployment_id, tenant_id=tenant_id
+    )
     if not deployment:
         raise NotFoundError("deployment", deployment_id)
 
     # 更新模型的 model_id
     renamed_from: str | None = None
     if model_id_str:
-        model = await model_repo.find_by_id(session, deployment.model_id)
+        model = await model_repo.find_by_id(
+            session, deployment.model_id, tenant_id=tenant_id
+        )
         if model and model.model_id != model_id_str:
-            existing = await model_repo.find_by_model_id(session, model_id_str)
+            existing = await model_repo.find_by_model_id(
+                session, model_id_str, tenant_id=tenant_id
+            )
             if existing and existing.id != model.id:
                 raise ConflictError(f"模型 ID '{model_id_str}' 已被其他模型使用")
             if model.model_id:
@@ -412,17 +460,13 @@ async def update_deployment(
         deployment.is_active = is_active
 
     # Re-sync to LiteLLM
-    model = await model_repo.find_by_id(session, deployment.model_id)
+    model = await model_repo.find_by_id(
+        session, deployment.model_id, tenant_id=tenant_id
+    )
     credential = None
     if deployment.credential_id:
-        credential = await credential_repo.find_by_id(session, deployment.credential_id)
-
-    synced_to_litellm = False
-    if model and deployment.litellm_model_id:
-        if credential:
-            await _ensure_litellm_credential_synced(session, credential)
-        sync_params = await _build_litellm_params_for_sync(
-            deployment.litellm_params or {}, model, credential, session
+        credential = await credential_repo.find_by_id(
+            session, deployment.credential_id, tenant_id=tenant_id
         )
         deployment.litellm_params = sync_params
         sync_params = _convert_cost_for_litellm(sync_params)
@@ -444,27 +488,37 @@ async def update_deployment(
         synced_to_litellm = True
 
     if synced_to_litellm and model:
-        await _sync_model_key_access_after_deployment(session, model, credential)
+        await _sync_model_key_access_after_deployment(
+            session, model, credential, tenant_id=tenant_id
+        )
 
     if renamed_from and model:
-        await _sync_keys_after_model_rename(session, renamed_from, model.model_id)
+        await _sync_keys_after_model_rename(
+            session, renamed_from, model.model_id, tenant_id=tenant_id
+        )
 
     await session.commit()
     await session.refresh(deployment)
     return _serialize_deployment(deployment)
 
 
-async def delete_deployment(session: AsyncSession, deployment_id: int) -> None:
-    deployment = await model_repo.find_deployment_by_id(session, deployment_id)
+async def delete_deployment(
+    session: AsyncSession, deployment_id: int, tenant_id: int | None = None
+) -> None:
+    deployment = await model_repo.find_deployment_by_id(
+        session, deployment_id, tenant_id=tenant_id
+    )
     if not deployment:
         raise NotFoundError("deployment", deployment_id)
 
     if deployment.litellm_model_id:
-        model = await model_repo.find_by_id(session, deployment.model_id)
+        model = await model_repo.find_by_id(
+            session, deployment.model_id, tenant_id=tenant_id
+        )
         credential = None
         if deployment.credential_id:
             credential = await credential_repo.find_by_id(
-                session, deployment.credential_id
+                session, deployment.credential_id, tenant_id=tenant_id
             )
         litellm_model_name = _get_litellm_model_name(model, credential) if model else ""
         try:
@@ -487,8 +541,10 @@ async def delete_deployment(session: AsyncSession, deployment_id: int) -> None:
 # --- Access Groups ---
 
 
-async def list_access_groups(session: AsyncSession) -> list[dict]:
-    groups = await model_repo.find_all_access_groups(session)
+async def list_access_groups(
+    session: AsyncSession, tenant_id: int | None = None
+) -> list[dict]:
+    groups = await model_repo.find_all_access_groups(session, tenant_id=tenant_id)
     return [_serialize_access_group(g) for g in groups]
 
 
@@ -497,8 +553,11 @@ async def create_access_group(
     group_name: str,
     description: str = "",
     model_ids: list[str] | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    existing = await model_repo.find_access_group_by_name(session, group_name)
+    existing = await model_repo.find_access_group_by_name(
+        session, group_name, tenant_id=tenant_id
+    )
     if existing:
         raise ConflictError(f"访问组 '{group_name}' 已存在")
 
@@ -520,8 +579,11 @@ async def update_access_group(
     description: str | None = None,
     model_ids: list[str] | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    group = await model_repo.find_access_group_by_id(session, group_id)
+    group = await model_repo.find_access_group_by_id(
+        session, group_id, tenant_id=tenant_id
+    )
     if not group:
         raise NotFoundError("access_group", group_id)
 
@@ -539,8 +601,12 @@ async def update_access_group(
     return _serialize_access_group(group)
 
 
-async def delete_access_group(session: AsyncSession, group_id: int) -> None:
-    group = await model_repo.find_access_group_by_id(session, group_id)
+async def delete_access_group(
+    session: AsyncSession, group_id: int, tenant_id: int | None = None
+) -> None:
+    group = await model_repo.find_access_group_by_id(
+        session, group_id, tenant_id=tenant_id
+    )
     if not group:
         raise NotFoundError("access_group", group_id)
     await session.delete(group)
@@ -618,8 +684,10 @@ async def update_router_settings(
 # --- Model Publish / Visibility ---
 
 
-async def get_model_visibility(session: AsyncSession, model_id: int) -> dict:
-    model = await model_repo.find_by_id(session, model_id)
+async def get_model_visibility(
+    session: AsyncSession, model_id: int, tenant_id: int | None = None
+) -> dict:
+    model = await model_repo.find_by_id(session, model_id, tenant_id=tenant_id)
     if not model:
         raise NotFoundError("model", model_id)
 
@@ -647,10 +715,11 @@ async def update_model_publish(
     visibility_type: str | None = None,
     department_ids: list[int] | None = None,
     requires_approval: bool | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     from repositories import department_repo
 
-    model = await model_repo.find_by_id(session, model_id)
+    model = await model_repo.find_by_id(session, model_id, tenant_id=tenant_id)
     if not model:
         raise NotFoundError("model", model_id)
 
@@ -672,11 +741,11 @@ async def update_model_publish(
         await model_repo.set_visibility_users(session, model_id, list(user_ids))
 
     # 发布且不需要审批时，自动同步到所有主 Key
-    await _sync_published_model_to_main_keys(session, model)
+    await _sync_published_model_to_main_keys(session, model, tenant_id=tenant_id)
 
     await session.commit()
     await session.refresh(model)
-    return await get_model_visibility(session, model_id)
+    return await get_model_visibility(session, model_id, tenant_id=tenant_id)
 
 
 # --- Private helpers ---
@@ -742,7 +811,7 @@ def _apply_credential_to_litellm_params(litellm_params: dict, credential) -> dic
 
 
 async def _sync_published_model_to_main_keys(
-    session: AsyncSession, model: Model
+    session: AsyncSession, model: Model, tenant_id: int | None = None
 ) -> int:
     """Sync a public no-approval model to all active main keys."""
     if (
@@ -755,7 +824,7 @@ async def _sync_published_model_to_main_keys(
     from services import ai_key_service
 
     return await ai_key_service.sync_public_resource_to_all_keys(
-        session, "models", model.model_id
+        session, "models", model.model_id, tenant_id=tenant_id
     )
 
 
@@ -763,11 +832,12 @@ async def _sync_model_key_access_after_deployment(
     session: AsyncSession,
     model: Model,
     credential=None,
+    tenant_id: int | None = None,
 ) -> None:
     """Keep main-key model grants aligned after a deployment route changes."""
-    await _sync_published_model_to_main_keys(session, model)
+    await _sync_published_model_to_main_keys(session, model, tenant_id=tenant_id)
     if credential and _get_credential_format(credential) == "anthropic":
-        await _sync_keys_anthropic_access(session)
+        await _sync_keys_anthropic_access(session, tenant_id=tenant_id)
 
 
 async def _ensure_litellm_credential_synced(
@@ -971,11 +1041,13 @@ def _ensure_v1_suffix(api_base: str) -> str:
 # --- Resync ---
 
 
-async def _sync_keys_anthropic_access(session: AsyncSession) -> int:
+async def _sync_keys_anthropic_access(
+    session: AsyncSession, tenant_id: int | None = None
+) -> int:
     """Expand Anthropic model variants into active main keys' LiteLLM grants."""
     from services import ai_key_service
 
-    all_main_keys = await ai_key_repo.find_all_main_keys(session)
+    all_main_keys = await ai_key_repo.find_all_main_keys(session, tenant_id=tenant_id)
     keys_updated = 0
     for key in all_main_keys:
         if not key.litellm_key_id or not key.models:
@@ -994,12 +1066,16 @@ async def _sync_keys_anthropic_access(session: AsyncSession) -> int:
     return keys_updated
 
 
-async def resync_anthropic_deployments(session: AsyncSession) -> dict:
+async def resync_anthropic_deployments(
+    session: AsyncSession, tenant_id: int | None = None
+) -> dict:
     """重新同步所有 anthropic 格式部署到 LiteLLM，使用 (Anthropic) model_name。
 
     同时更新所有相关 Key 的 LiteLLM models 列表。
     """
-    all_deployments = await model_repo.find_all_active_deployments(session)
+    all_deployments = await model_repo.find_all_active_deployments(
+        session, tenant_id=tenant_id
+    )
     synced = 0
     errors = 0
 
@@ -1038,7 +1114,7 @@ async def resync_anthropic_deployments(session: AsyncSession) -> dict:
             logger.warning("resync failed for deployment %s", deployment.id)
             errors += 1
 
-    keys_updated = await _sync_keys_anthropic_access(session)
+    keys_updated = await _sync_keys_anthropic_access(session, tenant_id=tenant_id)
 
     await session.commit()
     return {
@@ -1048,7 +1124,9 @@ async def resync_anthropic_deployments(session: AsyncSession) -> dict:
     }
 
 
-async def sync_credential_routing(session: AsyncSession, credential) -> dict:
+async def sync_credential_routing(
+    session: AsyncSession, credential, tenant_id: int | None = None
+) -> dict:
     """根据凭证的 is_active 状态，同步其关联 deployments 在 LiteLLM 侧的路由可用性。
 
     禁用凭证 -> 关联 deployment 的 LiteLLM model_name 加 __disabled__ 后缀，脱离路由组；
@@ -1060,7 +1138,9 @@ async def sync_credential_routing(session: AsyncSession, credential) -> dict:
     for deployment in credential.deployments or []:
         if not deployment.litellm_model_id:
             continue
-        model = await model_repo.find_by_id(session, deployment.model_id)
+        model = await model_repo.find_by_id(
+            session, deployment.model_id, tenant_id=tenant_id
+        )
         if not model:
             continue
         routable = _deployment_routable(deployment, credential)

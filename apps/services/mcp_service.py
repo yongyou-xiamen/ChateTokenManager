@@ -25,12 +25,25 @@ async def list_servers(
     is_active: bool | None = None,
     is_published: bool | None = None,
     status: str | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     total = await mcp_repo.count_servers(
-        session, category, is_active, is_published, status
+        session,
+        category,
+        is_active,
+        is_published,
+        status,
+        tenant_id=tenant_id,
     )
     items = await mcp_repo.find_all_servers(
-        session, page, page_size, category, is_active, is_published, status
+        session,
+        page,
+        page_size,
+        category,
+        is_active,
+        is_published,
+        status,
+        tenant_id=tenant_id,
     )
     return {
         "items": [_serialize_server(s) for s in items],
@@ -40,8 +53,10 @@ async def list_servers(
     }
 
 
-async def get_server(session: AsyncSession, server_id: int) -> dict:
-    server = await mcp_repo.find_server_by_id(session, server_id)
+async def get_server(
+    session: AsyncSession, server_id: int, tenant_id: int | None = None
+) -> dict:
+    server = await mcp_repo.find_server_by_id(session, server_id, tenant_id=tenant_id)
     if not server:
         raise NotFoundError("mcp_server", server_id)
     data = _serialize_server(server)
@@ -79,6 +94,7 @@ async def create_server(
     visibility_type: str = "all",
     requires_approval: bool = False,
     created_by: int | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     if transport not in ("sse", "http", "streamable_http", "streamableHttp"):
         raise ValidationError("transport 只支持 sse 或 streamableHttp")
@@ -88,7 +104,9 @@ async def create_server(
             "server_name 不能包含 '-'（LiteLLM 限制），请使用 '_' 替代"
         )
 
-    existing = await mcp_repo.find_server_by_name(session, server_name)
+    existing = await mcp_repo.find_server_by_name(
+        session, server_name, tenant_id=tenant_id
+    )
     if existing:
         raise ConflictError(f"MCP Server 名称 '{server_name}' 已存在")
 
@@ -148,9 +166,10 @@ async def create_server(
 async def update_server(
     session: AsyncSession,
     server_id: int,
+    tenant_id: int | None = None,
     **kwargs,
 ) -> dict:
-    server = await mcp_repo.find_server_by_id(session, server_id)
+    server = await mcp_repo.find_server_by_id(session, server_id, tenant_id=tenant_id)
     if not server:
         raise NotFoundError("mcp_server", server_id)
 
@@ -167,7 +186,9 @@ async def update_server(
             raise ValidationError(
                 "server_name 不能包含 '-'（LiteLLM 限制），请使用 '_' 替代"
             )
-        existing = await mcp_repo.find_server_by_name(session, kwargs["server_name"])
+        existing = await mcp_repo.find_server_by_name(
+            session, kwargs["server_name"], tenant_id=tenant_id
+        )
         if existing:
             raise ConflictError(f"MCP Server 名称 '{kwargs['server_name']}' 已存在")
 
@@ -183,7 +204,7 @@ async def update_server(
         from services import ai_key_service
 
         await ai_key_service.sync_public_resource_to_all_keys(
-            session, "mcps", server.id
+            session, "mcps", server.id, tenant_id=tenant_id
         )
 
     await session.flush()
@@ -201,8 +222,10 @@ async def update_server(
     return _serialize_server(server)
 
 
-async def delete_server(session: AsyncSession, server_id: int) -> None:
-    server = await mcp_repo.find_server_by_id(session, server_id)
+async def delete_server(
+    session: AsyncSession, server_id: int, tenant_id: int | None = None
+) -> None:
+    server = await mcp_repo.find_server_by_id(session, server_id, tenant_id=tenant_id)
     if not server:
         raise NotFoundError("mcp_server", server_id)
 
@@ -224,8 +247,10 @@ async def delete_server(session: AsyncSession, server_id: int) -> None:
 # ─── MCP Tools ───────────────────────────────────────────────────────────────
 
 
-async def refresh_tools(session: AsyncSession, server_id: int) -> list[dict]:
-    server = await mcp_repo.find_server_by_id(session, server_id)
+async def refresh_tools(
+    session: AsyncSession, server_id: int, tenant_id: int | None = None
+) -> list[dict]:
+    server = await mcp_repo.find_server_by_id(session, server_id, tenant_id=tenant_id)
     if not server:
         raise NotFoundError("mcp_server", server_id)
 
@@ -287,8 +312,10 @@ async def refresh_tools(session: AsyncSession, server_id: int) -> list[dict]:
     return [_serialize_tool(t) for t in new_tools]
 
 
-async def get_tools(session: AsyncSession, server_id: int) -> list[dict]:
-    server = await mcp_repo.find_server_by_id(session, server_id)
+async def get_tools(
+    session: AsyncSession, server_id: int, tenant_id: int | None = None
+) -> list[dict]:
+    server = await mcp_repo.find_server_by_id(session, server_id, tenant_id=tenant_id)
     if not server:
         raise NotFoundError("mcp_server", server_id)
     tools = await mcp_repo.find_tools_by_server(session, server_id)
@@ -301,6 +328,7 @@ async def update_tool_billing(
     billing_type: str | None = None,
     internal_cost_per_call: float | None = None,
     external_cost_per_call: float | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     tool = await mcp_repo.find_tool_by_id(session, tool_id)
     if not tool:
@@ -317,7 +345,9 @@ async def update_tool_billing(
     await session.refresh(tool)
 
     # 重新同步 server 的 cost_info 到 LiteLLM
-    server = await mcp_repo.find_server_by_id(session, tool.server_id)
+    server = await mcp_repo.find_server_by_id(
+        session, tool.server_id, tenant_id=tenant_id
+    )
     if server and server.litellm_synced:
         # 确保 tools relationship 包含最新数据
         await session.refresh(server, ["tools"])
@@ -335,10 +365,12 @@ async def update_tool_billing(
 # ─── Health Check ────────────────────────────────────────────────────────────
 
 
-async def health_check_server(session: AsyncSession, server_id: int) -> dict:
+async def health_check_server(
+    session: AsyncSession, server_id: int, tenant_id: int | None = None
+) -> dict:
     from datetime import datetime
 
-    server = await mcp_repo.find_server_by_id(session, server_id)
+    server = await mcp_repo.find_server_by_id(session, server_id, tenant_id=tenant_id)
     if not server:
         raise NotFoundError("mcp_server", server_id)
 

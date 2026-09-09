@@ -160,9 +160,14 @@ async def list_export_tasks(
     page_size: int,
     source: str | None = None,
     status: str | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    total = await export_task_repo.count_all(session, source, status)
-    tasks = await export_task_repo.find_all(session, page, page_size, source, status)
+    total = await export_task_repo.count_all(
+        session, source, status, tenant_id=tenant_id
+    )
+    tasks = await export_task_repo.find_all(
+        session, page, page_size, source, status, tenant_id=tenant_id
+    )
     return {
         "items": [_serialize_task(task) for task in tasks],
         "total": total,
@@ -182,6 +187,7 @@ async def create_export_task(
     current_user: dict,
     task_name: str = "",
     retry_of_task_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     _validate_export_type(source, export_type)
     name = task_name or _default_task_name(source, export_type)
@@ -211,8 +217,10 @@ def _enqueue_export_task(task_id: int):
     return generate_export_file.delay(task_id)
 
 
-async def process_export_task(session: AsyncSession, task_id: int) -> None:
-    task = await export_task_repo.find_by_id(session, task_id)
+async def process_export_task(
+    session: AsyncSession, task_id: int, tenant_id: int | None = None
+) -> None:
+    task = await export_task_repo.find_by_id(session, task_id, tenant_id=tenant_id)
     if not task or task.status not in {"pending", "running"}:
         return
     if task.cancel_requested:
@@ -272,9 +280,12 @@ async def process_export_task(session: AsyncSession, task_id: int) -> None:
 
 
 async def retry_export_task(
-    session: AsyncSession, task_id: int, current_user: dict
+    session: AsyncSession,
+    task_id: int,
+    current_user: dict,
+    tenant_id: int | None = None,
 ) -> dict:
-    task = await export_task_repo.find_by_id(session, task_id)
+    task = await export_task_repo.find_by_id(session, task_id, tenant_id=tenant_id)
     if not task:
         raise ValueError("导出任务不存在")
     if task.status not in {"failed", "canceled"}:
@@ -287,11 +298,14 @@ async def retry_export_task(
         current_user,
         task.task_name,
         retry_of_task_id=task.id,
+        tenant_id=tenant_id,
     )
 
 
-async def cancel_export_task(session: AsyncSession, task_id: int) -> dict:
-    task = await export_task_repo.find_by_id(session, task_id)
+async def cancel_export_task(
+    session: AsyncSession, task_id: int, tenant_id: int | None = None
+) -> dict:
+    task = await export_task_repo.find_by_id(session, task_id, tenant_id=tenant_id)
     if not task:
         raise ValueError("导出任务不存在")
     if task.status not in {"pending", "running"}:
@@ -345,8 +359,10 @@ async def fail_stale_running_tasks(session: AsyncSession) -> int:
     return len(tasks)
 
 
-async def get_export_task(session: AsyncSession, task_id: int) -> ExportTask | None:
-    return await export_task_repo.find_by_id(session, task_id)
+async def get_export_task(
+    session: AsyncSession, task_id: int, tenant_id: int | None = None
+) -> ExportTask | None:
+    return await export_task_repo.find_by_id(session, task_id, tenant_id=tenant_id)
 
 
 def _default_task_name(source: str, export_type: str) -> str:

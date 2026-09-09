@@ -4,6 +4,7 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.db import ApiKey
+from repositories.base import apply_tenant_filter
 
 
 async def create(session: AsyncSession, api_key: ApiKey) -> ApiKey:
@@ -13,8 +14,13 @@ async def create(session: AsyncSession, api_key: ApiKey) -> ApiKey:
     return api_key
 
 
-async def find_by_id(session: AsyncSession, key_id: int) -> ApiKey | None:
-    result = await session.execute(select(ApiKey).where(ApiKey.id == key_id))
+async def find_by_id(
+    session: AsyncSession, key_id: int, tenant_id: int | None = None
+) -> ApiKey | None:
+    stmt = apply_tenant_filter(
+        select(ApiKey).where(ApiKey.id == key_id), ApiKey, tenant_id
+    )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -28,8 +34,11 @@ async def find_all(
     page: int = 1,
     page_size: int = 20,
     keyword: str = "",
+    tenant_id: int | None = None,
 ) -> list[ApiKey]:
-    stmt = select(ApiKey).order_by(ApiKey.id.desc())
+    stmt = apply_tenant_filter(select(ApiKey), ApiKey, tenant_id).order_by(
+        ApiKey.id.desc()
+    )
     if keyword:
         pattern = f"%{keyword}%"
         stmt = stmt.where(
@@ -41,8 +50,10 @@ async def find_all(
     return list(result.scalars().all())
 
 
-async def count_all(session: AsyncSession, keyword: str = "") -> int:
-    stmt = select(func.count(ApiKey.id))
+async def count_all(
+    session: AsyncSession, keyword: str = "", tenant_id: int | None = None
+) -> int:
+    stmt = apply_tenant_filter(select(func.count(ApiKey.id)), ApiKey, tenant_id)
     if keyword:
         pattern = f"%{keyword}%"
         stmt = stmt.where(

@@ -17,12 +17,18 @@ async def list_credentials(
     page: int = 1,
     page_size: int = 50,
     provider_id: int | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     total = await credential_repo.count_all(
-        session, provider_id=provider_id, is_active=True
+        session, provider_id=provider_id, is_active=True, tenant_id=tenant_id
     )
     items = await credential_repo.find_all(
-        session, page, page_size, provider_id=provider_id, is_active=True
+        session,
+        page,
+        page_size,
+        provider_id=provider_id,
+        is_active=True,
+        tenant_id=tenant_id,
     )
     return {
         "items": [_serialize(c) for c in items],
@@ -32,8 +38,12 @@ async def list_credentials(
     }
 
 
-async def get_credential_by_id(session: AsyncSession, credential_id: int) -> dict:
-    credential = await credential_repo.find_by_id(session, credential_id)
+async def get_credential_by_id(
+    session: AsyncSession, credential_id: int, tenant_id: int | None = None
+) -> dict:
+    credential = await credential_repo.find_by_id(
+        session, credential_id, tenant_id=tenant_id
+    )
     if not credential:
         raise NotFoundError("credential", credential_id)
     return _serialize(credential)
@@ -45,9 +55,13 @@ async def create_credential(
     credential_values: dict,
     provider_id: int,
     credential_info: dict | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     existing = await credential_repo.find_by_name(
-        session, credential_name, provider_id=provider_id
+        session,
+        credential_name,
+        provider_id=provider_id,
+        tenant_id=tenant_id,
     )
     if existing:
         raise ConflictError(f"该供应商下凭证名 '{credential_name}' 已存在")
@@ -76,7 +90,9 @@ async def create_credential(
     credential.litellm_synced = True
 
     await session.commit()
-    credential = await credential_repo.find_by_id(session, credential.id)
+    credential = await credential_repo.find_by_id(
+        session, credential.id, tenant_id=tenant_id
+    )
     return _serialize(credential)
 
 
@@ -87,8 +103,11 @@ async def update_credential(
     provider_id: int | None = None,
     credential_info: dict | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    credential = await credential_repo.find_by_id(session, credential_id)
+    credential = await credential_repo.find_by_id(
+        session, credential_id, tenant_id=tenant_id
+    )
     if not credential:
         raise NotFoundError("credential", credential_id)
 
@@ -130,7 +149,9 @@ async def update_credential(
     if credential_payload_changed or active_changed:
         from services import model_service
 
-        result = await model_service.sync_credential_routing(session, credential)
+        result = await model_service.sync_credential_routing(
+            session, credential, tenant_id=tenant_id
+        )
         if result.get("deployment_errors"):
             logger.error(
                 "credential deployment sync finished with errors: credential=%s errors=%s",
@@ -139,12 +160,18 @@ async def update_credential(
             )
 
     await session.commit()
-    credential = await credential_repo.find_by_id(session, credential.id)
+    credential = await credential_repo.find_by_id(
+        session, credential.id, tenant_id=tenant_id
+    )
     return _serialize(credential)
 
 
-async def delete_credential(session: AsyncSession, credential_id: int) -> None:
-    credential = await credential_repo.find_by_id(session, credential_id)
+async def delete_credential(
+    session: AsyncSession, credential_id: int, tenant_id: int | None = None
+) -> None:
+    credential = await credential_repo.find_by_id(
+        session, credential_id, tenant_id=tenant_id
+    )
     if not credential:
         raise NotFoundError("credential", credential_id)
 

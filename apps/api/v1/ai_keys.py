@@ -143,10 +143,11 @@ async def list_keys(
     owner_id: int | None = Query(None),
     key_type: str | None = Query(None),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     result = await ai_key_service.list_keys(
-        session, page, page_size, owner_type, owner_id, key_type
+        session, page, page_size, owner_type, owner_id, key_type, tenant_id=tenant_id
     )
     return {"code": 200, "message": "ok", "data": result}
 
@@ -157,6 +158,7 @@ async def create_key(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         key = await ai_key_service.create_key(
             session,
@@ -188,6 +190,7 @@ async def create_key(
             rpm_limit=req.rpm_limit,
             max_parallel_requests=req.max_parallel_requests,
             rate_limits=req.rate_limits,
+            tenant_id=tenant_id,
         )
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=str(e))
@@ -206,6 +209,7 @@ async def batch_create_keys(
 ):
     from exceptions import ValidationError as VE
 
+    tenant_id = current_user.get("tenant_id")
     try:
         results = await ai_key_service.batch_create_keys(
             session,
@@ -234,6 +238,7 @@ async def batch_create_keys(
             rpm_limit=req.rpm_limit,
             max_parallel_requests=req.max_parallel_requests,
             rate_limits=req.rate_limits,
+            tenant_id=tenant_id,
         )
     except VE as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -250,7 +255,10 @@ async def get_my_keys(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    result = await ai_key_service.get_my_keys(session, current_user["id"])
+    tenant_id = current_user.get("tenant_id")
+    result = await ai_key_service.get_my_keys(
+        session, current_user["id"], tenant_id=tenant_id
+    )
     return {"code": 200, "message": "ok", "data": result}
 
 
@@ -261,11 +269,12 @@ async def list_identity(
     page_size: int = Query(20, ge=1, le=100),
     keyword: str | None = Query(None),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         result = await ai_key_service.list_identity(
-            session, tab, page, page_size, keyword
+            session, tab, page, page_size, keyword, tenant_id=tenant_id
         )
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -276,10 +285,13 @@ async def list_identity(
 async def get_model_limits(
     key_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        limits = await ai_key_service.get_model_limits(session, key_id)
+        limits = await ai_key_service.get_model_limits(
+            session, key_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Key 不存在")
     return {"code": 200, "message": "ok", "data": limits}
@@ -290,11 +302,15 @@ async def set_model_limits(
     key_id: int,
     req: SetModelLimitsRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         limits = await ai_key_service.set_model_limits(
-            session, key_id, [item.model_dump() for item in req.limits]
+            session,
+            key_id,
+            [item.model_dump() for item in req.limits],
+            tenant_id=tenant_id,
         )
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -308,10 +324,13 @@ async def delete_model_limit(
     key_id: int,
     model_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await ai_key_service.delete_model_limit(session, key_id, model_id)
+        await ai_key_service.delete_model_limit(
+            session, key_id, model_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="限制记录不存在")
     return {"code": 200, "message": "模型限制删除成功", "data": None}
@@ -321,10 +340,11 @@ async def delete_model_limit(
 async def get_key(
     key_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        key = await ai_key_service.get_key_by_id(session, key_id)
+        key = await ai_key_service.get_key_by_id(session, key_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Key 不存在")
     return {"code": 200, "message": "ok", "data": key}
@@ -334,8 +354,9 @@ async def get_key(
 async def batch_update_keys(
     req: BatchUpdateRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     key_ids = list(req.key_ids) if req.key_ids else []
     if req.user_ids:
         from repositories import ai_key_repo
@@ -373,6 +394,7 @@ async def batch_update_keys(
                 rpm_limit=req.rpm_limit,
                 max_parallel_requests=req.max_parallel_requests,
                 rate_limits=req.rate_limits,
+                tenant_id=tenant_id,
             )
             successes.append(key_id)
         except NotFoundError:
@@ -392,8 +414,9 @@ async def update_key(
     key_id: int,
     req: UpdateKeyRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         key = await ai_key_service.update_key(
             session,
@@ -421,6 +444,7 @@ async def update_key(
             rpm_limit=req.rpm_limit,
             max_parallel_requests=req.max_parallel_requests,
             rate_limits=req.rate_limits,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Key 不存在")
@@ -433,10 +457,11 @@ async def update_key(
 async def toggle_key(
     key_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        key = await ai_key_service.toggle_key(session, key_id)
+        key = await ai_key_service.toggle_key(session, key_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Key 不存在")
     return {"code": 200, "message": "状态切换成功", "data": key}
@@ -446,10 +471,11 @@ async def toggle_key(
 async def delete_key(
     key_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:delete")),
+    current_user: dict = Depends(require_permission("user:delete")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await ai_key_service.delete_key(session, key_id)
+        await ai_key_service.delete_key(session, key_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Key 不存在")
     return {"code": 200, "message": "AI Key 删除成功", "data": None}

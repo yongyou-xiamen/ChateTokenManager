@@ -77,6 +77,7 @@ class Department(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     parent_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("aihelms.departments.id"), nullable=True
@@ -100,6 +101,7 @@ class Project(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -183,6 +185,7 @@ class UserDepartment(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("aihelms.users.id", ondelete="CASCADE")
     )
@@ -203,6 +206,7 @@ class UserProject(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     user_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("aihelms.users.id", ondelete="CASCADE")
     )
@@ -220,6 +224,7 @@ class AiKey(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
     key_type: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -271,6 +276,7 @@ class Provider(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     provider_type: Mapped[str] = mapped_column(String(50), nullable=False)
     billing_type: Mapped[str] = mapped_column(String(20), default="token")
@@ -311,6 +317,7 @@ class Credential(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     credential_name: Mapped[str] = mapped_column(
         String(128), unique=True, nullable=False
     )
@@ -339,6 +346,7 @@ class Model(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     model_id: Mapped[str | None] = mapped_column(
         String(128), unique=True, nullable=True
@@ -377,6 +385,7 @@ class ModelDeployment(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     model_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("aihelms.models.id", ondelete="CASCADE")
     )
@@ -410,6 +419,7 @@ class ModelAccessGroup(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     group_name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
     model_ids: Mapped[list] = mapped_column(JSONB, default=list)
@@ -463,6 +473,7 @@ class KeyScenario(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     name: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     description: Mapped[str] = mapped_column(Text, default="")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -525,6 +536,7 @@ class McpServer(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     server_id: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     server_name: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
@@ -615,6 +627,7 @@ class ResourceApplication(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("aihelms.users.id"))
     resource_type: Mapped[str] = mapped_column(String(20), nullable=False)
     resource_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
@@ -646,6 +659,7 @@ class McpCallLog(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     server_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     tool_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
@@ -670,6 +684,7 @@ class LlmCallLog(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     request_id: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
     user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     ai_key_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
@@ -706,6 +721,7 @@ class SkillUsageLog(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     skill_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     action: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -841,6 +857,7 @@ class Skill(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     skill_id: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     icon: Mapped[str] = mapped_column(String(20), default="📦")
@@ -916,6 +933,7 @@ class Agent(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     agent_id: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     icon: Mapped[str] = mapped_column(String(20), default="")
@@ -965,6 +983,7 @@ class AgentUsageLog(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     agent_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("aihelms.agents.id", ondelete="CASCADE")
     )
@@ -1000,6 +1019,7 @@ class ExportTask(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     task_name: Mapped[str] = mapped_column(String(200), nullable=False)
     source: Mapped[str] = mapped_column(String(50), nullable=False)
     export_type: Mapped[str] = mapped_column(String(80), nullable=False)
@@ -1034,6 +1054,7 @@ class ApiKey(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
     key_prefix: Mapped[str] = mapped_column(String(12), nullable=False)
@@ -1056,6 +1077,7 @@ class CostSummaryDaily(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     summary_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     ai_key_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
@@ -1085,6 +1107,7 @@ class EfficiencyReport(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     report_type: Mapped[str] = mapped_column(String(20), nullable=False)
     period_start: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     period_end: Mapped[datetime] = mapped_column(DateTime, nullable=False)

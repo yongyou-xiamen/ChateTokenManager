@@ -4,6 +4,7 @@ from sqlalchemy import select, func, delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.db import Agent, AgentCategory, AgentPlatform, AgentUsageLog
+from repositories.base import apply_tenant_filter
 
 
 # ─── Agent ──────────────────────────────────────────────────────────────────
@@ -16,13 +17,23 @@ async def create(session: AsyncSession, agent: Agent) -> Agent:
     return agent
 
 
-async def find_by_id(session: AsyncSession, agent_id: int) -> Agent | None:
-    result = await session.execute(select(Agent).where(Agent.id == agent_id))
+async def find_by_id(
+    session: AsyncSession, agent_id: int, tenant_id: int | None = None
+) -> Agent | None:
+    stmt = apply_tenant_filter(
+        select(Agent).where(Agent.id == agent_id), Agent, tenant_id
+    )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
-async def find_by_agent_id(session: AsyncSession, agent_id: str) -> Agent | None:
-    result = await session.execute(select(Agent).where(Agent.agent_id == agent_id))
+async def find_by_agent_id(
+    session: AsyncSession, agent_id: str, tenant_id: int | None = None
+) -> Agent | None:
+    stmt = apply_tenant_filter(
+        select(Agent).where(Agent.agent_id == agent_id), Agent, tenant_id
+    )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -34,8 +45,11 @@ async def find_all(
     platform: str | None = None,
     is_published: bool | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> list[Agent]:
-    stmt = select(Agent).order_by(Agent.id.desc())
+    stmt = apply_tenant_filter(select(Agent), Agent, tenant_id).order_by(
+        Agent.id.desc()
+    )
     if category:
         stmt = stmt.where(Agent.category == category)
     if platform:
@@ -56,8 +70,9 @@ async def count_all(
     platform: str | None = None,
     is_published: bool | None = None,
     is_active: bool | None = None,
+    tenant_id: int | None = None,
 ) -> int:
-    stmt = select(func.count(Agent.id))
+    stmt = apply_tenant_filter(select(func.count(Agent.id)), Agent, tenant_id)
     if category:
         stmt = stmt.where(Agent.category == category)
     if platform:
@@ -70,10 +85,13 @@ async def count_all(
     return result.scalar_one()
 
 
-async def find_by_ids(session: AsyncSession, ids: list[int]) -> list[Agent]:
+async def find_by_ids(
+    session: AsyncSession, ids: list[int], tenant_id: int | None = None
+) -> list[Agent]:
     if not ids:
         return []
-    result = await session.execute(select(Agent).where(Agent.id.in_(ids)))
+    stmt = apply_tenant_filter(select(Agent).where(Agent.id.in_(ids)), Agent, tenant_id)
+    result = await session.execute(stmt)
     return list(result.scalars().all())
 
 

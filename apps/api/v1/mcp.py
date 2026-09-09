@@ -91,9 +91,10 @@ async def list_published_servers(
     page_size: int = Query(50, ge=1, le=200),
     category: str | None = None,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """公开接口：已认证用户可查看已发布的 MCP Server 列表。"""
+    tenant_id = current_user.get("tenant_id")
     data = await mcp_service.list_servers(
         session,
         page,
@@ -102,6 +103,7 @@ async def list_published_servers(
         is_active=None,
         is_published=True,
         status=None,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -115,10 +117,18 @@ async def list_servers(
     is_published: bool | None = None,
     status: str | None = None,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("mcp:read")),
+    current_user: dict = Depends(require_permission("mcp:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     data = await mcp_service.list_servers(
-        session, page, page_size, category, is_active, is_published, status
+        session,
+        page,
+        page_size,
+        category,
+        is_active,
+        is_published,
+        status,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -127,10 +137,11 @@ async def list_servers(
 async def get_server(
     server_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("mcp:read")),
+    current_user: dict = Depends(require_permission("mcp:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        data = await mcp_service.get_server(session, server_id)
+        data = await mcp_service.get_server(session, server_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="MCP Server 不存在")
     return {"code": 200, "message": "ok", "data": data}
@@ -142,6 +153,7 @@ async def create_server(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission("mcp:create")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         data = await mcp_service.create_server(
             session,
@@ -172,6 +184,7 @@ async def create_server(
             visibility_type=req.visibility_type,
             requires_approval=req.requires_approval,
             created_by=current_user["id"],
+            tenant_id=tenant_id,
         )
     except ConflictError as e:
         raise HTTPException(status_code=409, detail=str(e))
@@ -185,11 +198,14 @@ async def update_server(
     server_id: int,
     req: UpdateServerRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("mcp:update")),
+    current_user: dict = Depends(require_permission("mcp:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     kwargs = req.model_dump(exclude_none=True)
     try:
-        data = await mcp_service.update_server(session, server_id, **kwargs)
+        data = await mcp_service.update_server(
+            session, server_id, tenant_id=tenant_id, **kwargs
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="MCP Server 不存在")
     except ConflictError as e:
@@ -203,10 +219,11 @@ async def update_server(
 async def delete_server(
     server_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("mcp:delete")),
+    current_user: dict = Depends(require_permission("mcp:delete")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await mcp_service.delete_server(session, server_id)
+        await mcp_service.delete_server(session, server_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="MCP Server 不存在")
     return {"code": 200, "message": "MCP Server 删除成功", "data": None}
@@ -221,13 +238,18 @@ async def get_connect_config(
     current_user: dict = Depends(get_current_user),
 ):
     """返回当前用户可直接复制到客户端的 MCP 安装配置 JSON。"""
+    tenant_id = current_user.get("tenant_id")
     try:
-        server_data = await mcp_service.get_server(session, server_id)
+        server_data = await mcp_service.get_server(
+            session, server_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="MCP Server 不存在")
 
     # 获取用户的 personal_main key
-    keys_data = await ai_key_service.get_my_keys(session, current_user["id"])
+    keys_data = await ai_key_service.get_my_keys(
+        session, current_user["id"], tenant_id=tenant_id
+    )
     main_key = next(
         (
             k
@@ -286,10 +308,11 @@ async def get_connect_config(
 async def refresh_tools(
     server_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("mcp:update")),
+    current_user: dict = Depends(require_permission("mcp:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        tools = await mcp_service.refresh_tools(session, server_id)
+        tools = await mcp_service.refresh_tools(session, server_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="MCP Server 不存在")
     except ValidationError as e:
@@ -301,10 +324,11 @@ async def refresh_tools(
 async def get_tools(
     server_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("mcp:read")),
+    current_user: dict = Depends(require_permission("mcp:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        tools = await mcp_service.get_tools(session, server_id)
+        tools = await mcp_service.get_tools(session, server_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="MCP Server 不存在")
     return {"code": 200, "message": "ok", "data": tools}
@@ -315,8 +339,9 @@ async def update_tool_billing(
     tool_id: int,
     req: UpdateToolBillingRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("mcp:update")),
+    current_user: dict = Depends(require_permission("mcp:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         data = await mcp_service.update_tool_billing(
             session,
@@ -324,6 +349,7 @@ async def update_tool_billing(
             billing_type=req.billing_type,
             internal_cost_per_call=req.internal_cost_per_call,
             external_cost_per_call=req.external_cost_per_call,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="MCP Tool 不存在")
@@ -334,10 +360,13 @@ async def update_tool_billing(
 async def health_check(
     server_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("mcp:update")),
+    current_user: dict = Depends(require_permission("mcp:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        data = await mcp_service.health_check_server(session, server_id)
+        data = await mcp_service.health_check_server(
+            session, server_id, tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="MCP Server 不存在")
     return {"code": 200, "message": "健康检查完成", "data": data}

@@ -34,11 +34,14 @@ async def get_dashboard(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
+    tenant_id = current_user.get("tenant_id")
     if start_date and end_date:
         start, end = start_date, end_date
     else:
         start, end = _parse_period(period)
-    data = await dashboard_service.get_dashboard(session, start, end)
+    data = await dashboard_service.get_dashboard(
+        session, start, end, tenant_id=tenant_id
+    )
     return {"code": 200, "message": "ok", "data": data}
 
 

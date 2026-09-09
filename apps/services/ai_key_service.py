@@ -56,10 +56,19 @@ async def list_keys(
     owner_type: str | None = None,
     owner_id: int | None = None,
     key_type: str | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    total = await ai_key_repo.count_all(session, owner_type, owner_id, key_type)
+    total = await ai_key_repo.count_all(
+        session, owner_type, owner_id, key_type, tenant_id=tenant_id
+    )
     items = await ai_key_repo.find_all(
-        session, page, page_size, owner_type, owner_id, key_type
+        session,
+        page,
+        page_size,
+        owner_type,
+        owner_id,
+        key_type,
+        tenant_id=tenant_id,
     )
     return {
         "items": [_serialize_key(k) for k in items],
@@ -69,8 +78,10 @@ async def list_keys(
     }
 
 
-async def get_key_by_id(session: AsyncSession, key_id: int) -> dict:
-    key = await ai_key_repo.find_by_id(session, key_id)
+async def get_key_by_id(
+    session: AsyncSession, key_id: int, tenant_id: int | None = None
+) -> dict:
+    key = await ai_key_repo.find_by_id(session, key_id, tenant_id=tenant_id)
     if not key:
         raise NotFoundError("ai_key", key_id)
     return _serialize_key(key)
@@ -106,6 +117,7 @@ async def create_key(
     rpm_limit: int | None = None,
     max_parallel_requests: int | None = None,
     rate_limits: list[dict] | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     if key_type not in VALID_KEY_TYPES:
         raise ConflictError(f"无效的 key 类型: {key_type}")
@@ -115,14 +127,16 @@ async def create_key(
         raise ConflictError(f"无效的 owner 类型: {owner_type}")
 
     # Validate owner exists
-    team_id = await _resolve_owner(session, owner_type, owner_id)
-    litellm_user_id = await _resolve_litellm_user(session, owner_type, owner_id)
+    team_id = await _resolve_owner(session, owner_type, owner_id, tenant_id=tenant_id)
+    litellm_user_id = await _resolve_litellm_user(
+        session, owner_type, owner_id, tenant_id=tenant_id
+    )
 
     # Check main key uniqueness (only one main key per owner)
     main_types = {KEY_TYPE_PERSONAL_MAIN, KEY_TYPE_DEPT_MAIN, KEY_TYPE_PROJECT_MAIN}
     if key_type in main_types:
         existing = await ai_key_repo.find_main_key(
-            session, owner_type, owner_id, key_type
+            session, owner_type, owner_id, key_type, tenant_id=tenant_id
         )
         if existing:
             raise ConflictError("该归属已有主 Key")
@@ -172,13 +186,15 @@ async def create_key(
     # Sync to LiteLLM
     litellm_duration = budget_duration if budget_duration and budget_limit else duration
     litellm_models, _ = await _expand_models_with_anthropic(session, models or [], None)
-    mcp_server_names = await _resolve_mcp_server_names(session, mcps or [])
+    mcp_server_names = await _resolve_mcp_server_names(
+        session, mcps or [], tenant_id=tenant_id
+    )
     result = await litellm_client.create_key(
         key_alias=key_alias,
         user_id=litellm_user_id,
         team_id=team_id,
         models=litellm_models,
-        metadata=await _build_key_metadata(session, ai_key),
+        metadata=await _build_key_metadata(session, ai_key, tenant_id=tenant_id),
         duration=litellm_duration,
         allowed_mcp_servers=mcp_server_names if mcp_server_names else None,
         tpm_limit=ai_key.tpm_limit,
@@ -224,8 +240,9 @@ async def update_key(
     rpm_limit: int | None = None,
     max_parallel_requests: int | None = None,
     rate_limits: list[dict] | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    key = await ai_key_repo.find_by_id(session, key_id)
+    key = await ai_key_repo.find_by_id(session, key_id, tenant_id=tenant_id)
     if not key:
         raise NotFoundError("ai_key", key_id)
 
@@ -295,6 +312,7 @@ async def update_key(
         model_budgets_changed=model_budgets is not None,
         rate_limits_changed=rate_limit_changed,
         session=session,
+        tenant_id=tenant_id,
     )
 
     await session.commit()
@@ -310,9 +328,10 @@ async def update_key_resources(
     mcps: list[int] | None = None,
     skills: list[int] | None = None,
     agents: list[int] | None = None,
+    tenant_id: int | None = None,
 ) -> None:
     """审批通过后给主 Key 追加资源。仅做资源同步，不动其他字段。"""
-    key = await ai_key_repo.find_by_id(session, key_id)
+    key = await ai_key_repo.find_by_id(session, key_id, tenant_id=tenant_id)
     if not key:
         return
     if models is not None:
@@ -331,18 +350,21 @@ async def update_key_resources(
         False,
         rate_limits_changed=key.rate_limit_mode == RATE_LIMIT_MODE_PER_MODEL,
         session=session,
+        tenant_id=tenant_id,
     )
 
 
 async def _resolve_mcp_server_names(
-    session: AsyncSession, mcp_ids: list[int]
+    session: AsyncSession,
+    mcp_ids: list[int],
+    tenant_id: int | None = None,
 ) -> list[str]:
     """Convert MCP server IDs to server_name list for LiteLLM."""
     if not mcp_ids:
         return []
     names = []
     for mcp_id in mcp_ids:
-        server = await mcp_repo.find_server_by_id(session, mcp_id)
+        server = await mcp_repo.find_server_by_id(session, mcp_id, tenant_id=tenant_id)
         if server:
             names.append(server.server_name)
     return names
@@ -389,6 +411,7 @@ async def _sync_key_to_litellm(
     model_budgets_changed: bool,
     rate_limits_changed: bool = False,
     session: AsyncSession | None = None,
+    tenant_id: int | None = None,
 ) -> None:
     if not key.litellm_key_id:
         return
@@ -405,12 +428,14 @@ async def _sync_key_to_litellm(
     # Resolve MCP server names from IDs
     mcp_server_names: list[str] | None = None
     if mcps_changed and session:
-        mcp_server_names = await _resolve_mcp_server_names(session, key.mcps or [])
+        mcp_server_names = await _resolve_mcp_server_names(
+            session, key.mcps or [], tenant_id=tenant_id
+        )
 
     if models_changed or mcps_changed or rate_limits_changed:
         metadata = None
         if session and rate_limits_changed:
-            metadata = await _build_key_metadata(session, key)
+            metadata = await _build_key_metadata(session, key, tenant_id=tenant_id)
         await litellm_client.update_key(
             key_id=key.litellm_key_id,
             models=litellm_models if models_changed else None,
@@ -428,8 +453,10 @@ async def _sync_key_to_litellm(
         await litellm_client.update_key_budget(key.litellm_key_id, None)
 
 
-async def toggle_key(session: AsyncSession, key_id: int) -> dict:
-    key = await ai_key_repo.find_by_id(session, key_id)
+async def toggle_key(
+    session: AsyncSession, key_id: int, tenant_id: int | None = None
+) -> dict:
+    key = await ai_key_repo.find_by_id(session, key_id, tenant_id=tenant_id)
     if not key:
         raise NotFoundError("ai_key", key_id)
 
@@ -449,7 +476,10 @@ async def toggle_key(session: AsyncSession, key_id: int) -> dict:
 
 
 async def sync_user_keys_active(
-    session: AsyncSession, user_id: int, active: bool
+    session: AsyncSession,
+    user_id: int,
+    active: bool,
+    tenant_id: int | None = None,
 ) -> int:
     """随用户启用/禁用，同步其名下所有 AI Key 在 LiteLLM 侧的可用性。
 
@@ -457,7 +487,7 @@ async def sync_user_keys_active(
     启用用户 -> 恢复各 key 预算（有 hard_limit 则按 budget_limit，否则 None）。
     平台侧同步 key.is_active。不在此提交事务，由调用方统一 commit。
     """
-    keys = await ai_key_repo.find_by_user(session, user_id)
+    keys = await ai_key_repo.find_by_user(session, user_id, tenant_id=tenant_id)
     synced = 0
     for key in keys:
         key.is_active = active
@@ -475,8 +505,10 @@ async def sync_user_keys_active(
     return synced
 
 
-async def delete_key(session: AsyncSession, key_id: int) -> None:
-    key = await ai_key_repo.find_by_id(session, key_id)
+async def delete_key(
+    session: AsyncSession, key_id: int, tenant_id: int | None = None
+) -> None:
+    key = await ai_key_repo.find_by_id(session, key_id, tenant_id=tenant_id)
     if not key:
         raise NotFoundError("ai_key", key_id)
 
@@ -514,6 +546,7 @@ async def batch_create_keys(
     rpm_limit: int | None = None,
     max_parallel_requests: int | None = None,
     rate_limits: list[dict] | None = None,
+    tenant_id: int | None = None,
 ) -> list[dict]:
     if key_type != KEY_TYPE_PERSONAL_SCENE:
         raise ValidationError("批量创建仅支持个人场景 Key")
@@ -559,6 +592,7 @@ async def batch_create_keys(
                 rpm_limit=rpm_limit,
                 max_parallel_requests=max_parallel_requests,
                 rate_limits=rate_limits,
+                tenant_id=tenant_id,
             )
             results.append({"user_id": user_id, "success": True, "key": key_data})
         except (ConflictError, NotFoundError) as e:
@@ -567,22 +601,30 @@ async def batch_create_keys(
     return results
 
 
-async def get_my_keys(session: AsyncSession, user_id: int) -> dict:
+async def get_my_keys(
+    session: AsyncSession, user_id: int, tenant_id: int | None = None
+) -> dict:
     """Get all keys accessible to a user: personal + dept shared + project shared."""
-    personal_keys = await ai_key_repo.find_by_user(session, user_id)
+    personal_keys = await ai_key_repo.find_by_user(
+        session, user_id, tenant_id=tenant_id
+    )
 
     # Find user's departments
     user_depts = await user_repo.find_user_departments(session, user_id)
     dept_keys: list[AiKey] = []
     for ud in user_depts:
-        keys = await ai_key_repo.find_by_owner(session, "department", ud.department_id)
+        keys = await ai_key_repo.find_by_owner(
+            session, "department", ud.department_id, tenant_id=tenant_id
+        )
         dept_keys.extend(keys)
 
     # Find user's projects
     user_projects = await user_repo.find_user_projects(session, user_id)
     project_keys: list[AiKey] = []
     for up in user_projects:
-        keys = await ai_key_repo.find_by_owner(session, "project", up.project_id)
+        keys = await ai_key_repo.find_by_owner(
+            session, "project", up.project_id, tenant_id=tenant_id
+        )
         project_keys.extend(keys)
 
     return {
@@ -593,14 +635,19 @@ async def get_my_keys(session: AsyncSession, user_id: int) -> dict:
 
 
 async def create_personal_main_key(
-    session: AsyncSession, user_id: int, username: str
+    session: AsyncSession,
+    user_id: int,
+    username: str,
+    tenant_id: int | None = None,
 ) -> AiKey | None:
     """Auto-create a personal main key for a new user (enabled, with public resources)."""
-    existing = await ai_key_repo.find_personal_main(session, user_id)
+    existing = await ai_key_repo.find_personal_main(
+        session, user_id, tenant_id=tenant_id
+    )
     if existing:
         return existing
 
-    public_resources = await get_public_resources(session)
+    public_resources = await get_public_resources(session, tenant_id=tenant_id)
 
     key_alias = f"user:{username}/main"
     ai_key = AiKey(
@@ -642,33 +689,52 @@ async def create_personal_main_key(
 # --- Public resource sync ---
 
 
-async def get_public_resources(session: AsyncSession) -> dict[str, list]:
+async def get_public_resources(
+    session: AsyncSession, tenant_id: int | None = None
+) -> dict[str, list]:
     """获取所有已发布且不需要审批的资源 ID。"""
     from models.db import Model, Skill, McpServer, Agent
     from sqlalchemy import select
+    from repositories.base import apply_tenant_filter
 
     models_result = await session.execute(
-        select(Model.model_id).where(
-            Model.is_published == True,
-            Model.requires_approval == False,
-            Model.is_active == True,
+        apply_tenant_filter(
+            select(Model.model_id).where(
+                Model.is_published == True,
+                Model.requires_approval == False,
+                Model.is_active == True,
+            ),
+            Model,
+            tenant_id,
         )
     )
     skills_result = await session.execute(
-        select(Skill.id).where(
-            Skill.is_published == True, Skill.requires_approval == False
+        apply_tenant_filter(
+            select(Skill.id).where(
+                Skill.is_published == True, Skill.requires_approval == False
+            ),
+            Skill,
+            tenant_id,
         )
     )
     mcps_result = await session.execute(
-        select(McpServer.id).where(
-            McpServer.is_published == True, McpServer.requires_approval == False
+        apply_tenant_filter(
+            select(McpServer.id).where(
+                McpServer.is_published == True, McpServer.requires_approval == False
+            ),
+            McpServer,
+            tenant_id,
         )
     )
     agents_result = await session.execute(
-        select(Agent.id).where(
-            Agent.is_published == True,
-            Agent.requires_approval == False,
-            Agent.is_active == True,
+        apply_tenant_filter(
+            select(Agent.id).where(
+                Agent.is_published == True,
+                Agent.requires_approval == False,
+                Agent.is_active == True,
+            ),
+            Agent,
+            tenant_id,
         )
     )
     return {
@@ -683,9 +749,10 @@ async def sync_public_resource_to_all_keys(
     session: AsyncSession,
     resource_type: str,
     resource_id: str | int,
+    tenant_id: int | None = None,
 ) -> int:
     """将一个公开资源同步到所有主 Key。返回更新的 Key 数量。"""
-    all_main_keys = await ai_key_repo.find_all_main_keys(session)
+    all_main_keys = await ai_key_repo.find_all_main_keys(session, tenant_id=tenant_id)
     updated = 0
     for key in all_main_keys:
         field = getattr(key, resource_type, None)
@@ -707,6 +774,7 @@ async def sync_public_resource_to_all_keys(
                     rate_limits_changed=key.rate_limit_mode
                     == RATE_LIMIT_MODE_PER_MODEL,
                     session=session,
+                    tenant_id=tenant_id,
                 )
     if updated:
         await session.flush()
@@ -719,25 +787,38 @@ async def list_identity(
     page: int = 1,
     page_size: int = 20,
     keyword: str | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
     if tab == "user":
-        return await _list_identity_users(session, page, page_size, keyword)
+        return await _list_identity_users(
+            session, page, page_size, keyword, tenant_id=tenant_id
+        )
     elif tab == "department":
-        return await _list_identity_departments(session, page, page_size, keyword)
+        return await _list_identity_departments(
+            session, page, page_size, keyword, tenant_id=tenant_id
+        )
     elif tab == "project":
-        return await _list_identity_projects(session, page, page_size, keyword)
+        return await _list_identity_projects(
+            session, page, page_size, keyword, tenant_id=tenant_id
+        )
     raise ValidationError(f"无效的 tab 参数: {tab}")
 
 
 async def _list_identity_users(
-    session: AsyncSession, page: int, page_size: int, keyword: str | None
+    session: AsyncSession,
+    page: int,
+    page_size: int,
+    keyword: str | None,
+    tenant_id: int | None = None,
 ) -> dict:
     users, total = await user_repo.find_users_paginated(
-        session, page, page_size, keyword
+        session, page, page_size, keyword, tenant_id=tenant_id
     )
     items = []
     for user in users:
-        user_keys = await ai_key_repo.find_by_user(session, user.id)
+        user_keys = await ai_key_repo.find_by_user(
+            session, user.id, tenant_id=tenant_id
+        )
         main_key = next(
             (k for k in user_keys if k.key_type == KEY_TYPE_PERSONAL_MAIN), None
         )
@@ -772,14 +853,20 @@ async def _list_identity_users(
 
 
 async def _list_identity_departments(
-    session: AsyncSession, page: int, page_size: int, keyword: str | None
+    session: AsyncSession,
+    page: int,
+    page_size: int,
+    keyword: str | None,
+    tenant_id: int | None = None,
 ) -> dict:
     depts, total = await department_repo.find_paginated(
-        session, page, page_size, keyword
+        session, page, page_size, keyword, tenant_id=tenant_id
     )
     items = []
     for dept in depts:
-        dept_keys = await ai_key_repo.find_by_owner(session, "department", dept.id)
+        dept_keys = await ai_key_repo.find_by_owner(
+            session, "department", dept.id, tenant_id=tenant_id
+        )
         main_key = next(
             (k for k in dept_keys if k.key_type == KEY_TYPE_DEPT_MAIN), None
         )
@@ -796,14 +883,20 @@ async def _list_identity_departments(
 
 
 async def _list_identity_projects(
-    session: AsyncSession, page: int, page_size: int, keyword: str | None
+    session: AsyncSession,
+    page: int,
+    page_size: int,
+    keyword: str | None,
+    tenant_id: int | None = None,
 ) -> dict:
     projects, total = await project_repo.find_paginated(
-        session, page, page_size, keyword
+        session, page, page_size, keyword, tenant_id=tenant_id
     )
     items = []
     for proj in projects:
-        proj_keys = await ai_key_repo.find_by_owner(session, "project", proj.id)
+        proj_keys = await ai_key_repo.find_by_owner(
+            session, "project", proj.id, tenant_id=tenant_id
+        )
         main_key = next(
             (k for k in proj_keys if k.key_type == KEY_TYPE_PROJECT_MAIN), None
         )
@@ -822,15 +915,19 @@ async def _list_identity_projects(
 # --- Model limits ---
 
 
-async def get_model_limits(session: AsyncSession, key_id: int) -> list[dict]:
-    key = await ai_key_repo.find_by_id(session, key_id)
+async def get_model_limits(
+    session: AsyncSession, key_id: int, tenant_id: int | None = None
+) -> list[dict]:
+    key = await ai_key_repo.find_by_id(session, key_id, tenant_id=tenant_id)
     if not key:
         raise NotFoundError("ai_key", key_id)
 
     limits = await ai_key_model_limit_repo.find_by_key_id(session, key_id)
     result = []
     for limit in limits:
-        model = await model_repo.find_by_id(session, limit.model_id)
+        model = await model_repo.find_by_id(
+            session, limit.model_id, tenant_id=tenant_id
+        )
         if not model:
             continue
         result.append(
@@ -851,8 +948,9 @@ async def set_model_limits(
     session: AsyncSession,
     key_id: int,
     limits: list[dict],
+    tenant_id: int | None = None,
 ) -> list[dict]:
-    key = await ai_key_repo.find_by_id(session, key_id)
+    key = await ai_key_repo.find_by_id(session, key_id, tenant_id=tenant_id)
     if not key:
         raise NotFoundError("ai_key", key_id)
 
@@ -861,7 +959,7 @@ async def set_model_limits(
     for item in limits:
         mid = item["model_id"]
         incoming_model_ids.add(mid)
-        model = await model_repo.find_by_id(session, mid)
+        model = await model_repo.find_by_id(session, mid, tenant_id=tenant_id)
         if not model:
             raise NotFoundError("model", mid)
 
@@ -891,13 +989,19 @@ async def set_model_limits(
         model_budgets_changed=False,
         rate_limits_changed=key.rate_limit_mode == RATE_LIMIT_MODE_PER_MODEL,
         session=session,
+        tenant_id=tenant_id,
     )
     await session.commit()
-    return await get_model_limits(session, key_id)
+    return await get_model_limits(session, key_id, tenant_id=tenant_id)
 
 
-async def delete_model_limit(session: AsyncSession, key_id: int, model_id: int) -> None:
-    key = await ai_key_repo.find_by_id(session, key_id)
+async def delete_model_limit(
+    session: AsyncSession,
+    key_id: int,
+    model_id: int,
+    tenant_id: int | None = None,
+) -> None:
+    key = await ai_key_repo.find_by_id(session, key_id, tenant_id=tenant_id)
     if not key:
         raise NotFoundError("ai_key", key_id)
 
@@ -914,6 +1018,7 @@ async def delete_model_limit(session: AsyncSession, key_id: int, model_id: int) 
         model_budgets_changed=False,
         rate_limits_changed=key.rate_limit_mode == RATE_LIMIT_MODE_PER_MODEL,
         session=session,
+        tenant_id=tenant_id,
     )
     await session.commit()
 
@@ -927,7 +1032,10 @@ def _serialize_key_with_models(key: AiKey, session) -> dict:
 
 
 async def _resolve_owner(
-    session: AsyncSession, owner_type: str, owner_id: int
+    session: AsyncSession,
+    owner_type: str,
+    owner_id: int,
+    tenant_id: int | None = None,
 ) -> str | None:
     """Resolve the LiteLLM team_id for the owner. Returns None for personal keys."""
     if owner_type == "user":
@@ -936,12 +1044,12 @@ async def _resolve_owner(
             raise NotFoundError("user", owner_id)
         return None
     elif owner_type == "department":
-        dept = await department_repo.find_by_id(session, owner_id)
+        dept = await department_repo.find_by_id(session, owner_id, tenant_id=tenant_id)
         if not dept or not dept.is_active:
             raise NotFoundError("department", owner_id)
         return dept.litellm_team_id
     elif owner_type == "project":
-        project = await project_repo.find_by_id(session, owner_id)
+        project = await project_repo.find_by_id(session, owner_id, tenant_id=tenant_id)
         if not project or not project.is_active:
             raise NotFoundError("project", owner_id)
         return project.litellm_team_id
@@ -949,7 +1057,10 @@ async def _resolve_owner(
 
 
 async def _resolve_litellm_user(
-    session: AsyncSession, owner_type: str, owner_id: int
+    session: AsyncSession,
+    owner_type: str,
+    owner_id: int,
+    tenant_id: int | None = None,
 ) -> str | None:
     """Resolve the LiteLLM user_id. Only for personal keys."""
     if owner_type == "user":
@@ -1010,12 +1121,16 @@ def _base_key_metadata(key: AiKey) -> dict:
     return {"aihelms_key_id": key.id, "key_type": key.key_type}
 
 
-async def _build_key_metadata(session: AsyncSession, key: AiKey) -> dict:
+async def _build_key_metadata(
+    session: AsyncSession, key: AiKey, tenant_id: int | None = None
+) -> dict:
     metadata = _base_key_metadata(key)
     if key.rate_limit_mode != RATE_LIMIT_MODE_PER_MODEL:
         return metadata
 
-    model_tpm_limit, model_rpm_limit = await _build_model_rate_limit_maps(session, key)
+    model_tpm_limit, model_rpm_limit = await _build_model_rate_limit_maps(
+        session, key, tenant_id=tenant_id
+    )
     if model_tpm_limit:
         metadata["model_tpm_limit"] = model_tpm_limit
     if model_rpm_limit:
@@ -1026,6 +1141,7 @@ async def _build_key_metadata(session: AsyncSession, key: AiKey) -> dict:
 async def _build_model_rate_limit_maps(
     session: AsyncSession,
     key: AiKey,
+    tenant_id: int | None = None,
 ) -> tuple[dict[str, int], dict[str, int]]:
     limits = await ai_key_model_limit_repo.find_by_key_id(session, key.id)
     allowed_models = set(key.models or [])
@@ -1033,7 +1149,9 @@ async def _build_model_rate_limit_maps(
     rpm_limits: dict[str, int] = {}
 
     for limit in limits:
-        model = await model_repo.find_by_id(session, limit.model_id)
+        model = await model_repo.find_by_id(
+            session, limit.model_id, tenant_id=tenant_id
+        )
         if not model or model.model_id not in allowed_models:
             continue
         if limit.tpm:

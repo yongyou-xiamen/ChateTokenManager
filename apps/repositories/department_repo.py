@@ -2,19 +2,28 @@ from sqlalchemy import select, func, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.db import Department, UserDepartment, User
+from repositories.base import apply_tenant_filter
 
 
-async def find_all_active(session: AsyncSession) -> list[Department]:
-    result = await session.execute(
-        select(Department)
-        .where(Department.is_active == True)
-        .order_by(Department.sort_order, Department.id)
+async def find_all_active(
+    session: AsyncSession, tenant_id: int | None = None
+) -> list[Department]:
+    stmt = apply_tenant_filter(
+        select(Department).where(Department.is_active == True),
+        Department,
+        tenant_id,
     )
+    result = await session.execute(stmt.order_by(Department.sort_order, Department.id))
     return list(result.scalars().all())
 
 
-async def find_by_id(session: AsyncSession, dept_id: int) -> Department | None:
-    result = await session.execute(select(Department).where(Department.id == dept_id))
+async def find_by_id(
+    session: AsyncSession, dept_id: int, tenant_id: int | None = None
+) -> Department | None:
+    stmt = apply_tenant_filter(
+        select(Department).where(Department.id == dept_id), Department, tenant_id
+    )
+    result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
@@ -113,13 +122,21 @@ async def find_managers(session: AsyncSession, dept_id: int) -> list[User]:
 
 
 async def find_paginated(
-    session: AsyncSession, page: int, page_size: int, keyword: str | None = None
+    session: AsyncSession,
+    page: int,
+    page_size: int,
+    keyword: str | None = None,
+    tenant_id: int | None = None,
 ) -> tuple[list[Department], int]:
-    stmt_count = select(func.count(Department.id)).where(Department.is_active == True)
-    stmt_list = (
-        select(Department)
-        .where(Department.is_active == True)
-        .order_by(Department.sort_order, Department.id)
+    stmt_count = apply_tenant_filter(
+        select(func.count(Department.id)).where(Department.is_active == True),
+        Department,
+        tenant_id,
+    )
+    stmt_list = apply_tenant_filter(
+        select(Department).where(Department.is_active == True),
+        Department,
+        tenant_id,
     )
     if keyword:
         pattern = f"%{keyword}%"
@@ -127,6 +144,7 @@ async def find_paginated(
         stmt_list = stmt_list.where(Department.name.ilike(pattern))
     total = (await session.execute(stmt_count)).scalar_one()
     offset = (page - 1) * page_size
+    stmt_list = stmt_list.order_by(Department.sort_order, Department.id)
     stmt_list = stmt_list.limit(page_size).offset(offset)
     result = await session.execute(stmt_list)
     return list(result.scalars().all()), total

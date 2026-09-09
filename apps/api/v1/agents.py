@@ -157,11 +157,18 @@ async def list_published_agents(
     category: str | None = None,
     platform: str | None = None,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     """List published agents visible to all authenticated users."""
+    tenant_id = current_user.get("tenant_id")
     data = await agent_service.list_agents(
-        session, page, page_size, category, platform, is_published=True
+        session,
+        page,
+        page_size,
+        category,
+        platform,
+        is_published=True,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -174,10 +181,11 @@ async def list_agents(
     platform: str | None = None,
     is_published: bool | None = None,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("agent:read")),
+    current_user: dict = Depends(require_permission("agent:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     data = await agent_service.list_agents(
-        session, page, page_size, category, platform, is_published
+        session, page, page_size, category, platform, is_published, tenant_id=tenant_id
     )
     return {"code": 200, "message": "ok", "data": data}
 
@@ -186,10 +194,11 @@ async def list_agents(
 async def get_agent(
     agent_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("agent:read")),
+    current_user: dict = Depends(require_permission("agent:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        data = await agent_service.get_agent(session, agent_id)
+        data = await agent_service.get_agent(session, agent_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="智能体不存在")
     return {"code": 200, "message": "ok", "data": data}
@@ -201,6 +210,7 @@ async def create_agent(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission("agent:create")),
 ):
+    tenant_id = current_user.get("tenant_id")
     data = await agent_service.create_agent(
         session,
         name=req.name,
@@ -218,6 +228,7 @@ async def create_agent(
         requires_approval=req.requires_approval,
         status=req.status,
         created_by=current_user["id"],
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "智能体创建成功", "data": data}
 
@@ -227,11 +238,14 @@ async def update_agent(
     agent_id: int,
     req: UpdateAgentRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("agent:update")),
+    current_user: dict = Depends(require_permission("agent:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     kwargs = req.model_dump(exclude_none=True)
     try:
-        data = await agent_service.update_agent(session, agent_id, **kwargs)
+        data = await agent_service.update_agent(
+            session, agent_id, tenant_id=tenant_id, **kwargs
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="智能体不存在")
     return {"code": 200, "message": "智能体更新成功", "data": data}
@@ -241,10 +255,11 @@ async def update_agent(
 async def delete_agent(
     agent_id: int,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("agent:delete")),
+    current_user: dict = Depends(require_permission("agent:delete")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
-        await agent_service.delete_agent(session, agent_id)
+        await agent_service.delete_agent(session, agent_id, tenant_id=tenant_id)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="智能体不存在")
     return {"code": 200, "message": "智能体删除成功", "data": None}
@@ -257,8 +272,11 @@ async def resolve_agent_key(
     current_user: dict = Depends(get_current_user),
 ):
     """获取智能体的可用 Key。owner 模式返回绑定的场景 Key，user 模式返回当前用户的场景 Key。"""
+    tenant_id = current_user.get("tenant_id")
     try:
-        data = await agent_service.resolve_key(session, agent_id, current_user["id"])
+        data = await agent_service.resolve_key(
+            session, agent_id, current_user["id"], tenant_id=tenant_id
+        )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="智能体不存在或未绑定 Key")
     return {"code": 200, "message": "ok", "data": data}
@@ -274,9 +292,14 @@ async def record_usage(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         data = await agent_service.record_usage(
-            session, agent_id, current_user["id"], session_id=req.session_id
+            session,
+            agent_id,
+            current_user["id"],
+            session_id=req.session_id,
+            tenant_id=tenant_id,
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="智能体不存在")
@@ -290,11 +313,12 @@ async def list_usage_logs(
     page_size: int = Query(50, ge=1, le=200),
     user_id: int | None = None,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("agent:read")),
+    current_user: dict = Depends(require_permission("agent:read")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         data = await agent_service.list_usage_logs(
-            session, agent_id, page, page_size, user_id
+            session, agent_id, page, page_size, user_id, tenant_id=tenant_id
         )
     except NotFoundError:
         raise HTTPException(status_code=404, detail="智能体不存在")
