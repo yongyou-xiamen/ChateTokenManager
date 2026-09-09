@@ -740,10 +740,10 @@ async def get_public_resources(
         )
     )
     return {
-        "models": [r[0] for r in models_result.all()],
-        "skills": [r[0] for r in skills_result.all()],
-        "mcps": [r[0] for r in mcps_result.all()],
-        "agents": [r[0] for r in agents_result.all()],
+        "models": [r[0] for r in models_result.all() if r[0]],
+        "skills": [r[0] for r in skills_result.all() if r[0]],
+        "mcps": [r[0] for r in mcps_result.all() if r[0]],
+        "agents": [r[0] for r in agents_result.all() if r[0]],
     }
 
 
