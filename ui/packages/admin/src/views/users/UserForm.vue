@@ -287,8 +287,8 @@ onMounted(fetchData)
           </select>
         </div>
 
-        <!-- 租户管理员（仅新建时可见） -->
-        <div v-if="!isEdit" class="mb-4">
+        <!-- 租户管理员（仅超管+新建时可见） -->
+        <div v-if="!isEdit && isSuperAdmin()" class="mb-4">
           <label class="flex cursor-pointer items-center gap-2">
             <input
               v-model="isTenantAdminChecked"
