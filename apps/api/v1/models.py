@@ -392,9 +392,10 @@ async def delete_access_group(
 @router.get("/router-settings/current")
 async def get_router_settings(
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
-    settings = await model_service.get_router_settings(session)
+    tenant_id = current_user.get("tenant_id")
+    settings = await model_service.get_router_settings(session, tenant_id=tenant_id)
     return {"code": 200, "message": "ok", "data": settings}
 
 
@@ -402,8 +403,9 @@ async def get_router_settings(
 async def update_router_settings(
     req: UpdateRouterSettingsRequest,
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:update")),
+    current_user: dict = Depends(require_permission("user:update")),
 ):
+    tenant_id = current_user.get("tenant_id")
     settings = await model_service.update_router_settings(
         session,
         routing_strategy=req.routing_strategy,
@@ -413,6 +415,7 @@ async def update_router_settings(
         num_retries=req.num_retries,
         timeout=req.timeout,
         config=req.config,
+        tenant_id=tenant_id,
     )
     return {"code": 200, "message": "路由设置更新成功", "data": settings}
 

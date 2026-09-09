@@ -29,7 +29,7 @@ def test_square_logo_rejects_file_over_two_megabytes() -> None:
 
 @pytest.mark.asyncio
 async def test_branding_reports_square_logo(monkeypatch) -> None:
-    async def get_branding_row(session):
+    async def get_branding_row(session, tenant_id=None):
         return SimpleNamespace(
             platform_name="测试平台",
             logo_path=None,

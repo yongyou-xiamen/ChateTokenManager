@@ -43,10 +43,12 @@ async def create_project(
     tenant_id: int | None = None,
 ) -> dict:
     project = Project(name=name, description=description)
+    if tenant_id is not None:
+        project.tenant_id = tenant_id
     project = await project_repo.create(session, project)
 
     result = await litellm_client.create_team(
-        team_alias=f"project_{project.id}_{name}",
+        team_alias=f"t{project.tenant_id}_project_{project.id}_{name}",
         metadata={"type": "project", "project_id": project.id},
     )
     project.litellm_team_id = result.get("team_id")

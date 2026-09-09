@@ -616,8 +616,10 @@ async def delete_access_group(
 # --- Router Settings ---
 
 
-async def get_router_settings(session: AsyncSession) -> dict:
-    settings = await model_repo.get_router_settings(session)
+async def get_router_settings(
+    session: AsyncSession, tenant_id: int | None = None
+) -> dict:
+    settings = await model_repo.get_router_settings(session, tenant_id=tenant_id)
     if not settings:
         return {
             "routing_strategy": "simple-shuffle",
@@ -640,10 +642,11 @@ async def update_router_settings(
     num_retries: int | None = None,
     timeout: int | None = None,
     config: dict | None = None,
+    tenant_id: int | None = None,
 ) -> dict:
-    settings = await model_repo.get_router_settings(session)
+    settings = await model_repo.get_router_settings(session, tenant_id=tenant_id)
     if not settings:
-        settings = RouterSettings()
+        settings = RouterSettings(tenant_id=tenant_id or 1)
 
     if routing_strategy is not None:
         settings.routing_strategy = routing_strategy
@@ -660,7 +663,9 @@ async def update_router_settings(
     if config is not None:
         settings.config = config
 
-    settings = await model_repo.upsert_router_settings(session, settings)
+    settings = await model_repo.upsert_router_settings(
+        session, settings, tenant_id=tenant_id
+    )
 
     # Sync to LiteLLM
     litellm_settings = {

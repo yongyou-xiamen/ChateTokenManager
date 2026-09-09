@@ -142,7 +142,9 @@ async def create_key(
             raise ConflictError("该归属已有主 Key")
 
     # Build key alias
-    key_alias = _build_key_alias(key_type, owner_type, owner_id, name)
+    key_alias = _build_key_alias(
+        key_type, owner_type, owner_id, name, tenant_id=tenant_id or 1
+    )
 
     ai_key = AiKey(
         name=name,
@@ -649,7 +651,7 @@ async def create_personal_main_key(
 
     public_resources = await get_public_resources(session, tenant_id=tenant_id)
 
-    key_alias = f"user:{username}/main"
+    key_alias = f"t{tenant_id or 1}_user:{username}/main"
     ai_key = AiKey(
         name="主 Key",
         description="个人主 Key",
@@ -1118,7 +1120,11 @@ def _clean_limit_value(value: object) -> int | None:
 
 
 def _base_key_metadata(key: AiKey) -> dict:
-    return {"aihelms_key_id": key.id, "key_type": key.key_type}
+    return {
+        "aihelms_key_id": key.id,
+        "key_type": key.key_type,
+        "aihelms_tenant_id": key.tenant_id,
+    }
 
 
 async def _build_key_metadata(
@@ -1178,20 +1184,27 @@ async def _expand_rate_limit_map(
     return expanded or limits
 
 
-def _build_key_alias(key_type: str, owner_type: str, owner_id: int, name: str) -> str:
+def _build_key_alias(
+    key_type: str,
+    owner_type: str,
+    owner_id: int,
+    name: str,
+    tenant_id: int = 1,
+) -> str:
+    t = f"t{tenant_id}_"
     if key_type == KEY_TYPE_PERSONAL_MAIN:
-        return f"user:{owner_id}/main"
+        return f"{t}user:{owner_id}/main"
     elif key_type == KEY_TYPE_PERSONAL_SCENE:
-        return f"user:{owner_id}/{name}"
+        return f"{t}user:{owner_id}/{name}"
     elif key_type == KEY_TYPE_DEPT_MAIN:
-        return f"dept:{owner_id}/main"
+        return f"{t}dept:{owner_id}/main"
     elif key_type == KEY_TYPE_DEPT_SCENE:
-        return f"dept:{owner_id}/{name}"
+        return f"{t}dept:{owner_id}/{name}"
     elif key_type == KEY_TYPE_PROJECT_MAIN:
-        return f"proj:{owner_id}/main"
+        return f"{t}proj:{owner_id}/main"
     elif key_type == KEY_TYPE_PROJECT_SCENE:
-        return f"proj:{owner_id}/{name}"
-    return f"{owner_type}:{owner_id}/{name}"
+        return f"{t}proj:{owner_id}/{name}"
+    return f"{t}{owner_type}:{owner_id}/{name}"
 
 
 async def _save_rate_limits(

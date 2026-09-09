@@ -17,9 +17,12 @@ async def get_branding(session: AsyncSession = Depends(get_db)):
 async def update_branding(
     platform_name: str = Form(...),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
-    data = await branding_service.update_platform_name(session, platform_name)
+    tenant_id = current_user.get("tenant_id")
+    data = await branding_service.update_platform_name(
+        session, platform_name, tenant_id=tenant_id
+    )
     return {"code": 200, "message": "品牌配置更新成功", "data": data}
 
 
@@ -27,11 +30,12 @@ async def update_branding(
 async def upload_logo(
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
     ext = (file.filename or "").rsplit(".", 1)[-1].lower()
     content = await file.read(branding_service.MAX_LOGO_BYTES + 1)
-    await branding_service.save_logo(session, content, ext)
+    tenant_id = current_user.get("tenant_id")
+    await branding_service.save_logo(session, content, ext, tenant_id=tenant_id)
     return {"code": 200, "message": "Logo 上传成功", "data": None}
 
 
@@ -39,11 +43,12 @@ async def upload_logo(
 async def upload_favicon(
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
     ext = (file.filename or "").rsplit(".", 1)[-1].lower()
     content = await file.read(branding_service.MAX_FAVICON_BYTES + 1)
-    await branding_service.save_favicon(session, content, ext)
+    tenant_id = current_user.get("tenant_id")
+    await branding_service.save_favicon(session, content, ext, tenant_id=tenant_id)
     return {"code": 200, "message": "Favicon 上传成功", "data": None}
 
 
@@ -51,11 +56,12 @@ async def upload_favicon(
 async def upload_square_logo(
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("user:read")),
+    current_user: dict = Depends(require_permission("user:read")),
 ):
     ext = (file.filename or "").rsplit(".", 1)[-1].lower()
     content = await file.read(branding_service.MAX_SQUARE_LOGO_BYTES + 1)
-    await branding_service.save_square_logo(session, content, ext)
+    tenant_id = current_user.get("tenant_id")
+    await branding_service.save_square_logo(session, content, ext, tenant_id=tenant_id)
     return {"code": 200, "message": "方形 Logo 上传成功", "data": None}
 
 

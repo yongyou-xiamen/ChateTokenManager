@@ -422,7 +422,7 @@ async def _sync_server_to_litellm(server: McpServer) -> None:
             instructions=server.instructions,
             mcp_info=mcp_info,
             extra_headers=server.extra_headers if server.extra_headers else None,
-            allow_all_keys=True,
+            allow_all_keys=False,
         )
     else:
         await litellm_client.create_mcp_server(

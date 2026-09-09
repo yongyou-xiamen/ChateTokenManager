@@ -156,11 +156,17 @@ async def list_catalog(session: AsyncSession) -> list[AiPoliciesRiskCatalog]:
     return list(result.scalars().all())
 
 
-async def get_settings(session: AsyncSession) -> AiPoliciesSettings:
-    settings = await session.get(AiPoliciesSettings, 1)
+async def get_settings(
+    session: AsyncSession, tenant_id: int | None = None
+) -> AiPoliciesSettings:
+    stmt = select(AiPoliciesSettings)
+    if tenant_id is not None:
+        stmt = stmt.where(AiPoliciesSettings.tenant_id == tenant_id)
+    result = await session.execute(stmt.limit(1))
+    settings = result.scalar_one_or_none()
     if settings:
         return settings
-    settings = AiPoliciesSettings(id=1)
+    settings = AiPoliciesSettings(tenant_id=tenant_id or 1)
     session.add(settings)
     await session.flush()
     await session.refresh(settings)

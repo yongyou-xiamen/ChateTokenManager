@@ -233,15 +233,20 @@ async def find_all_access_groups(
 # --- Router Settings ---
 
 
-async def get_router_settings(session: AsyncSession) -> RouterSettings | None:
-    result = await session.execute(select(RouterSettings).limit(1))
+async def get_router_settings(
+    session: AsyncSession, tenant_id: int | None = None
+) -> RouterSettings | None:
+    stmt = select(RouterSettings)
+    if tenant_id is not None:
+        stmt = stmt.where(RouterSettings.tenant_id == tenant_id)
+    result = await session.execute(stmt.limit(1))
     return result.scalar_one_or_none()
 
 
 async def upsert_router_settings(
-    session: AsyncSession, settings: RouterSettings
+    session: AsyncSession, settings: RouterSettings, tenant_id: int | None = None
 ) -> RouterSettings:
-    existing = await get_router_settings(session)
+    existing = await get_router_settings(session, tenant_id=tenant_id)
     if existing:
         existing.routing_strategy = settings.routing_strategy
         existing.fallbacks = settings.fallbacks
@@ -253,6 +258,8 @@ async def upsert_router_settings(
         await session.flush()
         await session.refresh(existing)
         return existing
+    if tenant_id is not None and not settings.tenant_id:
+        settings.tenant_id = tenant_id
     session.add(settings)
     await session.flush()
     await session.refresh(settings)

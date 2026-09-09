@@ -46,6 +46,7 @@ async def create_user(
     position: str = "",
     avatar: str = "",
     is_active: bool = True,
+    tenant_id: int | None = None,
 ) -> dict:
     existing = await user_repo.find_user_by_username_or_email(session, username, email)
     if existing:
@@ -62,14 +63,18 @@ async def create_user(
         avatar=avatar,
         is_active=is_active,
     )
+    if tenant_id is not None:
+        user.tenant_id = tenant_id
     user = await user_repo.create_user(session, user)
 
-    litellm_user_id = f"aihelms_user_{user.id}"
+    litellm_user_id = f"t{user.tenant_id}_user_{user.id}"
     await litellm_client.create_user(litellm_user_id, email)
     user.litellm_user_id = litellm_user_id
 
     # Auto-create personal main key (disabled by default)
-    await ai_key_service.create_personal_main_key(session, user.id, username)
+    await ai_key_service.create_personal_main_key(
+        session, user.id, username, tenant_id=user.tenant_id
+    )
 
     await session.commit()
     return _serialize_user(user)

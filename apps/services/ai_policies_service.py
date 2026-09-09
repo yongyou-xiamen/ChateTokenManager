@@ -1008,7 +1008,9 @@ async def process_skill_audit(session: AsyncSession, audit_pk: int) -> None:
         score_result = ai_policies_denoise.score_groups(findings)
         audit.severity = score_result.severity
         audit.risk_score = score_result.risk_score
-        settings_row = await ai_policies_repo.get_settings(session)
+        settings_row = await ai_policies_repo.get_settings(
+            session, tenant_id=getattr(skill, "tenant_id", None)
+        )
         llm_review: dict | None = None
         if settings_row.llm_review_enabled:
             await _commit_progress(session, audit, 75, 3, "正在进行 AI 深度审查")
@@ -1200,8 +1202,8 @@ async def list_catalog(session: AsyncSession) -> list[dict]:
     return [_serialize_catalog_item(item) for item in await _catalog_items(session)]
 
 
-async def get_settings(session: AsyncSession) -> dict:
-    settings_row = await ai_policies_repo.get_settings(session)
+async def get_settings(session: AsyncSession, tenant_id: int | None = None) -> dict:
+    settings_row = await ai_policies_repo.get_settings(session, tenant_id=tenant_id)
     return {
         "llm_review_enabled": settings_row.llm_review_enabled,
         "llm_review_model_id": settings_row.llm_review_model_id,
@@ -1215,6 +1217,7 @@ async def update_settings(
     llm_review_enabled: bool,
     llm_review_model_id: int | None,
     current_user: dict,
+    tenant_id: int | None = None,
 ) -> dict:
     if llm_review_enabled and not llm_review_model_id:
         raise ValidationError("启用 LLM 审查引擎时必须选择 OpenAI 格式的对话模型")
@@ -1225,11 +1228,11 @@ async def update_settings(
         if not model:
             raise ValidationError("只能选择已启用且包含 OpenAI 格式渠道的对话模型")
 
-    settings_row = await ai_policies_repo.get_settings(session)
+    settings_row = await ai_policies_repo.get_settings(session, tenant_id=tenant_id)
     settings_row.llm_review_enabled = llm_review_enabled
     settings_row.llm_review_model_id = llm_review_model_id
     settings_row.updated_by = int(current_user["id"])
     settings_row.updated_at = _now()
     await session.commit()
     await session.refresh(settings_row)
-    return await get_settings(session)
+    return await get_settings(session, tenant_id=tenant_id)

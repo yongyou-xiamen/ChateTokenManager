@@ -27,8 +27,10 @@ def _branding_dir() -> Path:
     return path
 
 
-async def get_branding(session: AsyncSession) -> dict[str, object]:
-    row = await branding_repo.get(session)
+async def get_branding(
+    session: AsyncSession, tenant_id: int | None = None
+) -> dict[str, object]:
+    row = await branding_repo.get(session, tenant_id=tenant_id)
     return {
         "platform_name": row.platform_name,
         "has_logo": _asset_exists(row.logo_path),
@@ -37,15 +39,17 @@ async def get_branding(session: AsyncSession) -> dict[str, object]:
     }
 
 
-async def update_platform_name(session: AsyncSession, name: str) -> dict[str, object]:
+async def update_platform_name(
+    session: AsyncSession, name: str, tenant_id: int | None = None
+) -> dict[str, object]:
     normalized = name.strip()
     if not normalized:
         raise ValidationError("平台名称不能为空")
     if len(normalized) > 100:
         raise ValidationError("平台名称不能超过 100 个字符")
-    await branding_repo.update(session, platform_name=normalized)
+    await branding_repo.update(session, tenant_id=tenant_id, platform_name=normalized)
     await session.commit()
-    return await get_branding(session)
+    return await get_branding(session, tenant_id=tenant_id)
 
 
 def _validate_image(
@@ -108,6 +112,7 @@ async def _save_asset(
     *,
     favicon: bool = False,
     square_logo: bool = False,
+    tenant_id: int | None = None,
 ) -> None:
     _validate_image(content, ext, favicon=favicon, square_logo=square_logo)
     stem = "square_logo" if square_logo else "favicon" if favicon else "logo"
@@ -124,20 +129,28 @@ async def _save_asset(
         if square_logo
         else "favicon_path" if favicon else "logo_path"
     )
-    await branding_repo.update(session, **{field: str(destination)})
+    await branding_repo.update(
+        session, tenant_id=tenant_id, **{field: str(destination)}
+    )
     await session.commit()
 
 
-async def save_logo(session: AsyncSession, content: bytes, ext: str) -> None:
-    await _save_asset(session, content, ext)
+async def save_logo(
+    session: AsyncSession, content: bytes, ext: str, tenant_id: int | None = None
+) -> None:
+    await _save_asset(session, content, ext, tenant_id=tenant_id)
 
 
-async def save_square_logo(session: AsyncSession, content: bytes, ext: str) -> None:
-    await _save_asset(session, content, ext, square_logo=True)
+async def save_square_logo(
+    session: AsyncSession, content: bytes, ext: str, tenant_id: int | None = None
+) -> None:
+    await _save_asset(session, content, ext, square_logo=True, tenant_id=tenant_id)
 
 
-async def save_favicon(session: AsyncSession, content: bytes, ext: str) -> None:
-    await _save_asset(session, content, ext, favicon=True)
+async def save_favicon(
+    session: AsyncSession, content: bytes, ext: str, tenant_id: int | None = None
+) -> None:
+    await _save_asset(session, content, ext, favicon=True, tenant_id=tenant_id)
 
 
 def _asset_exists(path_value: str | None) -> bool:
@@ -159,16 +172,22 @@ def _read_asset(
     return path.read_bytes(), media_type
 
 
-async def read_logo(session: AsyncSession) -> tuple[bytes, str] | None:
-    row = await branding_repo.get(session)
+async def read_logo(
+    session: AsyncSession, tenant_id: int | None = None
+) -> tuple[bytes, str] | None:
+    row = await branding_repo.get(session, tenant_id=tenant_id)
     return _read_asset(row.logo_path, LOGO_EXTS)
 
 
-async def read_square_logo(session: AsyncSession) -> tuple[bytes, str] | None:
-    row = await branding_repo.get(session)
+async def read_square_logo(
+    session: AsyncSession, tenant_id: int | None = None
+) -> tuple[bytes, str] | None:
+    row = await branding_repo.get(session, tenant_id=tenant_id)
     return _read_asset(row.square_logo_path, LOGO_EXTS)
 
 
-async def read_favicon(session: AsyncSession) -> tuple[bytes, str] | None:
-    row = await branding_repo.get(session)
+async def read_favicon(
+    session: AsyncSession, tenant_id: int | None = None
+) -> tuple[bytes, str] | None:
+    row = await branding_repo.get(session, tenant_id=tenant_id)
     return _read_asset(row.favicon_path, FAVICON_EXTS)

@@ -50,9 +50,10 @@ async def list_audits(
 @router.get("/settings", summary="查询 AI Policies 配置")
 async def get_settings(
     session: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_permission("ai_policies:read")),
+    current_user: dict = Depends(require_permission("ai_policies:read")),
 ):
-    data = await ai_policies_service.get_settings(session)
+    tenant_id = current_user.get("tenant_id")
+    data = await ai_policies_service.get_settings(session, tenant_id=tenant_id)
     return {"code": 200, "message": "ok", "data": data}
 
 
@@ -71,12 +72,14 @@ async def update_settings(
     session: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_permission("ai_policies:config")),
 ):
+    tenant_id = current_user.get("tenant_id")
     try:
         data = await ai_policies_service.update_settings(
             session,
             req.llm_review_enabled,
             req.llm_review_model_id,
             current_user,
+            tenant_id=tenant_id,
         )
     except ValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))

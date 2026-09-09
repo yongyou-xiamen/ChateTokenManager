@@ -349,6 +349,7 @@ async def create_mcp_server(
     allowed_tools: list[str] | None = None,
     extra_headers: list[str] | None = None,
     mcp_info: dict | None = None,
+    allow_all_keys: bool = False,
 ) -> dict:
     data: dict = {
         "server_name": server_name,
@@ -371,7 +372,7 @@ async def create_mcp_server(
         data["extra_headers"] = extra_headers
     if mcp_info:
         data["mcp_info"] = mcp_info
-    data["allow_all_keys"] = True
+    data["allow_all_keys"] = allow_all_keys
     return await _request("POST", "/v1/mcp/server", json_data=data)
 
 

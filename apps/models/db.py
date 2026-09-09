@@ -435,6 +435,7 @@ class RouterSettings(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     routing_strategy: Mapped[str] = mapped_column(String(50), default="simple-shuffle")
     fallbacks: Mapped[list] = mapped_column(JSONB, default=list)
     allowed_fails: Mapped[int] = mapped_column(Integer, default=3)
@@ -840,6 +841,7 @@ class AiPoliciesSettings(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     llm_review_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     llm_review_model_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("aihelms.models.id", ondelete="SET NULL"), nullable=True
@@ -1153,6 +1155,7 @@ class Branding(Base):
     __table_args__ = {"schema": "aihelms"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    tenant_id: Mapped[int] = mapped_column(BigInteger, nullable=False, default=1)
     platform_name: Mapped[str] = mapped_column(Text, nullable=False, default="AIHelms")
     logo_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     square_logo_path: Mapped[str | None] = mapped_column(Text, nullable=True)
